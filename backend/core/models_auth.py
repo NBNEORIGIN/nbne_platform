@@ -4,7 +4,7 @@ Tokens are single-use, time-limited (48h), and tied to a specific user.
 """
 import uuid
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 
@@ -16,7 +16,7 @@ class PasswordToken(models.Model):
         ('reset', 'Password Reset'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_tokens')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_tokens')
     token = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
     purpose = models.CharField(max_length=10, choices=PURPOSE_CHOICES)
     used = models.BooleanField(default=False)

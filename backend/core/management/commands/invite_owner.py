@@ -3,7 +3,7 @@ Management command to create an owner account and send an invite email.
 Usage: python manage.py invite_owner --email owner@example.com --name "Owner Name"
 """
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from core.models_auth import PasswordToken
 from core.auth_views import _send_token_email
 
@@ -18,6 +18,7 @@ class Command(BaseCommand):
         parser.add_argument('--resend', action='store_true', help='Resend invite to existing user')
 
     def handle(self, *args, **options):
+        User = get_user_model()
         email = options['email'].strip().lower()
         full_name = options['name'].strip()
         parts = full_name.split(' ', 1)

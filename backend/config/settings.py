@@ -59,6 +59,9 @@ INSTALLED_APPS = [
     "auditlog",
 ]
 
+# Custom user model
+AUTH_USER_MODEL = 'accounts.User'
+
 # Conditionally register optional modules
 if TENANTS_MODULE_ENABLED:
     INSTALLED_APPS.append('tenants')

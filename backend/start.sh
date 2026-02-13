@@ -7,7 +7,11 @@ python manage.py migrate --noinput || { echo "FATAL: migrations failed"; exit 1;
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "WARNING: collectstatic failed"
 
-# Setup commands — non-fatal, each in subshell so crashes don't kill parent
+# Seed demo tenants (Salon X, Restaurant X, Health Club X, Mind Department, NBNE)
+echo "Seeding demo data..."
+(python manage.py seed_demo) || echo "WARNING: seed_demo failed"
+
+# TMD-origin setup commands — non-fatal
 echo "Running production setup..."
 (python manage.py setup_production) || echo "WARNING: setup_production failed"
 

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from bookings.models import Service, Staff, IntakeWellbeingDisclaimer, ClassPackage
 from decimal import Decimal
 
@@ -8,6 +8,7 @@ class Command(BaseCommand):
     help = 'Setup production data: demo users, default service, disclaimer, and package'
 
     def handle(self, *args, **kwargs):
+        User = get_user_model()
         # Create superuser
         if not User.objects.filter(username='admin').exists():
             User.objects.create_superuser('admin', 'admin@demo.local', 'admin123')

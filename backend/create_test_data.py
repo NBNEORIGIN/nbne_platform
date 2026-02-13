@@ -5,7 +5,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from bookings.models import Service, Staff, IntakeWellbeingDisclaimer, ClassPackage
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from decimal import Decimal
 
 # Create superuser if it doesn't exist

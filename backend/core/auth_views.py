@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.conf import settings
 
 from .models_auth import PasswordToken
@@ -220,6 +220,7 @@ def request_password_reset_view(request):
         return Response({'ok': True})  # Silent — no enumeration
 
     try:
+        User = get_user_model()
         user = User.objects.get(email__iexact=email)
         token_obj = PasswordToken.create_for_user(user, purpose='reset', hours=48)
         _send_token_email(user.email, user.first_name or user.username, str(token_obj.token), 'reset')
@@ -312,6 +313,7 @@ def send_invite_view(request):
     """
     email = request.data.get('email', '').strip().lower()
     try:
+        User = get_user_model()
         user = User.objects.get(email__iexact=email)
         token_obj = PasswordToken.create_for_user(user, purpose='invite', hours=48)
         sent = _send_token_email(user.email, user.first_name or user.username, str(token_obj.token), 'invite')
