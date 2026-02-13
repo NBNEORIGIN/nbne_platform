@@ -1,0 +1,278 @@
+{% extends 'bookings/base.html' %}
+
+{% block title %}Select Time{% endblock %}
+
+{% block progress %}
+<div class="progress-bar">
+    <div class="progress-step completed">1</div>
+    <div class="progress-step completed">2</div>
+    <div class="progress-step active">3</div>
+    <div class="progress-step">4</div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .booking-layout {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 968px) {
+        .booking-layout {
+            grid-template-columns: 1fr;
+        }
+        
+        .summary-panel {
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+    }
+    
+    .date-pills {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .date-pill {
+        flex-shrink: 0;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        min-width: 80px;
+    }
+    
+    .date-pill:hover {
+        border-color: {{ branding.primaryColor|default:'#3B82F6' }};
+    }
+    
+    .date-pill.active {
+        background: {{ branding.primaryColor|default:'#3B82F6' }};
+        color: white;
+        border-color: {{ branding.primaryColor|default:'#3B82F6' }};
+    }
+    
+    .date-pill-day {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    
+    .date-pill-date {
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .time-slots {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .time-slot {
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        font-weight: 500;
+    }
+    
+    .time-slot:hover {
+        border-color: {{ branding.primaryColor|default:'#3B82F6' }};
+        background: #f0f9ff;
+    }
+    
+    .time-slot.selected {
+        background: {{ branding.primaryColor|default:'#3B82F6' }};
+        color: white;
+        border-color: {{ branding.primaryColor|default:'#3B82F6' }};
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+    
+    .no-slots {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+    }
+    
+    .summary-panel {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        height: fit-content;
+    }
+    
+    .summary-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .summary-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+    
+    .summary-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    
+    .summary-value {
+        font-weight: 600;
+        color: #111827;
+    }
+    
+    .summary-price {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: {{ branding.primaryColor|default:'#3B82F6' }};
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="booking-layout">
+    <div class="main-content">
+        <div class="card">
+            <h1>Choose Date & Time</h1>
+            
+            <div class="date-pills" id="datePills">
+                {% for date in dates %}
+                <div class="date-pill {% if forloop.first %}active{% endif %}" data-date="{{ date.date }}">
+                    <div class="date-pill-day">{{ date.display|slice:":3" }}</div>
+                    <div class="date-pill-date">{{ date.display|slice:"5:" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div id="timeSlotsContainer">
+                <div class="loading">Loading available times...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-panel">
+        <div class="summary-title">Booking Summary</div>
+        
+        <div class="summary-item">
+            <div class="summary-label">Service</div>
+            <div class="summary-value">{{ service.name }}</div>
+        </div>
+        
+        <div class="summary-item">
+            <div class="summary-label">Professional</div>
+            <div class="summary-value">{{ staff_name }}</div>
+        </div>
+        
+        <div class="summary-item">
+            <div class="summary-label">Duration</div>
+            <div class="summary-value">{{ service.duration_minutes }} minutes</div>
+        </div>
+        
+        <div class="summary-item" id="summaryDateTime" style="display: none;">
+            <div class="summary-label">Date & Time</div>
+            <div class="summary-value" id="summaryDateTimeValue"></div>
+        </div>
+        
+        <div class="summary-price">${{ service.price }}</div>
+        
+        <form method="post" id="timeForm" style="margin-top: 1.5rem;">
+            {% csrf_token %}
+            <input type="hidden" name="date" id="selectedDate">
+            <input type="hidden" name="time" id="selectedTime">
+            <button type="submit" class="btn btn-primary btn-block" id="continueBtn" disabled>Continue</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedDate = '{{ dates.0.date }}';
+    let selectedTime = null;
+    
+    function loadSlots(date) {
+        const container = document.getElementById('timeSlotsContainer');
+        container.innerHTML = '<div class="loading">Loading available times...</div>';
+        
+        fetch(`/book/time/slots/?service_id={{ service.id }}&staff_id={{ staff_id }}&date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.slots && data.slots.length > 0) {
+                    let html = '<div class="time-slots">';
+                    data.slots.forEach(slot => {
+                        const time = new Date(slot.start_time);
+                        const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        const isoTime = time.toISOString();
+                        html += `<div class="time-slot" data-time="${isoTime}" data-display="${timeStr}">${timeStr}</div>`;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                    
+                    document.querySelectorAll('.time-slot').forEach(slot => {
+                        slot.addEventListener('click', function() {
+                            document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+                            this.classList.add('selected');
+                            selectedTime = this.dataset.time;
+                            document.getElementById('selectedTime').value = selectedTime;
+                            document.getElementById('continueBtn').disabled = false;
+                            
+                            const dateObj = new Date(selectedDate);
+                            const displayDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                            document.getElementById('summaryDateTimeValue').textContent = `${displayDate} at ${this.dataset.display}`;
+                            document.getElementById('summaryDateTime').style.display = 'block';
+                        });
+                    });
+                } else {
+                    container.innerHTML = '<div class="no-slots">No available times for this date. Please choose another day.</div>';
+                }
+            })
+            .catch(error => {
+                container.innerHTML = '<div class="no-slots">Error loading times. Please try again.</div>';
+                console.error('Error:', error);
+            });
+    }
+    
+    document.querySelectorAll('.date-pill').forEach(pill => {
+        pill.addEventListener('click', function() {
+            document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            selectedDate = this.dataset.date;
+            selectedTime = null;
+            document.getElementById('selectedDate').value = selectedDate;
+            document.getElementById('continueBtn').disabled = true;
+            document.getElementById('summaryDateTime').style.display = 'none';
+            loadSlots(selectedDate);
+        });
+    });
+    
+    document.getElementById('selectedDate').value = selectedDate;
+    loadSlots(selectedDate);
+</script>
+{% endblock %}

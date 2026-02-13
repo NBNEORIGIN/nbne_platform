@@ -1,0 +1,226 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | House of Hair{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <img src="{% static 'admin/img/logo.png' %}" alt="House of Hair" style="height: 35px; vertical-align: middle; margin-right: 12px;">
+        House of Hair Management
+    </a>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Professional blue/teal theme matching original */
+    :root {
+        --primary-blue: #417690;
+        --dark-blue: #2c5468;
+        --light-blue: #5a9fb8;
+        --accent-teal: #4a9fb0;
+        --sidebar-bg: #2c5468;
+        --sidebar-hover: #417690;
+    }
+    
+    /* Header */
+    #header {
+        background: var(--dark-blue);
+        color: white;
+        padding: 12px 20px;
+    }
+    
+    #site-name a {
+        color: #ffc;
+        font-size: 1.2em;
+        font-weight: 400;
+        letter-spacing: 0.5px;
+    }
+    
+    #site-name a:hover {
+        color: white;
+    }
+    
+    /* Breadcrumbs */
+    div.breadcrumbs {
+        background: #f8f9fa;
+        color: #666;
+        padding: 10px 20px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    div.breadcrumbs a {
+        color: var(--primary-blue);
+    }
+    
+    div.breadcrumbs a:hover {
+        color: var(--dark-blue);
+    }
+    
+    /* Sidebar navigation */
+    #content-related h3,
+    #content-related h4 {
+        background: var(--sidebar-bg);
+        color: white;
+        padding: 10px 15px;
+        margin: 0;
+    }
+    
+    .module {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .module h2,
+    .module caption,
+    .inline-group h2 {
+        background: var(--primary-blue);
+        color: white;
+        padding: 10px 15px;
+        font-size: 13px;
+        font-weight: 500;
+        margin: 0;
+    }
+    
+    /* Buttons */
+    .button,
+    input[type=submit],
+    input[type=button],
+    .submit-row input,
+    a.button {
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .button:hover,
+    input[type=submit]:hover,
+    input[type=button]:hover,
+    .submit-row input:hover,
+    a.button:hover {
+        background: var(--light-blue);
+    }
+    
+    .button.default,
+    input[type=submit].default,
+    .submit-row input.default {
+        background: var(--accent-teal);
+    }
+    
+    .button.default:hover,
+    input[type=submit].default:hover {
+        background: var(--light-blue);
+    }
+    
+    /* Links */
+    a:link,
+    a:visited {
+        color: var(--primary-blue);
+    }
+    
+    a:hover,
+    a:focus {
+        color: var(--dark-blue);
+    }
+    
+    /* Object tools */
+    .object-tools {
+        float: right;
+        margin-top: -45px;
+    }
+    
+    .object-tools a {
+        background: var(--accent-teal);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .object-tools a:hover {
+        background: var(--light-blue);
+    }
+    
+    /* Tables */
+    #result_list th {
+        background: #f8f9fa;
+        border-bottom: 2px solid var(--primary-blue);
+        padding: 10px;
+    }
+    
+    #result_list tbody tr:hover {
+        background: #f0f7fa;
+    }
+    
+    /* Filters */
+    #changelist-filter {
+        background: #f8f9fa;
+        border-left: 1px solid #e0e0e0;
+    }
+    
+    #changelist-filter h2 {
+        background: var(--sidebar-bg);
+        color: white;
+        padding: 10px 15px;
+        margin: 0;
+    }
+    
+    #changelist-filter li.selected a {
+        color: var(--primary-blue);
+        font-weight: bold;
+    }
+    
+    /* Forms */
+    .form-row {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .selector-chosen h2 {
+        background: var(--primary-blue);
+    }
+    
+    /* Dashboard */
+    #content-main {
+        padding: 20px;
+    }
+    
+    .dashboard .module table th {
+        background: var(--primary-blue);
+        color: white;
+    }
+    
+    /* Action bar */
+    .actions {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+    }
+    
+    .actions select {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 5px;
+    }
+    
+    .actions button {
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+    }
+    
+    .actions button:hover {
+        background: var(--light-blue);
+    }
+</style>
+{% endblock %}

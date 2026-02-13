@@ -1,0 +1,191 @@
+{% extends 'bookings/base.html' %}
+
+{% block title %}Your Details{% endblock %}
+
+{% block progress %}
+<div class="progress-bar">
+    <div class="progress-step completed">1</div>
+    <div class="progress-step completed">2</div>
+    <div class="progress-step completed">3</div>
+    <div class="progress-step active">4</div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+    
+    .form-label .required {
+        color: #ef4444;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: {{ branding.primaryColor|default:'#3B82F6' }};
+    }
+    
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: start;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .checkbox-input {
+        margin-top: 0.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        cursor: pointer;
+    }
+    
+    .checkbox-label {
+        flex: 1;
+        font-size: 0.875rem;
+        color: #374151;
+        cursor: pointer;
+    }
+    
+    .checkbox-label strong {
+        color: #111827;
+    }
+    
+    .summary-box {
+        background: #f0f9ff;
+        border: 2px solid {{ branding.primaryColor|default:'#3B82F6' }};
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .summary-box h2 {
+        color: {{ branding.primaryColor|default:'#3B82F6' }};
+        margin-bottom: 1rem;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+        font-weight: 600;
+        font-size: 1.125rem;
+        padding-top: 1rem;
+    }
+    
+    .summary-label {
+        color: #6b7280;
+    }
+    
+    .summary-value {
+        font-weight: 600;
+        color: #111827;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Your Details</h1>
+    <p style="color: #6b7280; margin-bottom: 1.5rem;">Please provide your information to complete the booking</p>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    <div class="summary-box">
+        <h2>Booking Summary</h2>
+        <div class="summary-row">
+            <span class="summary-label">Service</span>
+            <span class="summary-value">{{ service.name }}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Professional</span>
+            <span class="summary-value">{% if staff %}{{ staff.name }}{% else %}Any Professional{% endif %}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Date & Time</span>
+            <span class="summary-value">{{ booking_date }} at {{ booking_time|slice:":5" }}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Duration</span>
+            <span class="summary-value">{{ service.duration_minutes }} min</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Total</span>
+            <span class="summary-value">${{ service.price }}</span>
+        </div>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label class="form-label" for="name">Full Name <span class="required">*</span></label>
+            <input type="text" id="name" name="name" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+            <input type="email" id="email" name="email" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="phone">Phone Number <span class="required">*</span></label>
+            <input type="tel" id="phone" name="phone" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="notes">Special Requests (Optional)</label>
+            <textarea id="notes" name="notes" class="form-input form-textarea" placeholder="Any special requests or notes for your appointment..."></textarea>
+        </div>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="consent_booking" name="consent_booking" class="checkbox-input" required>
+            <label class="checkbox-label" for="consent_booking">
+                <strong>Booking Communications (Required)</strong><br>
+                I consent to receive booking confirmations, reminders, and updates about my appointment via email and SMS.
+            </label>
+        </div>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="consent_marketing" name="consent_marketing" class="checkbox-input">
+            <label class="checkbox-label" for="consent_marketing">
+                <strong>Marketing Communications (Optional)</strong><br>
+                I would like to receive promotional offers, news, and updates from {{ branding.clientName }}.
+            </label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block">Confirm Booking</button>
+    </form>
+</div>
+{% endblock %}
