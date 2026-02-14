@@ -14,6 +14,7 @@ from core.auth_views import (
     request_password_reset_view, validate_token_view,
     set_password_with_token_view, send_invite_view,
 )
+from core.views_dashboard_v2 import dashboard_today
 
 
 def api_index(request):
@@ -68,6 +69,8 @@ urlpatterns = [
     # Tenant/branding alias (frontend expects /api/tenant/branding/)
     path('api/tenant/branding/', include('core.api_urls_branding')),
     path('api/tenant/', include('core.api_urls_tenant')),
+    # Dashboard v2 — operational incident board (flag checked inside view)
+    path('api/dashboard/today/', dashboard_today, name='dashboard-today'),
     # Core catch-all (health check etc.)
     path('', include('core.urls')),
 ]

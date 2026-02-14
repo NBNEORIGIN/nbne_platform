@@ -42,6 +42,9 @@ CRM_MODULE_ENABLED = config('CRM_MODULE_ENABLED', default=True, cast=bool)
 ANALYTICS_MODULE_ENABLED = config('ANALYTICS_MODULE_ENABLED', default=True, cast=bool)
 TENANTS_MODULE_ENABLED = config('TENANTS_MODULE_ENABLED', default=True, cast=bool)
 
+# --- Dashboard feature flags ------------------------------------------------
+DASHBOARD_TODAY_V2 = config('DASHBOARD_TODAY_V2', default=True, cast=bool)
+
 INSTALLED_APPS = [
     "jazzmin",
     "django.contrib.admin",

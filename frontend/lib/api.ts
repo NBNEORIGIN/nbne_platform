@@ -573,6 +573,11 @@ export async function updateLeadStatus(id: number, status: string) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
 }
 
+// --- Dashboard Today V2 (Operational Incident Board) ---
+export async function getDashboardToday() {
+  return apiFetch<any>('/dashboard/today/')
+}
+
 // --- Analytics ---
 export async function getAnalyticsDashboard() {
   return apiFetch<any>('/analytics/dashboard/')
