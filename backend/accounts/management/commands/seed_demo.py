@@ -1,8 +1,11 @@
 """Management command to seed 3 exemplar demo tenants: Salon X, Restaurant X, Health Club X."""
 from datetime import date, time, timedelta
+from decimal import Decimal
 from django.core.management.base import BaseCommand
+from django.contrib.auth import get_user_model
 from django.utils import timezone
-from accounts.models import User
+
+User = get_user_model()
 
 
 TENANTS = {
@@ -17,12 +20,12 @@ TENANTS = {
         'deposit_percentage': 30,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Cut & Style', 'Cuts', 45, 3500, 1000),
-            ('Colour Full', 'Colour', 120, 9500, 2500),
-            ('Balayage', 'Colour', 150, 14000, 4000),
-            ('Blow Dry', 'Styling', 30, 2500, 0),
-            ('Bridal Package', 'Special', 180, 25000, 7500),
-            ('Gents Cut', 'Cuts', 30, 2000, 0),
+            ('Cut & Style', 'Cuts', 45, '35.00', 1000),
+            ('Colour Full', 'Colour', 120, '95.00', 2500),
+            ('Balayage', 'Colour', 150, '140.00', 4000),
+            ('Blow Dry', 'Styling', 30, '25.00', 0),
+            ('Bridal Package', 'Special', 180, '250.00', 7500),
+            ('Gents Cut', 'Cuts', 30, '20.00', 0),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
@@ -37,12 +40,12 @@ TENANTS = {
         'deposit_percentage': 20,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Table for 2', 'Dining', 90, 0, 0),
-            ('Table for 4', 'Dining', 120, 0, 0),
-            ('Private Dining Room', 'Events', 180, 50000, 10000),
-            ('Afternoon Tea', 'Experiences', 120, 4500, 1500),
-            ('Chef\'s Table', 'Experiences', 150, 12000, 5000),
-            ('Corporate Event', 'Events', 240, 200000, 50000),
+            ('Table for 2', 'Dining', 90, '0.00', 0),
+            ('Table for 4', 'Dining', 120, '0.00', 0),
+            ('Private Dining Room', 'Events', 180, '500.00', 10000),
+            ('Afternoon Tea', 'Experiences', 120, '45.00', 1500),
+            ('Chef\'s Table', 'Experiences', 150, '120.00', 5000),
+            ('Corporate Event', 'Events', 240, '2000.00', 50000),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM')],
     },
@@ -57,12 +60,12 @@ TENANTS = {
         'deposit_percentage': 0,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Personal Training', 'Training', 60, 5000, 1500),
-            ('Group Class', 'Classes', 45, 1200, 0),
-            ('Sports Massage', 'Wellness', 60, 5500, 1500),
-            ('Swimming Lane', 'Facilities', 60, 800, 0),
-            ('Sauna & Steam', 'Wellness', 90, 1500, 0),
-            ('Physiotherapy', 'Medical', 45, 7500, 2000),
+            ('Personal Training', 'Training', 60, '50.00', 1500),
+            ('Group Class', 'Classes', 45, '12.00', 0),
+            ('Sports Massage', 'Wellness', 60, '55.00', 1500),
+            ('Swimming Lane', 'Facilities', 60, '8.00', 0),
+            ('Sauna & Steam', 'Wellness', 90, '15.00', 0),
+            ('Physiotherapy', 'Medical', 45, '75.00', 2000),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
     },
@@ -84,11 +87,11 @@ TENANTS = {
         'deposit_percentage': 50,
         'enabled_modules': ['bookings', 'payments', 'staff', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Mindful Movement & Meditation Class', 'Group Classes', 60, 1000, 0),
-            ('Mindfulness Now 8-Week Group Course', 'Group Classes', 60, 20000, 10000),
-            ('1:1 Mindfulness Session', 'One-to-one', 60, 6500, 3250),
-            ('Workplace Wellbeing', 'Corporate', 60, 0, 0),
-            ('Private Event Session', 'Events', 60, 0, 0),
+            ('Mindful Movement & Meditation Class', 'Group Classes', 60, '10.00', 0),
+            ('Mindfulness Now 8-Week Group Course', 'Group Classes', 60, '200.00', 10000),
+            ('1:1 Mindfulness Session', 'One-to-one', 60, '65.00', 3250),
+            ('Workplace Wellbeing', 'Corporate', 60, '0.00', 0),
+            ('Private Event Session', 'Events', 60, '0.00', 0),
         ],
         'comms_channels': [],
         'staff_users': [
@@ -112,12 +115,12 @@ TENANTS = {
         'deposit_percentage': 25,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Discovery Workshop', 'Consulting', 120, 50000, 15000),
-            ('Platform Setup', 'Onboarding', 240, 150000, 50000),
-            ('Monthly Support', 'Support', 60, 25000, 0),
-            ('Custom Integration', 'Development', 180, 100000, 30000),
-            ('Training Session', 'Training', 90, 15000, 5000),
-            ('Strategy Review', 'Consulting', 60, 30000, 10000),
+            ('Discovery Workshop', 'Consulting', 120, '500.00', 15000),
+            ('Platform Setup', 'Onboarding', 240, '1500.00', 50000),
+            ('Monthly Support', 'Support', 60, '250.00', 0),
+            ('Custom Integration', 'Development', 180, '1000.00', 30000),
+            ('Training Session', 'Training', 90, '150.00', 5000),
+            ('Strategy Review', 'Consulting', 60, '300.00', 10000),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Dev Team', 'TEAM'), ('Client Projects', 'TEAM')],
     },
@@ -228,40 +231,51 @@ class Command(BaseCommand):
         self.stdout.write(f'  Tenant: {ts.business_name} ({"created" if created else "updated"})')
 
     def _seed_bookings(self, cfg, customer):
-        from bookings.models import Service, TimeSlot, Booking
+        from bookings.models import Service, Staff as BookingStaff, Client, Booking
 
         for name, cat, dur, price, dep in cfg['services']:
             Service.objects.get_or_create(
                 name=name,
-                defaults={'category': cat, 'duration_minutes': dur, 'price_pence': price, 'deposit_pence': dep}
+                defaults={
+                    'category': cat,
+                    'duration_minutes': dur,
+                    'price': Decimal(price),
+                    'deposit_pence': dep,
+                    'payment_type': 'deposit' if dep > 0 else ('free' if Decimal(price) == 0 else 'full'),
+                }
             )
         self.stdout.write(f'  Services: {Service.objects.count()}')
 
-        today = date.today()
-        svc = Service.objects.first()
-        for day_offset in range(7):
-            d = today + timedelta(days=day_offset)
-            if d.weekday() >= 6:
-                continue
-            for hour in range(9, 17):
-                TimeSlot.objects.get_or_create(
-                    date=d, start_time=time(hour, 0),
-                    defaults={'end_time': time(hour + 1, 0), 'service': svc, 'max_bookings': 2}
-                )
-        self.stdout.write(f'  TimeSlots: {TimeSlot.objects.count()}')
+        # Create a demo staff member in the bookings.Staff model
+        demo_staff, _ = BookingStaff.objects.get_or_create(
+            email='staff@demo.local',
+            defaults={'name': 'Demo Staff', 'role': 'staff'}
+        )
+        # Link staff to all services
+        demo_staff.services.set(Service.objects.all())
 
-        slots = list(TimeSlot.objects.all()[:5])
-        statuses = ['CONFIRMED', 'PENDING', 'COMPLETED', 'CANCELLED', 'CONFIRMED']
-        for slot, st in zip(slots, statuses):
-            Booking.objects.get_or_create(
-                customer_email=customer.email, time_slot=slot,
-                defaults={
-                    'customer_name': customer.get_full_name(),
-                    'customer_phone': '07700 900001',
-                    'service': svc, 'price_pence': svc.price_pence,
-                    'deposit_pence': svc.deposit_pence, 'status': st,
-                }
-            )
+        # Create a demo client
+        demo_client, _ = Client.objects.get_or_create(
+            email=customer.email,
+            defaults={'name': customer.get_full_name(), 'phone': '07700 900001'}
+        )
+
+        # Create sample bookings across the next week
+        svc = Service.objects.first()
+        if svc and not Booking.objects.exists():
+            today = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+            statuses = ['confirmed', 'pending', 'completed', 'cancelled', 'confirmed']
+            for i, st in enumerate(statuses):
+                start = today + timedelta(days=i + 1)
+                end = start + timedelta(minutes=svc.duration_minutes)
+                Booking.objects.create(
+                    client=demo_client,
+                    service=svc,
+                    staff=demo_staff,
+                    start_time=start,
+                    end_time=end,
+                    status=st,
+                )
         self.stdout.write(f'  Bookings: {Booking.objects.count()}')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
@@ -321,32 +335,32 @@ class Command(BaseCommand):
         self.stdout.write(f'  Custom staff profiles seeded')
 
     def _seed_disclaimer(self, dcfg):
-        """Seed a disclaimer template for the tenant."""
-        from bookings.models import DisclaimerTemplate
-        dt, created = DisclaimerTemplate.objects.get_or_create(
-            title=dcfg['title'],
+        """Seed a disclaimer using the IntakeWellbeingDisclaimer model."""
+        from bookings.models_intake import IntakeWellbeingDisclaimer
+        version = str(dcfg.get('version', '1.0'))
+        dt, created = IntakeWellbeingDisclaimer.objects.get_or_create(
+            version=version,
             defaults={
-                'body': dcfg['body'],
-                'version': dcfg.get('version', 1),
-                'validity_days': dcfg.get('validity_days', 365),
-                'is_active': True,
+                'content': dcfg['body'],
+                'active': True,
             }
         )
-        self.stdout.write(f'  Disclaimer: {dt.title} v{dt.version} ({"created" if created else "exists"})')
+        self.stdout.write(f'  Disclaimer: v{dt.version} ({"created" if created else "exists"})')
 
     def _seed_comms(self, slug, cfg, owner, manager, staff1, staff2):
         try:
-            from comms.models import Channel, Message
+            from comms.models import Channel, ChannelMember, Message
         except Exception:
             self.stdout.write('  Comms module not available — skipping')
             return
 
         channels = []
         for ch_name, ch_type in cfg['comms_channels']:
-            ch, _ = Channel.objects.get_or_create(name=ch_name, defaults={'channel_type': ch_type, 'created_by': owner})
+            ch, _ = Channel.objects.get_or_create(name=ch_name, defaults={'channel_type': ch_type})
             # Only add demo users to channels for demo tenants, not NBNE (real site)
             if slug != 'nbne':
-                ch.members.add(owner, manager, staff1, staff2)
+                for u in [owner, manager, staff1, staff2]:
+                    ChannelMember.objects.get_or_create(channel=ch, user=u)
             channels.append(ch)
 
         if slug != 'nbne' and channels and not Message.objects.filter(channel=channels[0]).exists():
