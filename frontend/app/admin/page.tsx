@@ -28,13 +28,6 @@ interface DashboardData {
   summary: { total: number; critical: number; high: number; warning: number; info: number }
 }
 
-const SEV_BORDER: Record<string, string> = {
-  critical: '#ef4444',
-  high: '#f59e0b',
-  warning: '#d1d5db',
-  info: '#d1d5db',
-}
-
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -89,194 +82,138 @@ export default function AdminDashboard() {
   const activeCount = visibleEvents.length
   const allSorted = data.state === 'sorted' || activeCount === 0
 
-  const toggleStyle = (active: boolean): React.CSSProperties => ({
-    padding: '0.3rem 0.85rem',
-    borderRadius: 5,
+  const tog = (on: boolean) => ({
+    padding: '0.3rem 0.85rem', borderRadius: 5,
     border: '1px solid #d1d5db',
-    backgroundColor: active ? '#111827' : '#fff',
-    color: active ? '#fff' : '#6b7280',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-    cursor: 'pointer',
+    backgroundColor: on ? '#111827' : '#fff',
+    color: on ? '#fff' : '#6b7280',
+    fontSize: '0.8rem', fontWeight: 500 as const, cursor: 'pointer' as const,
   })
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
-      {/* ── Header row ── */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.2rem' }}>
-            Today{!allSorted && <span style={{ fontWeight: 400, fontSize: '1rem', color: '#6b7280' }}> — {activeCount} issue{activeCount !== 1 ? 's' : ''}</span>}
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.15rem' }}>
+            Today
           </h1>
-          <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
-            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+            {allSorted
+              ? 'All sorted. You\u2019re good.'
+              : `${activeCount} thing${activeCount !== 1 ? 's' : ''} need${activeCount === 1 ? 's' : ''} sorting.`
+            }
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.35rem' }}>
-          <button onClick={() => setView('active')} style={toggleStyle(view === 'active')}>Active</button>
-          <button onClick={() => setView('sorted')} style={toggleStyle(view === 'sorted')}>
+          <button onClick={() => setView('active')} style={tog(view === 'active')}>Active</button>
+          <button onClick={() => setView('sorted')} style={tog(view === 'sorted')}>
             Sorted{resolved.length > 0 ? ` (${resolved.length})` : ''}
           </button>
         </div>
       </div>
 
-      {/* ── Sorted view: resolved issues from today ── */}
+      {/* ── Sorted view ── */}
       {view === 'sorted' ? (
         resolved.length === 0 ? (
-          <div style={{
-            padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8,
-            border: '1px solid #e5e7eb', backgroundColor: '#fafafa',
-          }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#374151' }}>
-              Nothing resolved yet today.
-            </div>
+          <div style={{ padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8, border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
+            <div style={{ fontSize: '0.95rem', color: '#6b7280' }}>Nothing resolved yet today.</div>
           </div>
         ) : (
           <div>
             {resolved.map((r, i: number) => (
               <div key={i} style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem',
-                alignItems: 'center',
-                padding: '0.6rem 1rem 0.6rem 12px',
-                borderBottom: '1px solid #f3f4f6',
-                borderLeft: '3px solid #d1fae5',
-                backgroundColor: '#fff',
+                padding: '0.75rem 0', borderBottom: '1px solid #f3f4f6',
+                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
               }}>
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', lineHeight: 1.3 }}>
-                    {r.evt.summary}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.1rem' }}>
-                    {r.evt.detail}
-                  </div>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 500 }}>
-                  {r.action}
-                </div>
+                <div style={{ fontSize: '0.9rem', color: '#374151' }}>{r.evt.detail}</div>
+                <div style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 500, flexShrink: 0, marginLeft: '1rem' }}>{r.action}</div>
               </div>
             ))}
           </div>
         )
-      ) : allSorted ? (
-        <div style={{
-          padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8,
-          border: '1px solid #e5e7eb', backgroundColor: '#fafafa',
-        }}>
-          <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#374151' }}>
-            All issues resolved. Sorted.
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* ── Column headers ── */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem',
-            padding: '0 0 0.5rem 12px',
-            borderBottom: '1px solid #e5e7eb', marginBottom: '0.5rem',
-          }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              What happened
-            </div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Action
-            </div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Alternatives
-            </div>
-          </div>
 
-          {/* ── Issue rows ── */}
+      /* ── Active: all clear ── */
+      ) : allSorted ? (
+        <div style={{ padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8, border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
+          <div style={{ fontSize: '0.95rem', color: '#374151', fontWeight: 500 }}>All sorted. You're good.</div>
+        </div>
+
+      /* ── Active: issue rows ── */
+      ) : (
+        <div>
           {visibleEvents.map((evt: DashboardEvent, i: number) => {
             const key = evtKey(evt)
             const isResolving = key in resolving
-            const borderColor = SEV_BORDER[evt.severity] || '#d1d5db'
             const primary = evt.actions[0]
             const secondary = evt.actions.slice(1)
 
             return (
-              <div
-                key={`${key}-${i}`}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: '1rem',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem 0.75rem 0',
-                  borderBottom: '1px solid #f3f4f6',
-                  borderLeft: `3px solid ${borderColor}`,
-                  paddingLeft: '12px',
-                  backgroundColor: '#fff',
-                  opacity: isResolving ? 0.5 : 1,
-                  transition: 'opacity 0.3s ease',
-                }}
-              >
-                {/* Col 1 — What happened */}
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', lineHeight: 1.3 }}>
-                    {evt.summary}
+              <div key={`${key}-${i}`} style={{
+                padding: '0.85rem 0',
+                borderBottom: '1px solid #f0f0f0',
+                opacity: isResolving ? 0.5 : 1,
+                transition: 'opacity 0.3s ease',
+              }}>
+                {isResolving ? (
+                  <div style={{ fontSize: '0.9rem', color: '#374151' }}>
+                    {resolving[key]} — awaiting response.
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.15rem' }}>
-                    {evt.detail}
-                  </div>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', flexWrap: 'wrap' }}>
 
-                {/* Col 2 — Primary action / feedback */}
-                <div>
-                  {isResolving ? (
-                    <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 500 }}>
-                      {resolving[key]} — awaiting response
+                    {/* Situation */}
+                    <div style={{ flex: '1 1 280px', fontSize: '0.9rem', color: '#111827', lineHeight: 1.5 }}>
+                      {evt.detail}
                     </div>
-                  ) : primary ? (
-                    <div>
-                      <button
-                        onClick={() => handleAction(evt, primary.label)}
-                        style={{
-                          padding: '0.45rem 1rem',
-                          borderRadius: 5,
-                          border: 'none',
-                          backgroundColor: '#111827',
-                          color: '#fff',
-                          fontSize: '0.85rem',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {primary.label}
-                      </button>
-                      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+
+                    {/* Primary action + reason */}
+                    {primary && (
+                      <div style={{ flexShrink: 0 }}>
+                        <button
+                          onClick={() => handleAction(evt, primary.label)}
+                          style={{
+                            padding: '0.4rem 1rem', borderRadius: 5, border: 'none',
+                            backgroundColor: '#111827', color: '#fff',
+                            fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {primary.label}
+                        </button>
+
+                        {/* Secondary actions as text links */}
+                        {secondary.length > 0 && (
+                          <div style={{ marginTop: '0.3rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                            {secondary.map((a: DashboardAction, j: number) => (
+                              <span
+                                key={j}
+                                onClick={() => handleAction(evt, a.label)}
+                                style={{
+                                  fontSize: '0.78rem', color: '#6b7280', cursor: 'pointer',
+                                  textDecoration: 'underline', textUnderlineOffset: '2px',
+                                }}
+                              >
+                                {a.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Reason — small right-aligned text */}
+                    {primary && (
+                      <div style={{ flex: '0 0 auto', fontSize: '0.78rem', color: '#9ca3af', maxWidth: 200, lineHeight: 1.4 }}>
                         {primary.reason}
                       </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Col 3 — Alternatives */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {!isResolving && secondary.map((action: DashboardAction, j: number) => (
-                    <button
-                      key={j}
-                      onClick={() => handleAction(evt, action.label)}
-                      style={{
-                        padding: '0.3rem 0.65rem',
-                        borderRadius: 4,
-                        border: '1px solid #d1d5db',
-                        backgroundColor: '#fff',
-                        color: '#374151',
-                        fontSize: '0.78rem',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
-        </>
+        </div>
       )}
     </div>
   )

@@ -30,23 +30,19 @@
 
   /* ── Main ── */
   .main { flex: 1; padding: 2.5rem; }
-  .content { max-width: 960px; margin: 0 auto; }
+  .content { max-width: 680px; margin: 0 auto; }
 
   /* ── Header ── */
   .header {
     display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
   }
   .header h1 {
     font-size: 1.75rem; font-weight: 700; color: #111827;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
   }
-  .header .issue-count {
-    font-weight: 400; font-size: 1rem; color: #6b7280;
-  }
-  .header .date {
-    font-size: 0.85rem; color: #9ca3af;
-    display: block;
+  .header .subtitle {
+    font-size: 0.9rem; color: #6b7280;
   }
 
   /* ── View toggle ── */
@@ -60,69 +56,38 @@
     background: #111827; color: #fff; border-color: #111827;
   }
 
-  /* ── Resolved row (sorted view) ── */
-  .resolved-row {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-    align-items: center;
-    padding: 0.6rem 1rem 0.6rem 12px;
-    border-bottom: 1px solid #f3f4f6;
-    border-left: 3px solid #d1fae5;
-    background: #fff;
-  }
-  .resolved-row .action-taken {
-    font-size: 0.85rem; color: #059669; font-weight: 500;
-  }
-
-  /* ── Sorted banner ── */
-  .sorted-banner {
+  /* ── Calm banner ── */
+  .calm-banner {
     padding: 3rem 1.5rem; text-align: center; border-radius: 8px;
     border: 1px solid #e5e7eb; background: #fafafa;
   }
-  .sorted-banner p {
-    font-size: 1.05rem; font-weight: 500; color: #374151;
-  }
-
-  /* ── Column headers ── */
-  .col-headers {
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
-    padding: 0 0 0.5rem 15px;
-    border-bottom: 1px solid #e5e7eb; margin-bottom: 0;
-  }
-  .col-headers span {
-    font-size: 0.7rem; font-weight: 600; color: #9ca3af;
-    text-transform: uppercase; letter-spacing: 0.05em;
+  .calm-banner p {
+    font-size: 0.95rem; font-weight: 500; color: #374151;
   }
 
   /* ── Issue row ── */
-  .row {
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
-    align-items: center;
-    padding: 0.75rem 1rem 0.75rem 12px;
-    border-bottom: 1px solid #f3f4f6;
-    border-left: 3px solid #d1d5db;
-    background: #fff;
+  .issue-row {
+    display: flex; align-items: flex-start; gap: 1.25rem; flex-wrap: wrap;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #f0f0f0;
     transition: opacity 0.3s ease;
   }
-  .row.sev-critical { border-left-color: #ef4444; }
-  .row.sev-high     { border-left-color: #f59e0b; }
-  .row.resolving    { opacity: 0.5; pointer-events: none; }
-  .row.resolved     {
+  .issue-row.resolving { opacity: 0.5; pointer-events: none; }
+  .issue-row.resolved {
     opacity: 0; height: 0; padding: 0; margin: 0;
     border: none; overflow: hidden;
     transition: opacity 0.3s ease, height 0s 0.3s;
   }
 
-  /* ── Col 1: What happened ── */
-  .row-what .summary {
-    font-size: 0.9rem; font-weight: 600; color: #111827; line-height: 1.3;
-  }
-  .row-what .context {
-    font-size: 0.8rem; color: #9ca3af; margin-top: 0.1rem;
+  /* Situation text */
+  .issue-row .situation {
+    flex: 1 1 280px; font-size: 0.9rem; color: #111827; line-height: 1.5;
   }
 
-  /* ── Col 2: Primary action ── */
+  /* Action area */
+  .issue-row .action-area { flex-shrink: 0; }
   .btn-primary {
-    display: inline-block; padding: 0.45rem 1rem;
+    display: inline-block; padding: 0.4rem 1rem;
     border-radius: 5px; border: none;
     background: #111827; color: #fff;
     font-size: 0.85rem; font-weight: 500;
@@ -130,28 +95,39 @@
     transition: background 0.15s;
   }
   .btn-primary:hover { background: #1f2937; }
-  .btn-reason {
-    display: block; font-size: 0.7rem; color: #9ca3af; margin-top: 0.2rem;
+  .secondary-links { margin-top: 0.3rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .secondary-links a {
+    font-size: 0.78rem; color: #6b7280; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px;
   }
-  .row-feedback {
-    font-size: 0.85rem; color: #374151; font-weight: 500;
-    display: none;
-  }
-  .row.resolving .row-feedback { display: block; }
-  .row.resolving .row-action-live { display: none; }
+  .secondary-links a:hover { color: #374151; }
 
-  /* ── Col 3: Alternatives ── */
-  .row-alts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .btn-secondary {
-    padding: 0.3rem 0.65rem; border-radius: 4px;
-    border: 1px solid #d1d5db; background: #fff; color: #374151;
-    font-size: 0.78rem; cursor: pointer; white-space: nowrap;
-    transition: background 0.15s;
+  /* Reason text */
+  .issue-row .reason {
+    flex: 0 0 auto; font-size: 0.78rem; color: #9ca3af;
+    max-width: 220px; line-height: 1.4;
   }
-  .btn-secondary:hover { background: #f3f4f6; }
-  .row.resolving .row-alts { visibility: hidden; }
 
-  /* ── Dev toggle ── */
+  /* Feedback (shown during resolve) */
+  .issue-row .feedback {
+    font-size: 0.9rem; color: #374151; display: none;
+  }
+  .issue-row.resolving .feedback { display: block; }
+  .issue-row.resolving .live-content { display: none; }
+
+  /* ── Resolved row (sorted view) ── */
+  .resolved-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .resolved-row .detail { font-size: 0.9rem; color: #374151; }
+  .resolved-row .action-taken {
+    font-size: 0.85rem; color: #059669; font-weight: 500;
+    flex-shrink: 0; margin-left: 1rem;
+  }
+
+  /* ── Dev reset ── */
   .preview-toggle {
     position: fixed; bottom: 1rem; right: 1rem;
     display: flex; gap: 0.4rem; z-index: 10;
@@ -190,8 +166,8 @@
   <!-- Header -->
   <div class="header">
     <div>
-      <h1>Today<span class="issue-count" id="issue-count"> &mdash; 3 issues</span></h1>
-      <span class="date" id="today-date"></span>
+      <h1>Today</h1>
+      <div class="subtitle" id="subtitle">3 things need sorting.</div>
     </div>
     <div class="view-toggle">
       <button class="on" id="btn-active" onclick="switchView('active')">Active</button>
@@ -199,147 +175,121 @@
     </div>
   </div>
 
-  <!-- ═══ STATE A: Active ═══ -->
+  <!-- ═══ Active view ═══ -->
   <div id="state-active">
 
-    <!-- Column headers -->
-    <div class="col-headers">
-      <span>What happened</span>
-      <span>Action</span>
-      <span>Alternatives</span>
-    </div>
-
-    <!-- Row 1: Operational blocker — staff sick -->
-    <div class="row sev-critical" id="row-1">
-      <div class="row-what">
-        <div class="summary">4 bookings affected</div>
-        <div class="context">Chloe off sick today</div>
-      </div>
-      <div>
-        <div class="row-action-live">
-          <button class="btn-primary" onclick="resolveRow('row-1','Request cover from Sam')">Request cover from Sam</button>
-          <span class="btn-reason">Next in 7-day rotation</span>
+    <!-- Row 1 -->
+    <div class="issue-row" id="row-1">
+      <div class="feedback">Request sent to Jordan &mdash; awaiting response.</div>
+      <div class="live-content" style="display:contents">
+        <div class="situation">Chloe is off today. 4 bookings need cover.</div>
+        <div class="action-area">
+          <button class="btn-primary" onclick="resolveRow('row-1','Ask Jordan to cover')">Ask Jordan to cover</button>
+          <div class="secondary-links">
+            <a onclick="resolveRow('row-1','Ask Sam to cover')">Ask Sam</a>
+            <a onclick="resolveRow('row-1','Owner cover')">Owner cover</a>
+          </div>
         </div>
-        <div class="row-feedback">Request sent to Sam &mdash; awaiting response</div>
-      </div>
-      <div class="row-alts">
-        <button class="btn-secondary" onclick="resolveRow('row-1','Request cover from Jordan')">Request Jordan</button>
-        <button class="btn-secondary" onclick="resolveRow('row-1','Owner cover')">Owner cover</button>
+        <div class="reason">Jordan is next in 7-day rotation and available.</div>
       </div>
     </div>
 
-    <!-- Row 2: Operational blocker — unassigned booking -->
-    <div class="row sev-critical" id="row-2">
-      <div class="row-what">
-        <div class="summary">11:00 booking unassigned</div>
-        <div class="context">Full Colour &mdash; Emma Watson</div>
-      </div>
-      <div>
-        <div class="row-action-live">
+    <!-- Row 2 -->
+    <div class="issue-row" id="row-2">
+      <div class="feedback">Assigned to Sam.</div>
+      <div class="live-content" style="display:contents">
+        <div class="situation">11:00 Full Colour for Emma Watson has no stylist.</div>
+        <div class="action-area">
           <button class="btn-primary" onclick="resolveRow('row-2','Assign Sam')">Assign Sam</button>
-          <span class="btn-reason">Available for Full Colour</span>
+          <div class="secondary-links">
+            <a onclick="resolveRow('row-2','Assign Jordan')">Assign Jordan</a>
+            <a onclick="resolveRow('row-2','Reschedule')">Reschedule</a>
+          </div>
         </div>
-        <div class="row-feedback">Assigned to Sam</div>
-      </div>
-      <div class="row-alts">
-        <button class="btn-secondary" onclick="resolveRow('row-2','Assign Jordan')">Assign Jordan</button>
-        <button class="btn-secondary" onclick="resolveRow('row-2','Reschedule')">Reschedule</button>
+        <div class="reason">Sam is qualified for Full Colour and available at 11:00.</div>
       </div>
     </div>
 
-    <!-- Row 3: Revenue risk — deposit missing -->
-    <div class="row sev-high" id="row-3">
-      <div class="row-what">
-        <div class="summary">&pound;85 deposit missing &mdash; 14:00</div>
-        <div class="context">Sarah Connor &mdash; Balayage</div>
-      </div>
-      <div>
-        <div class="row-action-live">
+    <!-- Row 3 -->
+    <div class="issue-row" id="row-3">
+      <div class="feedback">Payment request sent.</div>
+      <div class="live-content" style="display:contents">
+        <div class="situation">Sarah Connor&rsquo;s Balayage at 14:00 has no deposit. &pound;85 at risk.</div>
+        <div class="action-area">
           <button class="btn-primary" onclick="resolveRow('row-3','Request payment')">Request payment</button>
-          <span class="btn-reason">&pound;85.00 outstanding</span>
+          <div class="secondary-links">
+            <a onclick="resolveRow('row-3','Mark as paid')">Mark as paid</a>
+            <a onclick="resolveRow('row-3','Cancel booking')">Cancel booking</a>
+          </div>
         </div>
-        <div class="row-feedback">Payment request sent</div>
-      </div>
-      <div class="row-alts">
-        <button class="btn-secondary" onclick="resolveRow('row-3','Mark as paid')">Mark as paid</button>
-        <button class="btn-secondary" onclick="resolveRow('row-3','Cancel booking')">Cancel booking</button>
+        <div class="reason">&pound;85.00 outstanding. No deposit recorded.</div>
       </div>
     </div>
 
   </div>
 
-  <!-- ═══ Sorted view: resolved today ═══ -->
+  <!-- ═══ Sorted view ═══ -->
   <div id="view-sorted" style="display: none;">
     <div id="resolved-list"></div>
-    <div id="resolved-empty" class="sorted-banner">
+    <div id="resolved-empty" class="calm-banner">
       <p>Nothing resolved yet today.</p>
     </div>
   </div>
 
-  <!-- ═══ All clear banner ═══ -->
+  <!-- ═══ All clear ═══ -->
   <div id="all-clear" style="display: none;">
-    <div class="sorted-banner">
-      <p>All issues resolved. Sorted.</p>
+    <div class="calm-banner">
+      <p>All sorted. You&rsquo;re good.</p>
     </div>
   </div>
 
 </div>
 </div>
 
-<!-- Dev: reset button -->
+<!-- Dev reset -->
 <div class="preview-toggle">
   <button class="active" onclick="resetDemo()">Reset Demo</button>
 </div>
 
 <script>
-  document.getElementById('today-date').textContent =
-    new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
   const totalRows = 3;
   let resolvedCount = 0;
-  let currentView = 'active';
   const resolvedItems = [];
 
-  // Row data for building resolved view
   const rowData = {
-    'row-1': { summary: '4 bookings affected', context: 'Chloe off sick today' },
-    'row-2': { summary: '11:00 booking unassigned', context: 'Full Colour \u2014 Emma Watson' },
-    'row-3': { summary: '\u00A385 deposit missing \u2014 14:00', context: 'Sarah Connor \u2014 Balayage' },
+    'row-1': { detail: 'Chloe is off today. 4 bookings need cover.' },
+    'row-2': { detail: '11:00 Full Colour for Emma Watson has no stylist.' },
+    'row-3': { detail: 'Sarah Connor\u2019s Balayage at 14:00 has no deposit. \u00A385 at risk.' },
   };
 
   function resolveRow(id, label) {
     const row = document.getElementById(id);
     if (!row || row.classList.contains('resolving')) return;
 
-    const fb = row.querySelector('.row-feedback');
-    fb.textContent = label + ' \u2014 awaiting response';
+    row.querySelector('.feedback').textContent = label + ' \u2014 awaiting response.';
     row.classList.add('resolving');
 
     setTimeout(() => {
       row.classList.add('resolved');
       resolvedCount++;
-      resolvedItems.push({ ...rowData[id], action: label });
-      updateHeader();
-      renderResolved();
-
-      if (resolvedCount >= totalRows) {
-        document.getElementById('state-active').style.display = 'none';
-        document.getElementById('all-clear').style.display = 'block';
-      }
+      resolvedItems.push({ detail: rowData[id].detail, action: label });
+      updateUI();
     }, 1500);
   }
 
-  function updateHeader() {
+  function updateUI() {
     const remaining = totalRows - resolvedCount;
-    const el = document.getElementById('issue-count');
+    const sub = document.getElementById('subtitle');
     if (remaining <= 0) {
-      el.textContent = '';
+      sub.textContent = 'All sorted. You\u2019re good.';
+      document.getElementById('state-active').style.display = 'none';
+      document.getElementById('all-clear').style.display = 'block';
     } else {
-      el.innerHTML = ' &mdash; ' + remaining + ' issue' + (remaining !== 1 ? 's' : '');
+      sub.textContent = remaining + ' thing' + (remaining !== 1 ? 's' : '') +
+        ' need' + (remaining === 1 ? 's' : '') + ' sorting.';
     }
-    // Update sorted button count
-    const btnSorted = document.getElementById('btn-sorted');
-    btnSorted.textContent = 'Sorted' + (resolvedItems.length > 0 ? ' (' + resolvedItems.length + ')' : '');
+    document.getElementById('btn-sorted').textContent =
+      'Sorted' + (resolvedItems.length > 0 ? ' (' + resolvedItems.length + ')' : '');
   }
 
   function renderResolved() {
@@ -353,21 +303,15 @@
     empty.style.display = 'none';
     list.innerHTML = resolvedItems.map(r =>
       '<div class="resolved-row">' +
-        '<div class="row-what">' +
-          '<div class="summary">' + r.summary + '</div>' +
-          '<div class="context">' + r.context + '</div>' +
-        '</div>' +
+        '<div class="detail">' + r.detail + '</div>' +
         '<div class="action-taken">' + r.action + '</div>' +
       '</div>'
     ).join('');
   }
 
   function switchView(view) {
-    currentView = view;
-    const btnActive = document.getElementById('btn-active');
-    const btnSorted = document.getElementById('btn-sorted');
-    btnActive.classList.toggle('on', view === 'active');
-    btnSorted.classList.toggle('on', view === 'sorted');
+    document.getElementById('btn-active').classList.toggle('on', view === 'active');
+    document.getElementById('btn-sorted').classList.toggle('on', view === 'sorted');
 
     if (view === 'sorted') {
       document.getElementById('state-active').style.display = 'none';
@@ -389,18 +333,18 @@
   function resetDemo() {
     resolvedCount = 0;
     resolvedItems.length = 0;
-    currentView = 'active';
+    document.getElementById('subtitle').textContent = '3 things need sorting.';
     document.getElementById('state-active').style.display = 'block';
     document.getElementById('view-sorted').style.display = 'none';
     document.getElementById('all-clear').style.display = 'none';
     document.getElementById('btn-active').classList.add('on');
     document.getElementById('btn-sorted').classList.remove('on');
-    document.querySelectorAll('.row').forEach(r => {
+    document.getElementById('btn-sorted').textContent = 'Sorted';
+    document.querySelectorAll('.issue-row').forEach(r => {
       r.classList.remove('resolving', 'resolved');
       r.style.height = ''; r.style.padding = ''; r.style.margin = '';
       r.style.border = ''; r.style.overflow = '';
     });
-    updateHeader();
     renderResolved();
   }
 </script>
