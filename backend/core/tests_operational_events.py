@@ -206,15 +206,15 @@ class OperationalEventsTest(TestCase):
         self.assertEqual(state['state'], 'active')
 
     # -----------------------------------------------------------------
-    # Severity ordering
+    # Category ordering (operational blockers → revenue → staff → compliance)
     # -----------------------------------------------------------------
-    def test_events_sorted_by_severity(self):
+    def test_events_sorted_by_category(self):
         from bookings.models_availability import LeaveRequest
         from core.operational_events import get_operational_events
         now = timezone.now()
-        # Create a warning event (cancelled booking)
+        # Create a revenue event (cancelled booking)
         self._create_booking(status='cancelled')
-        # Create a critical event (sick leave)
+        # Create an operational blocker (sick leave — should sort first)
         LeaveRequest.objects.create(
             staff_member=self.staff,
             leave_type='SICK',
@@ -224,13 +224,17 @@ class OperationalEventsTest(TestCase):
         )
         events = get_operational_events()
         if len(events) >= 2:
-            severities = [e['severity'] for e in events]
-            severity_order = {'critical': 0, 'high': 1, 'warning': 2, 'info': 3}
+            types = [e['event_type'] for e in events]
+            category_order = {
+                'staff_sick': 0, 'booking_unassigned': 1, 'incident_open': 2,
+                'deposit_missing': 3, 'booking_cancelled': 4,
+                'leave_pending': 5, 'compliance_expiry': 6,
+            }
             ordered = all(
-                severity_order.get(severities[i], 99) <= severity_order.get(severities[i+1], 99)
-                for i in range(len(severities) - 1)
+                category_order.get(types[i], 99) <= category_order.get(types[i+1], 99)
+                for i in range(len(types) - 1)
             )
-            self.assertTrue(ordered, f'Events not sorted by severity: {severities}')
+            self.assertTrue(ordered, f'Events not sorted by category: {types}')
 
 
 @override_settings(

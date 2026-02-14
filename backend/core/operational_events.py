@@ -52,9 +52,21 @@ def get_operational_events(compliance_lookahead_days=14):
     if getattr(settings, 'COMPLIANCE_MODULE_ENABLED', False):
         events.extend(_compliance_events(today_start, compliance_lookahead_days))
 
-    # Sort: critical first, then high, warning, info
-    severity_order = {'critical': 0, 'high': 1, 'warning': 2, 'info': 3}
-    events.sort(key=lambda e: severity_order.get(e['severity'], 99))
+    # Sort by operational priority:
+    # 1) Today's operational blockers (sick staff, unassigned bookings)
+    # 2) Revenue risks (deposit missing, cancelled bookings)
+    # 3) Staff/rota conflicts (pending leave)
+    # 4) Compliance (always last)
+    category_order = {
+        'staff_sick': 0,
+        'booking_unassigned': 1,
+        'incident_open': 2,
+        'deposit_missing': 3,
+        'booking_cancelled': 4,
+        'leave_pending': 5,
+        'compliance_expiry': 6,
+    }
+    events.sort(key=lambda e: category_order.get(e['event_type'], 99))
 
     return events
 
@@ -67,26 +79,13 @@ def get_dashboard_state(events):
     if not events:
         return {
             'state': 'sorted',
-            'message': 'No active issues today.',
+            'message': 'No active issues. Sorted.',
         }
 
-    critical = sum(1 for e in events if e['severity'] == 'critical')
-    high = sum(1 for e in events if e['severity'] == 'high')
     total = len(events)
-
-    if critical > 0:
-        return {
-            'state': 'active',
-            'message': f'{total} issue{"s" if total != 1 else ""} requiring attention. {critical} critical.',
-        }
-    if high > 0:
-        return {
-            'state': 'active',
-            'message': f'{total} issue{"s" if total != 1 else ""} requiring attention.',
-        }
     return {
         'state': 'active',
-        'message': f'{total} item{"s" if total != 1 else ""} to review.',
+        'message': f'{total} issue{"s" if total != 1 else ""} need{"" if total != 1 else "s"} attention.',
     }
 
 
