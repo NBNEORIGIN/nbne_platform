@@ -75,3 +75,13 @@ Rev 3 merges the battle-tested Mind Department backend (bookings, compliance, CR
 - **Health Club X** — Gym with bookings, payments, compliance, documents
 - **Mind Department** — Mindfulness practice (production reference)
 - **NBNE** — Internal dogfooding
+
+## Versioning & Release Discipline
+See [docs/versioning.md](docs/versioning.md) for the full release model.
+
+| Item            | Value                                    |
+|-----------------|------------------------------------------|
+| Current tag     | `v0.9.0`                                 |
+| Branch model    | `main` (dev) → `release` (stable) → tags |
+| CI              | GitHub Actions on PRs into `release`     |
+| Makefile        | `make validate`, `make tag`, `make test` |
