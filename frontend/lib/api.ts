@@ -578,6 +578,38 @@ export async function getDashboardToday() {
   return apiFetch<any>('/dashboard/today/')
 }
 
+// --- Business Events (Event Logging Discipline) ---
+export async function logBusinessEvent(data: {
+  event_type: string
+  action_label: string
+  source_event_type?: string
+  source_entity_type?: string
+  source_entity_id?: number | null
+  action_detail?: string
+  payload?: Record<string, any>
+}) {
+  return apiFetch<any>('/events/log/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getTodayResolved() {
+  return apiFetch<any>('/events/today/')
+}
+
+export async function declineCover(data: {
+  absent_staff_id: number
+  declined_staff_id: number
+  declined_staff_ids: number[]
+  source_entity_id?: number | null
+  service_id?: number | null
+}) {
+  return apiFetch<any>('/events/decline/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// --- Assistant (Stateless Command Parser) ---
+export async function parseAssistantCommand(text: string) {
+  return apiFetch<any>('/assistant/parse/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 // --- Analytics ---
 export async function getAnalyticsDashboard() {
   return apiFetch<any>('/analytics/dashboard/')

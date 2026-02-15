@@ -17,33 +17,45 @@
     width: 220px; background: #1e293b; color: #e2e8f0;
     padding: 1.5rem 1rem; flex-shrink: 0;
   }
-  .sidebar h2 {
-    font-size: 0.9rem; margin-bottom: 1.5rem; color: #fff;
-    letter-spacing: 0.03em; font-weight: 600;
-  }
-  .sidebar a {
-    display: block; padding: 0.5rem 0.75rem; border-radius: 6px;
-    color: #94a3b8; text-decoration: none; font-size: 0.85rem; margin-bottom: 2px;
-  }
+  .sidebar h2 { font-size: 0.9rem; margin-bottom: 1.5rem; color: #fff; letter-spacing: 0.03em; font-weight: 600; }
+  .sidebar a { display: block; padding: 0.5rem 0.75rem; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 0.85rem; margin-bottom: 2px; }
   .sidebar a.active { background: #334155; color: #fff; font-weight: 600; }
   .sidebar a:hover { background: #334155; color: #fff; }
 
   /* ── Main ── */
   .main { flex: 1; padding: 2.5rem; }
-  .content { max-width: 680px; margin: 0 auto; }
+  .content { max-width: 960px; margin: 0 auto; }
+
+  /* ── Command bar ── */
+  .cmd-bar {
+    display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+    padding: 0.6rem 0.75rem; border-radius: 8px;
+    border: 1px solid #e5e7eb; background: #fff;
+  }
+  .cmd-bar input {
+    flex: 1; border: none; outline: none; font-size: 0.9rem;
+    color: #111827; background: transparent;
+  }
+  .cmd-bar button {
+    padding: 0.35rem 0.75rem; border-radius: 5px; border: none;
+    background: #111827; color: #fff; font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  }
+  .cmd-confirm {
+    margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 8px;
+    border: 1px solid #e5e7eb; background: #fafafa;
+  }
+  .cmd-confirm .msg { font-size: 0.9rem; color: #111827; margin-bottom: 0.5rem; }
+  .cmd-confirm .btns { display: flex; gap: 0.5rem; }
+  .cmd-confirm .btns button {
+    padding: 0.35rem 0.85rem; border-radius: 5px; font-size: 0.8rem; cursor: pointer;
+  }
+  .cmd-confirm .btn-ok { border: none; background: #111827; color: #fff; font-weight: 500; }
+  .cmd-confirm .btn-cancel { border: 1px solid #d1d5db; background: #fff; color: #6b7280; }
 
   /* ── Header ── */
-  .header {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 1.75rem;
-  }
-  .header h1 {
-    font-size: 1.75rem; font-weight: 700; color: #111827;
-    margin-bottom: 0.15rem;
-  }
-  .header .subtitle {
-    font-size: 0.9rem; color: #6b7280;
-  }
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.25rem; }
+  .header h1 { font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 0.15rem; }
+  .header .subtitle { font-size: 0.9rem; color: #6b7280; }
 
   /* ── View toggle ── */
   .view-toggle { display: flex; gap: 0.35rem; }
@@ -52,80 +64,72 @@
     border: 1px solid #d1d5db; background: #fff; color: #6b7280;
     font-size: 0.8rem; font-weight: 500; cursor: pointer;
   }
-  .view-toggle button.on {
-    background: #111827; color: #fff; border-color: #111827;
-  }
+  .view-toggle button.on { background: #111827; color: #fff; border-color: #111827; }
 
   /* ── Calm banner ── */
   .calm-banner {
     padding: 3rem 1.5rem; text-align: center; border-radius: 8px;
     border: 1px solid #e5e7eb; background: #fafafa;
   }
-  .calm-banner p {
-    font-size: 0.95rem; font-weight: 500; color: #374151;
-  }
+  .calm-banner p { font-size: 0.95rem; font-weight: 500; color: #374151; }
 
-  /* ── Issue row ── */
+  /* ── Column headers ── */
+  .col-head {
+    display: grid; gap: 0.75rem;
+    padding: 0 0 0.4rem 0; border-bottom: 1px solid #e5e7eb;
+  }
+  .col-head span {
+    font-size: 0.7rem; font-weight: 600; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .col-head.active-head { grid-template-columns: 2fr 1.2fr 1fr 1fr; }
+  .col-head.sorted-head { grid-template-columns: 1fr 140px 100px 80px; }
+
+  /* ── Issue row (4-col grid) ── */
   .issue-row {
-    display: flex; align-items: flex-start; gap: 1.25rem; flex-wrap: wrap;
-    padding: 0.85rem 0;
-    border-bottom: 1px solid #f0f0f0;
+    display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr; gap: 0.75rem;
+    padding: 0.65rem 0; border-bottom: 1px solid #f3f4f6;
+    align-items: flex-start;
     transition: opacity 0.3s ease;
   }
-  .issue-row.resolving { opacity: 0.5; pointer-events: none; }
+  .issue-row.resolving { opacity: 0.4; pointer-events: none; }
   .issue-row.resolved {
     opacity: 0; height: 0; padding: 0; margin: 0;
     border: none; overflow: hidden;
     transition: opacity 0.3s ease, height 0s 0.3s;
   }
-
-  /* Situation text */
-  .issue-row .situation {
-    flex: 1 1 280px; font-size: 0.9rem; color: #111827; line-height: 1.5;
-  }
-
-  /* Action area */
-  .issue-row .action-area { flex-shrink: 0; }
-  .btn-primary {
-    display: inline-block; padding: 0.4rem 1rem;
-    border-radius: 5px; border: none;
-    background: #111827; color: #fff;
-    font-size: 0.85rem; font-weight: 500;
-    cursor: pointer; white-space: nowrap;
-    transition: background 0.15s;
-  }
-  .btn-primary:hover { background: #1f2937; }
-  .secondary-links { margin-top: 0.3rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
-  .secondary-links a {
-    font-size: 0.78rem; color: #6b7280; cursor: pointer;
-    text-decoration: underline; text-underline-offset: 2px;
-  }
-  .secondary-links a:hover { color: #374151; }
-
-  /* Reason text */
-  .issue-row .reason {
-    flex: 0 0 auto; font-size: 0.78rem; color: #9ca3af;
-    max-width: 220px; line-height: 1.4;
-  }
-
-  /* Feedback (shown during resolve) */
+  .issue-row .what { font-size: 0.88rem; color: #111827; line-height: 1.45; }
+  .issue-row .why { font-size: 0.82rem; color: #6b7280; line-height: 1.4; }
   .issue-row .feedback {
-    font-size: 0.9rem; color: #374151; display: none;
+    grid-column: 1 / -1; font-size: 0.88rem; color: #374151; display: none;
   }
   .issue-row.resolving .feedback { display: block; }
-  .issue-row.resolving .live-content { display: none; }
+  .issue-row.resolving .what,
+  .issue-row.resolving .why,
+  .issue-row.resolving .act,
+  .issue-row.resolving .opts { display: none; }
+
+  .btn-primary {
+    padding: 0.35rem 0.75rem; border-radius: 5px; border: none;
+    background: #111827; color: #fff;
+    font-size: 0.82rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary:hover { background: #1f2937; }
+  .opts a {
+    display: block; font-size: 0.78rem; color: #6b7280; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px; margin-bottom: 0.15rem;
+  }
+  .opts a:hover { color: #374151; }
 
   /* ── Resolved row (sorted view) ── */
   .resolved-row {
-    display: flex; align-items: baseline; justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #f3f4f6;
+    display: grid; grid-template-columns: 1fr 140px 100px 80px; gap: 0.75rem;
+    padding: 0.6rem 0; border-bottom: 1px solid #f3f4f6; align-items: baseline;
   }
-  .resolved-row .detail { font-size: 0.9rem; color: #374151; }
-  .resolved-row .action-taken {
-    font-size: 0.85rem; color: #059669; font-weight: 500;
-    flex-shrink: 0; margin-left: 1rem;
-  }
+  .resolved-row .action { font-size: 0.88rem; color: #059669; font-weight: 500; }
+  .resolved-row .who { font-size: 0.82rem; color: #6b7280; }
+  .resolved-row .type { font-size: 0.78rem; color: #9ca3af; }
+  .resolved-row .time { font-size: 0.78rem; color: #9ca3af; }
 
   /* ── Dev reset ── */
   .preview-toggle {
@@ -137,9 +141,7 @@
     border: 1px solid #d1d5db; background: #fff; color: #374151;
     font-size: 0.75rem; cursor: pointer;
   }
-  .preview-toggle button.active {
-    background: #111827; color: #fff; border-color: #111827;
-  }
+  .preview-toggle button.active { background: #111827; color: #fff; border-color: #111827; }
 </style>
 </head>
 <body>
@@ -163,6 +165,20 @@
 <div class="main">
 <div class="content">
 
+  <!-- Global Command Bar -->
+  <div class="cmd-bar">
+    <input id="cmd-input" type="text" placeholder="Type what happened or what you want to do&hellip;"
+           onkeydown="if(event.key==='Enter')parseCmd()">
+    <button onclick="parseCmd()">Go</button>
+  </div>
+  <div class="cmd-confirm" id="cmd-confirm" style="display:none">
+    <div class="msg" id="cmd-msg"></div>
+    <div class="btns">
+      <button class="btn-ok" onclick="confirmCmd()">Confirm</button>
+      <button class="btn-cancel" onclick="cancelCmd()">Cancel</button>
+    </div>
+  </div>
+
   <!-- Header -->
   <div class="header">
     <div>
@@ -177,61 +193,54 @@
 
   <!-- ═══ Active view ═══ -->
   <div id="state-active">
+    <div class="col-head active-head">
+      <span>What happened</span><span>Why it matters</span><span>Action</span><span>Options</span>
+    </div>
 
-    <!-- Row 1 -->
+    <!-- Row 1 — Staff sick -->
     <div class="issue-row" id="row-1">
-      <div class="feedback">Request sent to Jordan &mdash; awaiting response.</div>
-      <div class="live-content" style="display:contents">
-        <div class="situation">Chloe is off today. 4 bookings need cover.</div>
-        <div class="action-area">
-          <button class="btn-primary" onclick="resolveRow('row-1','Ask Jordan to cover')">Ask Jordan to cover</button>
-          <div class="secondary-links">
-            <a onclick="resolveRow('row-1','Ask Sam to cover')">Ask Sam</a>
-            <a onclick="resolveRow('row-1','Owner cover')">Owner cover</a>
-          </div>
-        </div>
-        <div class="reason">Jordan is next in 7-day rotation and available.</div>
+      <div class="feedback">Ask Jordan to cover &mdash; awaiting response.</div>
+      <div class="what">Chloe is off today. 4 bookings need cover.</div>
+      <div class="why">4 bookings affected</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-1','Ask Jordan to cover','Cover Requested','07:02')">Ask Jordan to cover</button></div>
+      <div class="opts">
+        <a onclick="resolveRow('row-1','Ask Sam to cover','Cover Requested','07:02')">Ask Sam</a>
+        <a onclick="resolveRow('row-1','Owner cover','Owner Override','07:02')">Owner cover</a>
       </div>
     </div>
 
-    <!-- Row 2 -->
+    <!-- Row 2 — Unassigned booking -->
     <div class="issue-row" id="row-2">
       <div class="feedback">Assigned to Sam.</div>
-      <div class="live-content" style="display:contents">
-        <div class="situation">11:00 Full Colour for Emma Watson has no stylist.</div>
-        <div class="action-area">
-          <button class="btn-primary" onclick="resolveRow('row-2','Assign Sam')">Assign Sam</button>
-          <div class="secondary-links">
-            <a onclick="resolveRow('row-2','Assign Jordan')">Assign Jordan</a>
-            <a onclick="resolveRow('row-2','Reschedule')">Reschedule</a>
-          </div>
-        </div>
-        <div class="reason">Sam is qualified for Full Colour and available at 11:00.</div>
+      <div class="what">11:00 Full Colour for Emma Watson has no stylist.</div>
+      <div class="why">No one assigned &mdash; booking at risk (today).</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-2','Assign Sam','Booking Assigned','07:03')">Assign Sam</button></div>
+      <div class="opts">
+        <a onclick="resolveRow('row-2','Assign Jordan','Booking Assigned','07:03')">Assign Jordan</a>
+        <a onclick="resolveRow('row-2','Reschedule','Booking Rescheduled','07:03')">Reschedule</a>
       </div>
     </div>
 
-    <!-- Row 3 -->
+    <!-- Row 3 — Deposit missing -->
     <div class="issue-row" id="row-3">
       <div class="feedback">Payment request sent.</div>
-      <div class="live-content" style="display:contents">
-        <div class="situation">Sarah Connor&rsquo;s Balayage at 14:00 has no deposit. &pound;85 at risk.</div>
-        <div class="action-area">
-          <button class="btn-primary" onclick="resolveRow('row-3','Request payment')">Request payment</button>
-          <div class="secondary-links">
-            <a onclick="resolveRow('row-3','Mark as paid')">Mark as paid</a>
-            <a onclick="resolveRow('row-3','Cancel booking')">Cancel booking</a>
-          </div>
-        </div>
-        <div class="reason">&pound;85.00 outstanding. No deposit recorded.</div>
+      <div class="what">Sarah Connor&rsquo;s Balayage at 14:00 has no deposit.</div>
+      <div class="why">&pound;85 revenue at risk.</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-3','Request payment','Payment Requested','07:04')">Request payment</button></div>
+      <div class="opts">
+        <a onclick="resolveRow('row-3','Mark as paid','Payment Marked','07:04')">Mark as paid</a>
+        <a onclick="resolveRow('row-3','Cancel booking','Booking Cancelled','07:04')">Cancel booking</a>
       </div>
     </div>
-
   </div>
 
   <!-- ═══ Sorted view ═══ -->
   <div id="view-sorted" style="display: none;">
+    <div class="col-head sorted-head">
+      <span>Action taken</span><span>Who</span><span>Type</span><span>Time</span>
+    </div>
     <div id="resolved-list"></div>
-    <div id="resolved-empty" class="calm-banner">
+    <div id="resolved-empty" class="calm-banner" style="margin-top:0.5rem">
       <p>Nothing resolved yet today.</p>
     </div>
   </div>
@@ -256,25 +265,22 @@
   let resolvedCount = 0;
   const resolvedItems = [];
 
-  const rowData = {
-    'row-1': { detail: 'Chloe is off today. 4 bookings need cover.' },
-    'row-2': { detail: '11:00 Full Colour for Emma Watson has no stylist.' },
-    'row-3': { detail: 'Sarah Connor\u2019s Balayage at 14:00 has no deposit. \u00A385 at risk.' },
-  };
-
-  function resolveRow(id, label) {
+  function resolveRow(id, label, type, time) {
     const row = document.getElementById(id);
     if (!row || row.classList.contains('resolving')) return;
-
     row.querySelector('.feedback').textContent = label + ' \u2014 awaiting response.';
     row.classList.add('resolving');
-
     setTimeout(() => {
       row.classList.add('resolved');
       resolvedCount++;
-      resolvedItems.push({ detail: rowData[id].detail, action: label });
+      resolvedItems.push({ action: label, who: 'Owner', type: type || 'Action', time: time || now() });
       updateUI();
     }, 1500);
+  }
+
+  function now() {
+    const d = new Date();
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
   }
 
   function updateUI() {
@@ -295,16 +301,14 @@
   function renderResolved() {
     const list = document.getElementById('resolved-list');
     const empty = document.getElementById('resolved-empty');
-    if (resolvedItems.length === 0) {
-      list.innerHTML = '';
-      empty.style.display = 'block';
-      return;
-    }
+    if (resolvedItems.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
     list.innerHTML = resolvedItems.map(r =>
       '<div class="resolved-row">' +
-        '<div class="detail">' + r.detail + '</div>' +
-        '<div class="action-taken">' + r.action + '</div>' +
+        '<div class="action">' + r.action + '</div>' +
+        '<div class="who">' + r.who + '</div>' +
+        '<div class="type">' + r.type + '</div>' +
+        '<div class="time">' + r.time + '</div>' +
       '</div>'
     ).join('');
   }
@@ -312,7 +316,6 @@
   function switchView(view) {
     document.getElementById('btn-active').classList.toggle('on', view === 'active');
     document.getElementById('btn-sorted').classList.toggle('on', view === 'sorted');
-
     if (view === 'sorted') {
       document.getElementById('state-active').style.display = 'none';
       document.getElementById('all-clear').style.display = 'none';
@@ -330,6 +333,32 @@
     }
   }
 
+  // Command bar (demo — keyword match)
+  function parseCmd() {
+    const input = document.getElementById('cmd-input');
+    const text = input.value.trim();
+    if (!text) return;
+    const lower = text.toLowerCase();
+    let msg = '';
+    if (lower.includes('sick') || lower.includes('off')) msg = 'Mark staff as sick today?';
+    else if (lower.includes('assign')) msg = 'Assign staff to booking?';
+    else if (lower.includes('payment') || lower.includes('deposit')) msg = 'Send payment request?';
+    else if (lower.includes('cancel')) msg = 'Cancel this booking?';
+    else { msg = 'Could not understand. Try: "Chloe is off sick" or "Assign Sam to 11:00 booking".'; }
+    document.getElementById('cmd-msg').textContent = msg;
+    document.getElementById('cmd-confirm').style.display = 'block';
+  }
+  function confirmCmd() {
+    resolvedItems.push({ action: document.getElementById('cmd-input').value, who: 'Owner', type: 'Assistant', time: now() });
+    document.getElementById('cmd-confirm').style.display = 'none';
+    document.getElementById('cmd-input').value = '';
+    updateUI();
+  }
+  function cancelCmd() {
+    document.getElementById('cmd-confirm').style.display = 'none';
+    document.getElementById('cmd-input').value = '';
+  }
+
   function resetDemo() {
     resolvedCount = 0;
     resolvedItems.length = 0;
@@ -337,6 +366,8 @@
     document.getElementById('state-active').style.display = 'block';
     document.getElementById('view-sorted').style.display = 'none';
     document.getElementById('all-clear').style.display = 'none';
+    document.getElementById('cmd-confirm').style.display = 'none';
+    document.getElementById('cmd-input').value = '';
     document.getElementById('btn-active').classList.add('on');
     document.getElementById('btn-sorted').classList.remove('on');
     document.getElementById('btn-sorted').textContent = 'Sorted';

@@ -107,11 +107,13 @@ def _booking_events(today_start, today_end, tomorrow_end):
 
     for b in cancelled_today:
         client_name = b.client.name if b.client else 'Unknown client'
+        price = b.service.price or Decimal('0')
         events.append({
             'event_type': 'booking_cancelled',
             'severity': 'warning',
             'summary': f'Booking cancelled: {client_name}',
-            'detail': f'{client_name} — {b.service.name} at {b.start_time.strftime("%H:%M")}',
+            'detail': f'{client_name} cancelled {b.service.name} at {b.start_time.strftime("%H:%M")}.',
+            'why_it_matters': f'Slot now open. £{price:.2f} revenue gap.' if price > 0 else 'Slot now open for rebooking.',
             'actions': [
                 {'label': 'Review slot', 'reason': 'Slot now available for rebooking', 'link': '/admin/bookings', 'rank': 1},
             ],
@@ -160,7 +162,8 @@ def _booking_events(today_start, today_end, tomorrow_end):
             'event_type': 'booking_unassigned',
             'severity': sev,
             'summary': f'Unassigned booking {when}: {client_name}',
-            'detail': f'{client_name} — {b.service.name} at {b.start_time.strftime("%H:%M")} ({when})',
+            'detail': f'{b.start_time.strftime("%H:%M")} {b.service.name} for {client_name} has no stylist.',
+            'why_it_matters': f'No one assigned — booking at risk ({when}).',
             'actions': actions,
             'entity_type': 'booking',
             'entity_id': b.id,
@@ -184,7 +187,8 @@ def _booking_events(today_start, today_end, tomorrow_end):
             'event_type': 'deposit_missing',
             'severity': 'high',
             'summary': f'No payment: {client_name} (£{price:.2f})',
-            'detail': f'{client_name} — {b.service.name} at {b.start_time.strftime("%H:%M")}. No deposit or payment recorded.',
+            'detail': f'{client_name}\u2019s {b.service.name} at {b.start_time.strftime("%H:%M")} has no deposit.',
+            'why_it_matters': f'£{price:.2f} revenue at risk.',
             'actions': [
                 {'label': 'Request payment', 'reason': f'£{price:.2f} outstanding', 'link': '/admin/bookings', 'rank': 1},
                 {'label': 'Mark as paid', 'reason': 'If payment received offline', 'link': '/admin/bookings', 'rank': 2},
@@ -221,22 +225,31 @@ def _staff_leave_events(today_start, today_end, tomorrow_end):
     for lv in sick_today:
         staff_name = lv.staff_member.name
 
-        # Deterministic cover suggestion: other active staff
-        from bookings.models import Staff as BookingStaff
-        cover_candidates = list(
-            BookingStaff.objects.filter(active=True)
-            .exclude(id=lv.staff_member_id)
-            .values_list('name', flat=True)[:3]
+        # Count affected bookings
+        from bookings.models import Booking
+        affected_count = Booking.objects.filter(
+            staff=lv.staff_member,
+            start_time__gte=today_start,
+            start_time__lt=today_end,
+            status__in=['confirmed', 'pending'],
+        ).count()
+
+        # Deterministic cover suggestion via cover_logic
+        from core.cover_logic import get_cover_candidates
+        candidates = get_cover_candidates(
+            absent_staff_id=lv.staff_member_id,
+            strategy='rotation',
+            max_candidates=3,
         )
 
         actions = []
-        for i, name in enumerate(cover_candidates):
-            tier = i + 1
+        for c in candidates:
             actions.append({
-                'label': f'Request cover from {name}',
-                'reason': f'Tier {tier} — next available',
+                'label': f'Ask {c["name"]} to cover',
+                'reason': c['reason'],
                 'link': '/admin/staff',
-                'rank': tier,
+                'rank': c['rank'],
+                'staff_id': c['staff_id'],
             })
         actions.append({
             'label': 'Owner cover',
@@ -245,11 +258,14 @@ def _staff_leave_events(today_start, today_end, tomorrow_end):
             'rank': len(actions) + 1,
         })
 
+        affected_text = f'{affected_count} booking{"s" if affected_count != 1 else ""} affected' if affected_count else 'No bookings affected'
+
         events.append({
             'event_type': 'staff_sick',
             'severity': 'critical',
-            'summary': f'{staff_name} marked sick today',
-            'detail': f'{staff_name} — sick leave from {lv.start_datetime.strftime("%d %b")} to {lv.end_datetime.strftime("%d %b")}',
+            'summary': f'{staff_name} off sick today',
+            'detail': f'{staff_name} is off today. {affected_text}.',
+            'why_it_matters': f'{affected_text}' if affected_count else 'Rota gap — may need cover',
             'actions': actions,
             'entity_type': 'leave_request',
             'entity_id': lv.id,
@@ -276,7 +292,8 @@ def _staff_leave_events(today_start, today_end, tomorrow_end):
             'event_type': 'leave_pending',
             'severity': 'warning',
             'summary': f'Leave request pending: {staff_name}',
-            'detail': f'{staff_name} — {lv.get_leave_type_display()} {start_str} to {end_str}',
+            'detail': f'{staff_name} requested {lv.get_leave_type_display().lower()} {start_str} to {end_str}.',
+            'why_it_matters': 'Needs approval — may require cover arrangement.',
             'actions': [
                 {'label': 'Approve', 'reason': 'If cover arranged', 'link': '/admin/staff', 'rank': 1},
                 {'label': 'Decline', 'reason': 'If no cover available', 'link': '/admin/staff', 'rank': 2},
@@ -309,13 +326,15 @@ def _compliance_events(today_start, lookahead_days):
     ).select_related('category')
 
     for item in overdue:
+        req_type = 'Legal requirement' if item.item_type == 'LEGAL' else 'Best practice'
         events.append({
             'event_type': 'compliance_expiry',
             'severity': 'critical' if item.item_type == 'LEGAL' else 'high',
             'summary': f'Overdue: {item.title}',
-            'detail': f'{item.get_item_type_display()} — {item.category.name}. Due: {item.next_due_date or item.due_date or "unknown"}',
+            'detail': f'{item.title} ({item.category.name}) is overdue.',
+            'why_it_matters': f'{req_type} — overdue since {item.next_due_date or item.due_date or "unknown"}.',
             'actions': [
-                {'label': 'Complete now', 'reason': f'{"Legal requirement" if item.item_type == "LEGAL" else "Best practice"} — overdue', 'link': '/admin/compliance', 'rank': 1},
+                {'label': 'Complete now', 'reason': f'{req_type} — overdue', 'link': '/admin/compliance', 'rank': 1},
             ],
             'entity_type': 'compliance_item',
             'entity_id': item.id,
@@ -335,7 +354,8 @@ def _compliance_events(today_start, lookahead_days):
             'event_type': 'compliance_expiry',
             'severity': 'warning' if days_until > 7 else 'high',
             'summary': f'Due in {days_until} day{"s" if days_until != 1 else ""}: {item.title}',
-            'detail': f'{item.get_item_type_display()} — {item.category.name}. Due: {item.next_due_date}',
+            'detail': f'{item.title} ({item.category.name}) due in {days_until} day{"s" if days_until != 1 else ""}.',
+            'why_it_matters': f'{days_until} day{"s" if days_until != 1 else ""} remaining.',
             'actions': [
                 {'label': 'Schedule completion', 'reason': f'{days_until} days remaining', 'link': '/admin/compliance', 'rank': 1},
             ],
@@ -354,7 +374,8 @@ def _compliance_events(today_start, lookahead_days):
             'event_type': 'incident_open',
             'severity': 'critical' if inc.severity == 'HIGH' else 'warning',
             'summary': f'Open incident: {inc.title}',
-            'detail': f'{inc.get_severity_display()} — {inc.location}. Reported {inc.incident_date.strftime("%d %b")}',
+            'detail': f'{inc.title} at {inc.location}. Reported {inc.incident_date.strftime("%d %b")}.',
+            'why_it_matters': f'{inc.get_severity_display()} severity — requires attention.',
             'actions': [
                 {'label': 'Investigate', 'reason': f'{inc.get_severity_display()} severity', 'link': '/admin/compliance', 'rank': 1},
                 {'label': 'Resolve', 'reason': 'If investigation complete', 'link': '/admin/compliance', 'rank': 2},

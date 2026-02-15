@@ -1,6 +1,7 @@
 from django.db import models
 
 from .models_auth import PasswordToken  # noqa: F401
+from .models_events import BusinessEvent  # noqa: F401
 
 
 class Config(models.Model):

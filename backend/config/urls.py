@@ -15,6 +15,8 @@ from core.auth_views import (
     set_password_with_token_view, send_invite_view,
 )
 from core.views_dashboard_v2 import dashboard_today
+from core.views_events import log_event, today_resolved, decline_cover
+from core.views_assistant import parse_command
 
 
 def api_index(request):
@@ -71,6 +73,12 @@ urlpatterns = [
     path('api/tenant/', include('core.api_urls_tenant')),
     # Dashboard v2 — operational incident board (flag checked inside view)
     path('api/dashboard/today/', dashboard_today, name='dashboard-today'),
+    # Business events — event logging discipline
+    path('api/events/log/', log_event, name='event-log'),
+    path('api/events/today/', today_resolved, name='events-today'),
+    path('api/events/decline/', decline_cover, name='events-decline'),
+    # Assistant — stateless command parser
+    path('api/assistant/parse/', parse_command, name='assistant-parse'),
     # Core catch-all (health check etc.)
     path('', include('core.urls')),
 ]
