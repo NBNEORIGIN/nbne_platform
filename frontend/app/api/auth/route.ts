@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { COOKIE_NAME } from '@/lib/auth'
 
-const DJANGO_API = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+const DJANGO_API = process.env.DJANGO_BACKEND_URL || 'https://nbneplatform-production.up.railway.app'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
