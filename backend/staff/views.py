@@ -443,19 +443,23 @@ def working_hours_bulk_set(request):
         profile = StaffProfile.objects.get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
-    with transaction.atomic():
-        WorkingHours.objects.filter(staff=profile).delete()
-        created = []
-        for h in hours:
-            wh = WorkingHours.objects.create(
-                staff=profile,
-                day_of_week=h['day_of_week'],
-                start_time=h['start_time'],
-                end_time=h['end_time'],
-                break_minutes=h.get('break_minutes', 0),
-            )
-            created.append(wh)
-    return Response(WorkingHoursSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+    try:
+        with transaction.atomic():
+            WorkingHours.objects.filter(staff=profile).delete()
+            created = []
+            for h in hours:
+                wh = WorkingHours.objects.create(
+                    staff=profile,
+                    day_of_week=h['day_of_week'],
+                    start_time=h['start_time'],
+                    end_time=h['end_time'],
+                    break_minutes=h.get('break_minutes', 0),
+                )
+                created.append(wh)
+        return Response(WorkingHoursSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        import traceback
+        return Response({'error': str(e), 'trace': traceback.format_exc()}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ── Timesheets ───────────────────────────────────────────────────────────────
