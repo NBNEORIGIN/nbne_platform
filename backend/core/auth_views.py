@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 def _get_role(user):
-    """Determine role from Django user flags."""
+    """Determine role from user.role field, with fallback to Django flags."""
+    if hasattr(user, 'role') and user.role in ('owner', 'manager', 'staff'):
+        return user.role
     if user.is_superuser:
         return 'owner'
     elif user.is_staff:

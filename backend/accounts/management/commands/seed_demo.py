@@ -188,6 +188,7 @@ class Command(BaseCommand):
             defaults={
                 'email': email, 'first_name': first, 'last_name': last,
                 'role': role, 'is_staff': role in ('owner', 'manager'),
+                'is_superuser': role == 'owner',
             }
         )
         if created:
@@ -202,6 +203,7 @@ class Command(BaseCommand):
             if user.role != role:
                 user.role = role
                 user.is_staff = role in ('owner', 'manager')
+                user.is_superuser = role == 'owner'
                 changed = True
             if changed:
                 user.save()
