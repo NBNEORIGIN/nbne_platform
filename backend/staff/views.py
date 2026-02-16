@@ -174,6 +174,25 @@ def staff_delete(request, staff_id):
     return Response({'detail': 'Staff member deactivated.'}, status=status.HTTP_200_OK)
 
 
+@api_view(['POST'])
+@permission_classes([IsOwner])
+def staff_purge(request):
+    """Hard-delete a user by email. Owner only. Use when a user was partially created."""
+    email = request.data.get('email', '').strip()
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'error': f'No user found with email: {email}'}, status=status.HTTP_404_NOT_FOUND)
+    if user.id == request.user.id:
+        return Response({'error': 'Cannot delete your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+    name = f'{user.first_name} {user.last_name}'.strip() or user.username
+    user.delete()
+    return Response({'detail': f'User "{name}" ({email}) permanently deleted.'})
+
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAbove])
 def my_shifts(request):

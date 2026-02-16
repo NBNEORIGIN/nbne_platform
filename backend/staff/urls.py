@@ -7,6 +7,7 @@ urlpatterns = [
     path('<int:staff_id>/', views.staff_detail, name='staff_detail'),
     path('<int:staff_id>/update/', views.staff_update, name='staff_update'),
     path('<int:staff_id>/delete/', views.staff_delete, name='staff_delete'),
+    path('purge/', views.staff_purge, name='staff_purge'),
     path('my-shifts/', views.my_shifts, name='my_shifts'),
     path('shifts/', views.shift_list, name='shift_list'),
     path('shifts/create/', views.shift_create, name='shift_create'),
