@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand } from '@/lib/api'
+import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary } from '@/lib/api'
 
 interface DashboardAction {
   label: string
@@ -139,6 +139,9 @@ export default function AdminDashboard() {
   const [snapStaffIn] = useState(5)
   const [snapStaffOff] = useState(1)
 
+  // Payroll
+  const [payroll, setPayroll] = useState<any>(null)
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
@@ -148,15 +151,18 @@ export default function AdminDashboard() {
     Promise.all([
       getDashboardToday().catch(() => ({ error: 'fetch failed', data: null })),
       getTodayResolved().catch(() => ({ error: 'fetch failed', data: null })),
-    ]).then(([dashRes, resolvedRes]) => {
+      getPayrollSummary().catch(() => ({ error: 'fetch failed', data: null })),
+    ]).then(([dashRes, resolvedRes, payrollRes]) => {
       if (dashRes.error || !dashRes.data) {
-        // Fallback: render dashboard with empty events (shows snapshot + "all sorted")
         setData({ state: 'sorted', message: 'All sorted.', events: [], summary: { total: 0, critical: 0, high: 0, warning: 0, info: 0 } })
       } else {
         setData(dashRes.data)
       }
       if (!resolvedRes.error && resolvedRes.data) {
         setResolvedEvents(resolvedRes.data.events || [])
+      }
+      if (!payrollRes.error && payrollRes.data) {
+        setPayroll(payrollRes.data)
       }
       setLoading(false)
     })
@@ -436,6 +442,46 @@ export default function AdminDashboard() {
           <span key={t}>{t}</span>
         ))}
       </div>
+
+      {/* ── Payroll This Month ── */}
+      {payroll && payroll.staff_count > 0 && (
+        <div style={{
+          border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#fff',
+          padding: '0.65rem 0.85rem', marginBottom: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Hours This Month — {payroll.month_display}
+            </div>
+            <a href="/admin/staff" style={{ fontSize: '0.75rem', color: '#6b7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+              View timesheets →
+            </a>
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            {(payroll.staff_summaries || []).map((s: any) => (
+              <div key={s.staff_id} style={{ minWidth: 90 }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#111827' }}>{s.staff_name}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
+                  {s.actual_hours > 0 ? `${s.actual_hours}h` : `${s.scheduled_hours}h`}
+                  {s.actual_hours > 0 && s.variance_hours !== 0 && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, marginLeft: '0.25rem', color: s.variance_hours < 0 ? '#ef4444' : '#16a34a' }}>
+                      ({s.variance_hours > 0 ? '+' : ''}{s.variance_hours}h)
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{s.days_worked} days worked</div>
+              </div>
+            ))}
+            <div style={{ minWidth: 90, borderLeft: '1px solid #f3f4f6', paddingLeft: '1rem' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#9ca3af' }}>Total</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
+                {payroll.grand_actual_hours > 0 ? `${payroll.grand_actual_hours}h` : `${payroll.grand_scheduled_hours}h`}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{payroll.staff_count} staff</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>

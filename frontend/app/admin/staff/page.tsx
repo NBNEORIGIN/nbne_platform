@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv } from '@/lib/api'
 
 interface StaffForm {
   first_name: string
@@ -14,7 +14,7 @@ interface StaffForm {
 const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff' }
 
 export default function AdminStaffPage() {
-  const [tab, setTab] = useState<'profiles' | 'hours' | 'timesheets' | 'shifts' | 'leave' | 'training'>('profiles')
+  const [tab, setTab] = useState<'profiles' | 'hours' | 'timesheets' | 'shifts' | 'leave' | 'training' | 'projects'>('profiles')
   const [staff, setStaff] = useState<any[]>([])
   const [shifts, setShifts] = useState<any[]>([])
   const [leave, setLeave] = useState<any[]>([])
@@ -49,8 +49,17 @@ export default function AdminStaffPage() {
   const [tsStaffFilter, setTsStaffFilter] = useState('')
   const [tsGenerating, setTsGenerating] = useState(false)
   const [editingTs, setEditingTs] = useState<any | null>(null)
-  const [tsForm, setTsForm] = useState({ actual_start: '', actual_end: '', actual_break_minutes: 0, status: '', notes: '' })
+  const [tsForm, setTsForm] = useState({ actual_start: '', actual_end: '', actual_break_minutes: 0, status: '', notes: '', project_code: '' })
   const [tsSaving, setTsSaving] = useState(false)
+  const [tsExporting, setTsExporting] = useState(false)
+
+  // Project Codes state
+  const [projectCodes, setProjectCodes] = useState<any[]>([])
+  const [showPcModal, setShowPcModal] = useState(false)
+  const [editingPc, setEditingPc] = useState<any | null>(null)
+  const [pcForm, setPcForm] = useState({ code: '', name: '', client_name: '', is_billable: true, hourly_rate: '', notes: '' })
+  const [pcSaving, setPcSaving] = useState(false)
+  const [pcError, setPcError] = useState('')
 
   const loadData = () => {
     setLoading(true)
@@ -279,29 +288,92 @@ export default function AdminStaffPage() {
       actual_break_minutes: ts.actual_break_minutes ?? ts.scheduled_break_minutes ?? 0,
       status: ts.status || 'SCHEDULED',
       notes: ts.notes || '',
+      project_code: ts.project_code ? String(ts.project_code) : '',
     })
   }
 
   const saveTs = async () => {
     if (!editingTs) return
     setTsSaving(true)
-    const res = await updateTimesheet(editingTs.id, tsForm)
+    const payload = { ...tsForm, project_code: tsForm.project_code ? Number(tsForm.project_code) : null }
+    const res = await updateTimesheet(editingTs.id, payload)
     if (res.error) alert(res.error)
     setTsSaving(false)
     setEditingTs(null)
     loadTimesheets()
   }
 
+  const handleExportCsv = async () => {
+    if (!tsDateFrom || !tsDateTo) { alert('Set a date range first.'); return }
+    setTsExporting(true)
+    const params: any = { date_from: tsDateFrom, date_to: tsDateTo }
+    if (tsStaffFilter) params.staff_id = Number(tsStaffFilter)
+    await downloadTimesheetCsv(params)
+    setTsExporting(false)
+  }
+
+  // --- Project Code handlers ---
+  const loadProjectCodes = async () => {
+    const res = await getProjectCodes()
+    setProjectCodes(res.data || [])
+  }
+
+  const openAddPc = () => {
+    setPcForm({ code: '', name: '', client_name: '', is_billable: true, hourly_rate: '', notes: '' })
+    setPcError('')
+    setEditingPc(null)
+    setShowPcModal(true)
+  }
+
+  const openEditPc = (pc: any) => {
+    setPcForm({
+      code: pc.code || '',
+      name: pc.name || '',
+      client_name: pc.client_name || '',
+      is_billable: pc.is_billable ?? true,
+      hourly_rate: pc.hourly_rate ? String(pc.hourly_rate) : '',
+      notes: pc.notes || '',
+    })
+    setPcError('')
+    setEditingPc(pc)
+    setShowPcModal(true)
+  }
+
+  const handleSavePc = async () => {
+    setPcError('')
+    if (!pcForm.code.trim()) { setPcError('Code is required.'); return }
+    if (!pcForm.name.trim()) { setPcError('Name is required.'); return }
+    setPcSaving(true)
+    const data = { ...pcForm, hourly_rate: pcForm.hourly_rate ? Number(pcForm.hourly_rate) : undefined }
+    if (editingPc) {
+      const res = await updateProjectCode(editingPc.id, data)
+      if (res.error) { setPcError(res.error); setPcSaving(false); return }
+    } else {
+      const res = await createProjectCode(data as any)
+      if (res.error) { setPcError(res.error); setPcSaving(false); return }
+    }
+    setPcSaving(false)
+    setShowPcModal(false)
+    loadProjectCodes()
+  }
+
+  const handleDeletePc = async (pc: any) => {
+    if (!confirm(`Deactivate project "${pc.code} — ${pc.name}"?`)) return
+    const res = await deleteProjectCode(pc.id)
+    if (res.error) { alert(res.error); return }
+    loadProjectCodes()
+  }
+
   if (loading) return <div className="empty-state">Loading staff data…</div>
 
-  const tabLabels: Record<string, string> = { profiles: 'Profiles', hours: 'Working Hours', timesheets: 'Timesheets', shifts: 'Shifts', leave: 'Leave', training: 'Training' }
+  const tabLabels: Record<string, string> = { profiles: 'Team', hours: 'Hours', timesheets: 'Timesheets', shifts: 'Rota', leave: 'Leave', training: 'Training', projects: 'Projects' }
 
   return (
     <div>
-      <div className="page-header"><h1>Staff Management</h1><span className="badge badge-danger">Tier 3</span></div>
+      <div className="page-header"><h1>Staff</h1></div>
       <div className="tabs">
-        {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training'] as const).map(t => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets() }}>{tabLabels[t]}</button>
+        {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training', 'projects'] as const).map(t => (
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets(); if (t === 'projects' && projectCodes.length === 0) loadProjectCodes() }}>{tabLabels[t]}</button>
         ))}
       </div>
 
@@ -413,7 +485,8 @@ export default function AdminStaffPage() {
               </select>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => loadTimesheets()}>Load</button>
-            <button className="btn btn-sm" onClick={handleGenerateTimesheets} disabled={tsGenerating} title="Auto-populate from working hours">{tsGenerating ? 'Generating…' : 'Generate from Hours'}</button>
+            <button className="btn btn-sm" onClick={handleGenerateTimesheets} disabled={tsGenerating} title="Fill in from working hours">{tsGenerating ? 'Generating…' : 'Generate from Hours'}</button>
+            <button className="btn btn-sm btn-outline" onClick={handleExportCsv} disabled={tsExporting || !tsDateFrom || !tsDateTo} title="Download as CSV for payroll">{tsExporting ? 'Downloading…' : 'Download CSV'}</button>
           </div>
 
           {editingTs && (
@@ -445,6 +518,13 @@ export default function AdminStaffPage() {
                     <option value="AMENDED">Amended</option>
                   </select>
                 </div>
+                <div>
+                  <label className="form-label">Project</label>
+                  <select className="form-input" value={tsForm.project_code} onChange={e => setTsForm({ ...tsForm, project_code: e.target.value })} style={{ minWidth: 140 }}>
+                    <option value="">None</option>
+                    {projectCodes.map((pc: any) => <option key={pc.id} value={pc.id}>{pc.code} — {pc.name}</option>)}
+                  </select>
+                </div>
                 <div style={{ flex: 1, minWidth: 150 }}>
                   <label className="form-label">Notes</label>
                   <input className="form-input" value={tsForm.notes} onChange={e => setTsForm({ ...tsForm, notes: e.target.value })} placeholder="e.g. Left 30min early" />
@@ -457,28 +537,25 @@ export default function AdminStaffPage() {
 
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Staff</th><th>Sched. Start</th><th>Sched. End</th><th>Sched. Hrs</th><th>Actual Start</th><th>Actual End</th><th>Actual Hrs</th><th>Variance</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Date</th><th>Staff</th><th>Project</th><th>Scheduled</th><th>Actual</th><th>Variance</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {timesheets.map((ts: any) => {
                   const variance = ts.variance_hours || 0
                   const statusColors: Record<string, string> = { WORKED: 'badge-success', SCHEDULED: 'badge-neutral', LATE: 'badge-warning', LEFT_EARLY: 'badge-warning', ABSENT: 'badge-danger', SICK: 'badge-danger', HOLIDAY: 'badge-info', AMENDED: 'badge-info' }
                   return (
                     <tr key={ts.id}>
-                      <td style={{ fontWeight: 600 }}>{ts.date}</td>
+                      <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{ts.date}</td>
                       <td>{ts.staff_name}</td>
-                      <td>{ts.scheduled_start?.slice(0, 5) || '—'}</td>
-                      <td>{ts.scheduled_end?.slice(0, 5) || '—'}</td>
-                      <td>{ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'}</td>
-                      <td>{ts.actual_start?.slice(0, 5) || '—'}</td>
-                      <td>{ts.actual_end?.slice(0, 5) || '—'}</td>
-                      <td>{ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'}</td>
+                      <td style={{ fontSize: '0.82rem', color: ts.project_code_display ? 'var(--color-text)' : 'var(--color-text-muted)' }}>{ts.project_code_display || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{ts.scheduled_start?.slice(0, 5) || '—'} – {ts.scheduled_end?.slice(0, 5) || '—'} <span style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>({ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'})</span></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{ts.actual_start?.slice(0, 5) || '—'} – {ts.actual_end?.slice(0, 5) || '—'} <span style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>({ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'})</span></td>
                       <td style={{ color: variance < 0 ? 'var(--color-danger)' : variance > 0 ? 'var(--color-success)' : 'inherit', fontWeight: variance !== 0 ? 600 : 400 }}>{variance !== 0 ? `${variance > 0 ? '+' : ''}${variance.toFixed(1)}h` : '—'}</td>
                       <td><span className={`badge ${statusColors[ts.status] || 'badge-neutral'}`}>{ts.status_display || ts.status}</span></td>
-                      <td><button className="btn btn-sm" onClick={() => openEditTs(ts)}>Edit</button></td>
+                      <td><button className="btn btn-sm" onClick={() => { if (projectCodes.length === 0) loadProjectCodes(); openEditTs(ts) }}>Edit</button></td>
                     </tr>
                   )
                 })}
-                {timesheets.length === 0 && <tr><td colSpan={11} className="empty-state">No timesheet entries. Set working hours first, then click "Generate from Hours".</td></tr>}
+                {timesheets.length === 0 && <tr><td colSpan={8} className="empty-state">No timesheet entries yet. Set working hours first, then click &ldquo;Generate from Hours&rdquo;.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -541,6 +618,85 @@ export default function AdminStaffPage() {
               {training.length === 0 && <tr><td colSpan={6} className="empty-state">No training records</td></tr>}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tab === 'projects' && (
+        <>
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 12 }}>
+              Track hours against projects or jobs. Useful if you bill clients separately or need to split costs across different work.
+            </p>
+            <button className="btn btn-primary" onClick={openAddPc}>+ Add Project</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Code</th><th>Name</th><th>Client</th><th>Billable</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {projectCodes.map((pc: any) => (
+                  <tr key={pc.id}>
+                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{pc.code}</td>
+                    <td>{pc.name}</td>
+                    <td>{pc.client_name || '—'}</td>
+                    <td><span className={`badge ${pc.is_billable ? 'badge-success' : 'badge-neutral'}`}>{pc.is_billable ? 'Yes' : 'No'}</span></td>
+                    <td>{pc.hourly_rate ? `£${Number(pc.hourly_rate).toFixed(2)}/hr` : '—'}</td>
+                    <td><span className={`badge ${pc.is_active ? 'badge-success' : 'badge-neutral'}`}>{pc.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-sm" onClick={() => openEditPc(pc)} style={{ marginRight: 8 }}>Edit</button>
+                      {pc.is_active && <button className="btn btn-sm btn-danger" onClick={() => handleDeletePc(pc)}>Deactivate</button>}
+                    </td>
+                  </tr>
+                ))}
+                {projectCodes.length === 0 && <tr><td colSpan={7} className="empty-state">No projects set up yet. Add one to start tracking hours by project.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Project Code Modal */}
+      {showPcModal && (
+        <div className="modal-overlay" onClick={() => setShowPcModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <h2 style={{ marginBottom: 16 }}>{editingPc ? 'Edit Project' : 'Add Project'}</h2>
+            {pcError && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{pcError}</div>}
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Code *</label>
+                  <input className="form-input" value={pcForm.code} onChange={e => setPcForm({ ...pcForm, code: e.target.value.toUpperCase() })} placeholder="e.g. PROJ-001" disabled={!!editingPc} style={editingPc ? { opacity: 0.6 } : {}} />
+                </div>
+                <div>
+                  <label className="form-label">Name *</label>
+                  <input className="form-input" value={pcForm.name} onChange={e => setPcForm({ ...pcForm, name: e.target.value })} placeholder="e.g. Smith Kitchen Refit" />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Client Name</label>
+                <input className="form-input" value={pcForm.client_name} onChange={e => setPcForm({ ...pcForm, client_name: e.target.value })} placeholder="e.g. Mr Smith (optional)" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Hourly Rate (£)</label>
+                  <input className="form-input" type="number" value={pcForm.hourly_rate} onChange={e => setPcForm({ ...pcForm, hourly_rate: e.target.value })} placeholder="e.g. 45.00" min={0} step={0.01} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 4 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={pcForm.is_billable} onChange={e => setPcForm({ ...pcForm, is_billable: e.target.checked })} />
+                    Billable to client
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Notes</label>
+                <input className="form-input" value={pcForm.notes} onChange={e => setPcForm({ ...pcForm, notes: e.target.value })} placeholder="Any extra details (optional)" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <button className="btn" onClick={() => setShowPcModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSavePc} disabled={pcSaving}>{pcSaving ? 'Saving…' : editingPc ? 'Save Changes' : 'Add Project'}</button>
+            </div>
+          </div>
         </div>
       )}
 

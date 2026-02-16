@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry
+from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):
@@ -117,17 +117,36 @@ class WorkingHoursCreateSerializer(serializers.ModelSerializer):
         fields = ['staff', 'day_of_week', 'start_time', 'end_time', 'break_minutes', 'is_active']
 
 
+class ProjectCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectCode
+        fields = [
+            'id', 'code', 'name', 'client_name', 'is_billable',
+            'hourly_rate', 'is_active', 'notes', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class ProjectCodeCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectCode
+        fields = ['code', 'name', 'client_name', 'is_billable', 'hourly_rate', 'notes']
+
+
 class TimesheetEntrySerializer(serializers.ModelSerializer):
     staff_name = serializers.CharField(source='staff.display_name', read_only=True)
     scheduled_hours = serializers.FloatField(read_only=True)
     actual_hours = serializers.FloatField(read_only=True)
     variance_hours = serializers.FloatField(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    project_code_display = serializers.CharField(source='project_code.code', read_only=True, default=None)
+    project_name = serializers.CharField(source='project_code.name', read_only=True, default=None)
 
     class Meta:
         model = TimesheetEntry
         fields = [
             'id', 'staff', 'staff_name', 'date',
+            'project_code', 'project_code_display', 'project_name',
             'scheduled_start', 'scheduled_end', 'scheduled_break_minutes', 'scheduled_hours',
             'actual_start', 'actual_end', 'actual_break_minutes', 'actual_hours',
             'variance_hours', 'status', 'status_display', 'notes',
@@ -139,4 +158,4 @@ class TimesheetEntrySerializer(serializers.ModelSerializer):
 class TimesheetUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TimesheetEntry
-        fields = ['actual_start', 'actual_end', 'actual_break_minutes', 'status', 'notes']
+        fields = ['actual_start', 'actual_end', 'actual_break_minutes', 'status', 'notes', 'project_code']

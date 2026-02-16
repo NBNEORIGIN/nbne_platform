@@ -387,6 +387,58 @@ export async function getTimesheetSummary(params?: { period?: string; date?: str
   return apiFetch<any>(`/staff/timesheets/summary/${q ? '?' + q : ''}`)
 }
 
+// --- Project Codes ---
+export async function getProjectCodes(params?: { include_inactive?: boolean }) {
+  const qs = new URLSearchParams()
+  if (params?.include_inactive) qs.set('include_inactive', 'true')
+  const q = qs.toString()
+  return apiFetch<any[]>(`/staff/project-codes/${q ? '?' + q : ''}`)
+}
+
+export async function createProjectCode(data: { code: string; name: string; client_name?: string; is_billable?: boolean; hourly_rate?: number; notes?: string }) {
+  return apiFetch<any>('/staff/project-codes/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateProjectCode(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/staff/project-codes/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteProjectCode(id: number) {
+  return apiFetch<any>(`/staff/project-codes/${id}/delete/`, { method: 'DELETE' })
+}
+
+// --- Payroll ---
+export async function getPayrollSummary(params?: { month?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.month) qs.set('month', params.month)
+  const q = qs.toString()
+  return apiFetch<any>(`/staff/payroll/summary/${q ? '?' + q : ''}`)
+}
+
+export function getTimesheetExportUrl(params: { date_from: string; date_to: string; staff_id?: number }) {
+  const qs = new URLSearchParams()
+  qs.set('date_from', params.date_from)
+  qs.set('date_to', params.date_to)
+  if (params.staff_id) qs.set('staff_id', String(params.staff_id))
+  return `${API_BASE}/staff/timesheets/export/?${qs.toString()}`
+}
+
+export async function downloadTimesheetCsv(params: { date_from: string; date_to: string; staff_id?: number }) {
+  const token = getAccessToken()
+  const url = getTimesheetExportUrl(params)
+  const res = await fetch(url, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+  })
+  if (!res.ok) return { error: 'Export failed', data: null }
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `timesheets_${params.date_from}_to_${params.date_to}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  return { error: null, data: true }
+}
+
 // --- Media URL helper ---
 const BACKEND_BASE = typeof window !== 'undefined'
   ? (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()

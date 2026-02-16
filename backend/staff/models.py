@@ -137,6 +137,28 @@ class WorkingHours(models.Model):
         return max(0, (end - start).total_seconds() / 3600 - self.break_minutes / 60)
 
 
+class ProjectCode(models.Model):
+    """Project / job code for tracking hours against clients or overheads (Harvest-style)."""
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='project_codes')
+    code = models.CharField(max_length=30, help_text='Short code e.g. PROJ-001, OVERHEAD')
+    name = models.CharField(max_length=255, help_text='Descriptive name e.g. "Smith Kitchen Refit"')
+    client_name = models.CharField(max_length=255, blank=True, default='', help_text='Optional client name')
+    is_billable = models.BooleanField(default=True, help_text='Whether hours are billable to a client')
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, help_text='Default hourly rate for invoicing')
+    is_active = models.BooleanField(default=True, db_index=True)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'staff_project_code'
+        ordering = ['code']
+        unique_together = ['tenant', 'code']
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
+
+
 class TimesheetEntry(models.Model):
     """Daily timesheet entry per staff. Auto-populated from WorkingHours, editable by managers."""
     STATUS_CHOICES = [
@@ -151,6 +173,7 @@ class TimesheetEntry(models.Model):
     ]
     staff = models.ForeignKey(StaffProfile, on_delete=models.CASCADE, related_name='timesheet_entries')
     date = models.DateField(db_index=True)
+    project_code = models.ForeignKey(ProjectCode, on_delete=models.SET_NULL, null=True, blank=True, related_name='timesheet_entries', help_text='Optional project/job code for invoicing')
     scheduled_start = models.TimeField(null=True, blank=True)
     scheduled_end = models.TimeField(null=True, blank=True)
     scheduled_break_minutes = models.PositiveIntegerField(default=0)

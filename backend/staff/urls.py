@@ -30,4 +30,12 @@ urlpatterns = [
     path('timesheets/<int:ts_id>/update/', views.timesheet_update, name='timesheet_update'),
     path('timesheets/generate/', views.timesheet_generate, name='timesheet_generate'),
     path('timesheets/summary/', views.timesheet_summary, name='timesheet_summary'),
+    path('timesheets/export/', views.timesheet_export_csv, name='timesheet_export_csv'),
+    # Project Codes
+    path('project-codes/', views.project_code_list, name='project_code_list'),
+    path('project-codes/create/', views.project_code_create, name='project_code_create'),
+    path('project-codes/<int:pc_id>/update/', views.project_code_update, name='project_code_update'),
+    path('project-codes/<int:pc_id>/delete/', views.project_code_delete, name='project_code_delete'),
+    # Payroll
+    path('payroll/summary/', views.payroll_summary, name='payroll_summary'),
 ]

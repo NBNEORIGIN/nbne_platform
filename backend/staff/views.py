@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from accounts.models import User
 from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove, IsOwner
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry
+from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
 from .serializers import (
     StaffProfileSerializer, ShiftSerializer, ShiftCreateSerializer,
     LeaveRequestSerializer, LeaveCreateSerializer, LeaveReviewSerializer,
@@ -15,6 +15,7 @@ from .serializers import (
     AbsenceRecordSerializer, AbsenceCreateSerializer,
     WorkingHoursSerializer, WorkingHoursCreateSerializer,
     TimesheetEntrySerializer, TimesheetUpdateSerializer,
+    ProjectCodeSerializer, ProjectCodeCreateSerializer,
 )
 
 
@@ -631,4 +632,215 @@ def timesheet_summary(request):
         'date_from': str(date_from),
         'date_to': str(date_to),
         'staff_summaries': list(summary.values()),
+    })
+
+
+# ── Project Codes (Harvest-style) ────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def project_code_list(request):
+    """List project codes. ?include_inactive=true for all."""
+    tenant = getattr(request, 'tenant', None)
+    qs = ProjectCode.objects.filter(tenant=tenant)
+    if request.query_params.get('include_inactive') != 'true':
+        qs = qs.filter(is_active=True)
+    return Response(ProjectCodeSerializer(qs, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def project_code_create(request):
+    """Create a project code (manager+)."""
+    serializer = ProjectCodeCreateSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    if ProjectCode.objects.filter(tenant=tenant, code=serializer.validated_data['code']).exists():
+        return Response({'error': 'A project with this code already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+    pc = serializer.save(tenant=tenant)
+    return Response(ProjectCodeSerializer(pc).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsManagerOrAbove])
+def project_code_update(request, pc_id):
+    """Update a project code (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        pc = ProjectCode.objects.get(id=pc_id, tenant=tenant)
+    except ProjectCode.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = ProjectCodeCreateSerializer(pc, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response(ProjectCodeSerializer(pc).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def project_code_delete(request, pc_id):
+    """Deactivate a project code (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        pc = ProjectCode.objects.get(id=pc_id, tenant=tenant)
+    except ProjectCode.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    pc.is_active = False
+    pc.save(update_fields=['is_active', 'updated_at'])
+    return Response({'detail': 'Project code deactivated.'})
+
+
+# ── Payroll Export (CSV) ─────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def timesheet_export_csv(request):
+    """Export timesheets as CSV for payroll. ?date_from=&date_to=&staff_id="""
+    import csv
+    from django.http import HttpResponse
+    from datetime import datetime
+
+    tenant = getattr(request, 'tenant', None)
+    date_from_str = request.query_params.get('date_from')
+    date_to_str = request.query_params.get('date_to')
+
+    if not date_from_str or not date_to_str:
+        return Response({'error': 'date_from and date_to are required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    qs = TimesheetEntry.objects.filter(
+        staff__tenant=tenant, date__gte=date_from, date__lte=date_to
+    ).select_related('staff', 'project_code').order_by('staff__display_name', 'date')
+
+    staff_id = request.query_params.get('staff_id')
+    if staff_id:
+        qs = qs.filter(staff_id=staff_id)
+
+    response = HttpResponse(content_type='text/csv')
+    filename = f'timesheets_{date_from_str}_to_{date_to_str}.csv'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Staff Name', 'Date', 'Day', 'Project Code', 'Project Name',
+        'Scheduled Start', 'Scheduled End', 'Scheduled Hours',
+        'Actual Start', 'Actual End', 'Actual Hours',
+        'Variance', 'Status', 'Notes',
+    ])
+
+    day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    for e in qs:
+        writer.writerow([
+            e.staff.display_name,
+            e.date.strftime('%d/%m/%Y'),
+            day_names[e.date.weekday()],
+            e.project_code.code if e.project_code else '',
+            e.project_code.name if e.project_code else '',
+            str(e.scheduled_start or ''),
+            str(e.scheduled_end or ''),
+            f'{e.scheduled_hours:.2f}',
+            str(e.actual_start or ''),
+            str(e.actual_end or ''),
+            f'{e.actual_hours:.2f}',
+            f'{e.variance_hours:+.2f}',
+            e.get_status_display(),
+            e.notes,
+        ])
+
+    return response
+
+
+# ── Payroll Summary (Monthly totals for dashboard) ───────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def payroll_summary(request):
+    """Monthly payroll summary for the admin dashboard.
+    ?month=YYYY-MM (defaults to current month)
+    Returns per-staff totals + project breakdown + grand totals.
+    """
+    from datetime import datetime, timedelta
+    import calendar
+
+    tenant = getattr(request, 'tenant', None)
+    month_str = request.query_params.get('month')
+    if month_str:
+        try:
+            ref = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid month. Use YYYY-MM.'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        ref = timezone.now().date().replace(day=1)
+
+    date_from = ref.replace(day=1)
+    last_day = calendar.monthrange(ref.year, ref.month)[1]
+    date_to = ref.replace(day=last_day)
+
+    qs = TimesheetEntry.objects.filter(
+        staff__tenant=tenant, date__gte=date_from, date__lte=date_to
+    ).select_related('staff', 'project_code')
+
+    # Per-staff summary
+    staff_totals = {}
+    project_totals = {}
+    grand_scheduled = 0
+    grand_actual = 0
+
+    for e in qs:
+        sid = e.staff_id
+        if sid not in staff_totals:
+            staff_totals[sid] = {
+                'staff_id': sid,
+                'staff_name': e.staff.display_name,
+                'scheduled_hours': 0,
+                'actual_hours': 0,
+                'days_worked': 0,
+                'days_absent': 0,
+            }
+        st = staff_totals[sid]
+        st['scheduled_hours'] += e.scheduled_hours
+        st['actual_hours'] += e.actual_hours
+        if e.status in ('WORKED', 'LATE', 'LEFT_EARLY', 'AMENDED'):
+            st['days_worked'] += 1
+        elif e.status in ('ABSENT', 'SICK'):
+            st['days_absent'] += 1
+
+        grand_scheduled += e.scheduled_hours
+        grand_actual += e.actual_hours
+
+        # Project breakdown
+        pc_key = e.project_code.code if e.project_code else '(No project)'
+        if pc_key not in project_totals:
+            project_totals[pc_key] = {
+                'code': pc_key,
+                'name': e.project_code.name if e.project_code else 'Unassigned',
+                'is_billable': e.project_code.is_billable if e.project_code else False,
+                'total_hours': 0,
+            }
+        project_totals[pc_key]['total_hours'] += e.actual_hours or e.scheduled_hours
+
+    for st in staff_totals.values():
+        st['scheduled_hours'] = round(st['scheduled_hours'], 2)
+        st['actual_hours'] = round(st['actual_hours'], 2)
+        st['variance_hours'] = round(st['actual_hours'] - st['scheduled_hours'], 2)
+
+    for pt in project_totals.values():
+        pt['total_hours'] = round(pt['total_hours'], 2)
+
+    return Response({
+        'month': date_from.strftime('%Y-%m'),
+        'month_display': date_from.strftime('%B %Y'),
+        'date_from': str(date_from),
+        'date_to': str(date_to),
+        'grand_scheduled_hours': round(grand_scheduled, 2),
+        'grand_actual_hours': round(grand_actual, 2),
+        'staff_count': len(staff_totals),
+        'staff_summaries': sorted(staff_totals.values(), key=lambda s: s['staff_name']),
+        'project_breakdown': sorted(project_totals.values(), key=lambda p: p['code']),
     })
