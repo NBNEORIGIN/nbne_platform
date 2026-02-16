@@ -1,15 +1,16 @@
 from django.contrib import admin
+from core.admin_tenant import TenantAdminMixin
 from .models import Document, DocumentTag
 
 
 @admin.register(DocumentTag)
-class DocumentTagAdmin(admin.ModelAdmin):
+class DocumentTagAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'colour']
     search_fields = ['name']
 
 
 @admin.register(Document)
-class DocumentAdmin(admin.ModelAdmin):
+class DocumentAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['title', 'category', 'access_level', 'status', 'expiry_date', 'is_placeholder', 'created_at']
     list_filter = ['category', 'access_level', 'is_placeholder', 'is_archived']
     search_fields = ['title', 'description', 'regulatory_ref']

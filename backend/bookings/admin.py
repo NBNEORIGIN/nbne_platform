@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 from django.db.models import Count, Q, Sum
 import csv
 from datetime import datetime, timedelta
+from core.admin_tenant import TenantAdminMixin
 from .models import Service, Staff, Client, Booking, BusinessHours, StaffSchedule, Closure, StaffLeave, Session, OptimisationLog
 from .models_intake import IntakeProfile, IntakeWellbeingDisclaimer
 from .models_payment import ClassPackage, ClientCredit, PaymentTransaction
@@ -17,14 +18,14 @@ admin.site.index_title = "Welcome to NBNE Business Management"
 
 
 @admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
+class ServiceAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'duration_minutes', 'price', 'active', 'created_at']
     list_filter = ['active', 'created_at']
     search_fields = ['name', 'description']
 
 
 @admin.register(Staff)
-class StaffAdmin(admin.ModelAdmin):
+class StaffAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'email', 'phone', 'active', 'created_at']
     list_filter = ['active', 'created_at']
     search_fields = ['name', 'email']
@@ -32,7 +33,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 
 @admin.register(Client)
-class ClientAdmin(admin.ModelAdmin):
+class ClientAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'email', 'phone', 'total_bookings', 'total_spent', 'reliability_score', 'no_show_count', 'last_booking', 'created_at']
     search_fields = ['name', 'email', 'phone']
     list_filter = ['created_at']
@@ -93,7 +94,7 @@ class ClientAdmin(admin.ModelAdmin):
 
 
 @admin.register(Booking)
-class BookingAdmin(admin.ModelAdmin):
+class BookingAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['client', 'service', 'staff', 'start_time', 'end_time', 'status', 'price', 'risk_level', 'risk_score', 'created_at']
     list_filter = ['status', 'risk_level', 'start_time', 'staff', 'service']
     search_fields = ['client__name', 'client__email', 'notes']

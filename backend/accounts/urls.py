@@ -11,6 +11,9 @@ urlpatterns = [
     path('me/update/', views.update_me, name='auth_update_me'),
     path('me/password/', views.change_password, name='auth_change_password'),
     path('me/set-password/', views.set_password, name='auth_set_password'),
+    # GDPR
+    path('me/export/', views.data_export, name='auth_data_export'),
+    path('me/erase/', views.data_erase, name='auth_data_erase'),
     # User management (admin)
     path('users/', views.user_list, name='user_list'),
     path('users/create/', views.user_create, name='user_create'),

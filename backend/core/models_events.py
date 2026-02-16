@@ -38,6 +38,8 @@ class BusinessEvent(models.Model):
         ('OWNER_OVERRIDE', 'Owner Override'),
         # Assistant
         ('ASSISTANT_COMMAND', 'Assistant Command'),
+        # GDPR
+        ('GDPR_ACTION', 'GDPR Action'),
     ]
 
     STATUS_CHOICES = [
@@ -46,7 +48,7 @@ class BusinessEvent(models.Model):
         ('FAILED', 'Failed'),
     ]
 
-    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='business_events')
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='business_events')
     event_type = models.CharField(max_length=50, choices=EVENT_TYPES, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='COMPLETED')
 

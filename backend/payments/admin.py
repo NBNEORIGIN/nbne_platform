@@ -1,9 +1,10 @@
 from django.contrib import admin
+from core.admin_tenant import TenantAdminMixin
 from .models import Customer, PaymentSession, Transaction, Refund
 
 
 @admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
+class CustomerAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['email', 'name', 'provider', 'created_at']
     search_fields = ['email', 'name']
 

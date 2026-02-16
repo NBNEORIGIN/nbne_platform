@@ -1,4 +1,5 @@
 from django.contrib import admin
+from core.admin_tenant import TenantAdminMixin
 from .models import (
     IncidentReport, IncidentPhoto, SignOff, RAMSDocument,
     RiskAssessment, HazardFinding, Equipment, EquipmentInspection, ComplianceCategory,
@@ -34,7 +35,7 @@ class EquipmentInspectionInline(admin.TabularInline):
 # --- Incidents ---
 
 @admin.register(IncidentReport)
-class IncidentReportAdmin(admin.ModelAdmin):
+class IncidentReportAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['title', 'severity', 'status', 'location', 'incident_date', 'reported_by']
     list_filter = ['severity', 'status']
     search_fields = ['title', 'description']
@@ -55,7 +56,7 @@ class SignOffAdmin(admin.ModelAdmin):
 # --- Risk Assessments & Findings ---
 
 @admin.register(RiskAssessment)
-class RiskAssessmentAdmin(admin.ModelAdmin):
+class RiskAssessmentAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['title', 'site_area', 'assessor', 'assessment_date', 'review_date', 'findings_count_display', 'high_risk_display', 'status']
     list_filter = ['status', 'assessment_date']
     search_fields = ['title', 'site_area', 'description']
@@ -88,7 +89,7 @@ class HazardFindingAdmin(admin.ModelAdmin):
 # --- Equipment ---
 
 @admin.register(Equipment)
-class EquipmentAdmin(admin.ModelAdmin):
+class EquipmentAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'location', 'category', 'last_inspection', 'next_inspection', 'status', 'is_overdue_display']
     list_filter = ['status', 'category']
     search_fields = ['name', 'location', 'serial_number']
@@ -116,7 +117,7 @@ class ComplianceItemInline(admin.TabularInline):
 
 
 @admin.register(ComplianceCategory)
-class ComplianceCategoryAdmin(admin.ModelAdmin):
+class ComplianceCategoryAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'current_score', 'max_score', 'percentage_display', 'order']
     list_editable = ['current_score', 'max_score', 'order']
     ordering = ['order']
@@ -133,7 +134,8 @@ class ComplianceCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(ComplianceItem)
-class ComplianceItemAdmin(admin.ModelAdmin):
+class ComplianceItemAdmin(TenantAdminMixin, admin.ModelAdmin):
+    tenant_field = 'category__tenant'
     list_display = ['title', 'category', 'item_type', 'status', 'weight_display', 'due_date', 'regulatory_ref']
     list_filter = ['item_type', 'status', 'category']
     search_fields = ['title', 'description', 'regulatory_ref']
@@ -168,7 +170,7 @@ class ComplianceItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(PeaceOfMindScore)
-class PeaceOfMindScoreAdmin(admin.ModelAdmin):
+class PeaceOfMindScoreAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['score_display', 'colour', 'interpretation', 'total_items', 'compliant_count', 'due_soon_count', 'overdue_count', 'last_calculated_at']
     readonly_fields = ['score', 'previous_score', 'total_items', 'compliant_count', 'due_soon_count', 'overdue_count', 'legal_items', 'best_practice_items', 'last_calculated_at']
 
@@ -206,7 +208,7 @@ class ScoreAuditLogAdmin(admin.ModelAdmin):
 # --- RAMS ---
 
 @admin.register(RAMSDocument)
-class RAMSDocumentAdmin(admin.ModelAdmin):
+class RAMSDocumentAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['title', 'reference_number', 'status', 'issue_date', 'expiry_date', 'is_expired_display']
     list_filter = ['status']
     search_fields = ['title', 'reference_number']
