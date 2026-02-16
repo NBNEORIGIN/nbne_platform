@@ -276,15 +276,15 @@ export async function getStaffList() {
 }
 
 export async function createStaff(data: { first_name: string; last_name: string; email: string; phone?: string; role?: string }) {
-  return apiFetch<any>('/staff/create/', { method: 'POST', body: JSON.stringify(data) })
+  return apiFetch<any>('/staff-module/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function updateStaff(id: number, data: Record<string, any>) {
-  return apiFetch<any>(`/staff/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+  return apiFetch<any>(`/staff-module/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
 }
 
 export async function deleteStaff(id: number) {
-  return apiFetch<any>(`/staff/${id}/delete/`, { method: 'DELETE' })
+  return apiFetch<any>(`/staff-module/${id}/delete/`, { method: 'DELETE' })
 }
 
 export async function getShifts(params?: { staff_id?: number; date?: string }) {
@@ -292,42 +292,42 @@ export async function getShifts(params?: { staff_id?: number; date?: string }) {
   if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
   if (params?.date) qs.set('date', params.date)
   const q = qs.toString()
-  return apiFetch<any[]>(`/staff/shifts/${q ? '?' + q : ''}`)
+  return apiFetch<any[]>(`/staff-module/shifts/${q ? '?' + q : ''}`)
 }
 
 export async function createShift(data: Record<string, any>) {
-  return apiFetch<any>('/staff/shifts/create/', { method: 'POST', body: JSON.stringify(data) })
+  return apiFetch<any>('/staff-module/shifts/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function updateShift(id: number, data: Record<string, any>) {
-  return apiFetch<any>(`/staff/shifts/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+  return apiFetch<any>(`/staff-module/shifts/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
 }
 
 export async function deleteShift(id: number) {
-  return apiFetch<any>(`/staff/shifts/${id}/delete/`, { method: 'DELETE' })
+  return apiFetch<any>(`/staff-module/shifts/${id}/delete/`, { method: 'DELETE' })
 }
 
 export async function getMyShifts() {
-  return apiFetch<any[]>('/staff/my-shifts/')
+  return apiFetch<any[]>('/staff-module/my-shifts/')
 }
 
 export async function getLeaveRequests(params?: { status?: string }) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)
   const q = qs.toString()
-  return apiFetch<any[]>(`/staff/leave/${q ? '?' + q : ''}`)
+  return apiFetch<any[]>(`/staff-module/leave/${q ? '?' + q : ''}`)
 }
 
 export async function createLeaveRequest(data: any) {
-  return apiFetch<any>('/staff/leave/create/', { method: 'POST', body: JSON.stringify(data) })
+  return apiFetch<any>('/staff-module/leave/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function reviewLeave(id: number, status: string) {
-  return apiFetch<any>(`/staff/leave/${id}/review/`, { method: 'POST', body: JSON.stringify({ status }) })
+  return apiFetch<any>(`/staff-module/leave/${id}/review/`, { method: 'POST', body: JSON.stringify({ status }) })
 }
 
 export async function getTrainingRecords() {
-  return apiFetch<any[]>('/staff/training/')
+  return apiFetch<any[]>('/staff-module/training/')
 }
 
 // --- Working Hours ---
