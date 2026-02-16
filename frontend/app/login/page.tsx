@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant'
+import { requestPasswordReset } from '@/lib/api'
 
 export default function LoginPage() {
   return (
@@ -18,6 +19,10 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showReset, setShowReset] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/app'
@@ -67,6 +72,69 @@ function LoginForm() {
     }
   }
 
+  async function handleResetSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!resetEmail.trim()) return
+    setResetLoading(true)
+    await requestPasswordReset(resetEmail.trim())
+    setResetLoading(false)
+    setResetSent(true)
+  }
+
+  // Forgot password view
+  if (showReset) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)' }}>
+        <div style={{ maxWidth: 420, width: '90%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-primary-dark)', fontSize: '2rem' }}>{tenant.business_name}</h1>
+            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>Reset your password</p>
+          </div>
+
+          <div className="card" style={{ padding: '2rem' }}>
+            {resetSent ? (
+              <div>
+                <div style={{ background: '#dcfce7', color: '#166534', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                  If an account exists with that email, a password reset link has been sent. Check your inbox.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%' }}
+                  onClick={() => { setShowReset(false); setResetSent(false); setResetEmail('') }}
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleResetSubmit}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+                  Enter your email address and we&rsquo;ll send you a link to reset your password.
+                </p>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label htmlFor="reset-email">Email</label>
+                  <input
+                    id="reset-email" type="email" value={resetEmail}
+                    onChange={e => setResetEmail(e.target.value)}
+                    placeholder="your.email@company.com" required autoFocus
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={resetLoading}>
+                  {resetLoading ? 'Sending…' : 'Send Reset Link'}
+                </button>
+                <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem' }}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setShowReset(false) }} style={{ color: 'var(--color-text-muted)' }}>
+                    ← Back to Sign In
+                  </a>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)' }}>
       <div style={{ maxWidth: 420, width: '90%' }}>
@@ -87,9 +155,19 @@ function LoginForm() {
             <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your.email@company.com" required autoFocus />
           </div>
 
-          <div style={{ marginBottom: '1.25rem' }}>
+          <div style={{ marginBottom: '0.5rem' }}>
             <label htmlFor="password">Password</label>
             <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter password" required />
+          </div>
+
+          <div style={{ textAlign: 'right', marginBottom: '1.25rem' }}>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); setShowReset(true) }}
+              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+            >
+              Forgot password?
+            </a>
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>

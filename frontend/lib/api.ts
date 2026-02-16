@@ -174,6 +174,18 @@ export async function setPassword(newPassword: string) {
   return apiFetch<any>('/auth/me/set-password/', { method: 'POST', body: JSON.stringify({ new_password: newPassword }) })
 }
 
+export async function requestPasswordReset(email: string) {
+  return apiFetch<any>('/auth/password-reset/', { method: 'POST', body: JSON.stringify({ email }) })
+}
+
+export async function validateResetToken(token: string) {
+  return apiFetch<any>(`/auth/validate-token/?token=${token}`)
+}
+
+export async function setPasswordWithToken(token: string, newPassword: string) {
+  return apiFetch<any>('/auth/set-password-token/', { method: 'POST', body: JSON.stringify({ token, new_password: newPassword }) })
+}
+
 // --- Tenant ---
 export async function getTenantSettings(params?: { tenant?: string }) {
   const qs = params?.tenant ? `?tenant=${params.tenant}` : ''
