@@ -15,9 +15,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Login — proxy to Django JWT endpoint
-  // Frontend sends email but Django expects username; the seed uses email-based usernames
-  // so we try the email prefix as username, or the full email
-  const username = body.username || body.email?.split('@')[0] || ''
+  // Send full email/username — Django handles email lookup fallback
+  const username = body.username || body.email || ''
   const password = body.password || ''
 
   try {

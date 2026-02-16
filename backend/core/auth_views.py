@@ -144,13 +144,30 @@ This link expires in 48 hours. If you didn't request this, you can safely ignore
 @permission_classes([AllowAny])
 def login_view(request):
     """
-    JWT login. Accepts { username, password }.
+    JWT login. Accepts { username, password } or { email, password }.
+    Tries username auth first, then falls back to email lookup.
     Returns { access, refresh, user: { id, username, role, ... } }
     """
-    username = request.data.get('username', '')
+    User = get_user_model()
+    username = request.data.get('username', '') or request.data.get('email', '')
     password = request.data.get('password', '')
 
+    # Try direct username auth
     user = authenticate(username=username, password=password)
+
+    # Fallback: look up by email and authenticate with actual username
+    if user is None and '@' in username:
+        try:
+            email_user = User.objects.get(email__iexact=username)
+            user = authenticate(username=email_user.username, password=password)
+        except User.DoesNotExist:
+            pass
+
+    # Fallback: try email prefix as username (legacy compat)
+    if user is None and '@' in username:
+        prefix = username.split('@')[0]
+        user = authenticate(username=prefix, password=password)
+
     if user is None:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -175,7 +192,7 @@ def login_view(request):
             'role': role,
             'is_superuser': user.is_superuser,
             'is_staff': user.is_staff,
-            'must_change_password': not user.has_usable_password(),
+            'must_change_password': getattr(user, 'must_change_password', False),
             'tenant_slug': user.tenant.slug if user.tenant else '',
         },
     })
@@ -203,12 +220,15 @@ def me_view(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def set_password_view(request):
-    """Set new password for current user."""
+    """Set new password for current user. Clears must_change_password flag."""
     new_password = request.data.get('new_password', '')
-    if len(new_password) < 6:
-        return Response({'detail': 'Password must be at least 6 characters'}, status=status.HTTP_400_BAD_REQUEST)
-    request.user.set_password(new_password)
-    request.user.save()
+    if len(new_password) < 8:
+        return Response({'detail': 'Password must be at least 8 characters'}, status=status.HTTP_400_BAD_REQUEST)
+    user = request.user
+    user.set_password(new_password)
+    if hasattr(user, 'must_change_password'):
+        user.must_change_password = False
+    user.save()
     return Response({'ok': True})
 
 

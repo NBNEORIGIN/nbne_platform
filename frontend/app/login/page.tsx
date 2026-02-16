@@ -33,13 +33,10 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      // Extract username from email (e.g. owner@demo.local → owner)
-      const username = email.includes('@') ? email.split('@')[0] : email
-
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: email, password }),
       })
       const data = await res.json()
       if (data.ok) {

@@ -216,7 +216,8 @@ def shift_create(request):
 def shift_update(request, shift_id):
     """Update a shift (manager+)."""
     try:
-        shift = Shift.objects.get(id=shift_id)
+        tenant = getattr(request, 'tenant', None)
+        shift = Shift.objects.get(id=shift_id, staff__tenant=tenant)
     except Shift.DoesNotExist:
         return Response({'error': 'Shift not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = ShiftCreateSerializer(shift, data=request.data, partial=True)
@@ -231,7 +232,8 @@ def shift_update(request, shift_id):
 def shift_delete(request, shift_id):
     """Delete a shift (manager+)."""
     try:
-        shift = Shift.objects.get(id=shift_id)
+        tenant = getattr(request, 'tenant', None)
+        shift = Shift.objects.get(id=shift_id, staff__tenant=tenant)
     except Shift.DoesNotExist:
         return Response({'error': 'Shift not found'}, status=status.HTTP_404_NOT_FOUND)
     shift.delete()
@@ -263,6 +265,10 @@ def leave_create(request):
     serializer = LeaveCreateSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    staff_id = serializer.validated_data.get('staff', getattr(serializer.validated_data.get('staff'), 'id', None))
+    if staff_id and not StaffProfile.objects.filter(id=staff_id if isinstance(staff_id, int) else staff_id.id, tenant=tenant).exists():
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     leave = serializer.save()
     return Response(LeaveRequestSerializer(leave).data, status=status.HTTP_201_CREATED)
 
@@ -272,7 +278,8 @@ def leave_create(request):
 def leave_review(request, leave_id):
     """Approve or reject a leave request (manager+)."""
     try:
-        leave = LeaveRequest.objects.get(id=leave_id)
+        tenant = getattr(request, 'tenant', None)
+        leave = LeaveRequest.objects.get(id=leave_id, staff__tenant=tenant)
     except LeaveRequest.DoesNotExist:
         return Response({'error': 'Leave request not found'}, status=status.HTTP_404_NOT_FOUND)
     if leave.status != 'PENDING':
@@ -312,6 +319,10 @@ def training_create(request):
     serializer = TrainingCreateSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    staff = serializer.validated_data.get('staff')
+    if staff and not StaffProfile.objects.filter(id=staff.id, tenant=tenant).exists():
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     record = serializer.save()
     return Response(TrainingRecordSerializer(record).data, status=status.HTTP_201_CREATED)
 
@@ -335,6 +346,10 @@ def absence_create(request):
     serializer = AbsenceCreateSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    staff = serializer.validated_data.get('staff')
+    if staff and not StaffProfile.objects.filter(id=staff.id, tenant=tenant).exists():
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     record = serializer.save()
     return Response(AbsenceRecordSerializer(record).data, status=status.HTTP_201_CREATED)
 
@@ -369,7 +384,8 @@ def working_hours_create(request):
 def working_hours_update(request, wh_id):
     """Update a working hours entry (manager+)."""
     try:
-        wh = WorkingHours.objects.get(id=wh_id)
+        tenant = getattr(request, 'tenant', None)
+        wh = WorkingHours.objects.get(id=wh_id, staff__tenant=tenant)
     except WorkingHours.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = WorkingHoursCreateSerializer(wh, data=request.data, partial=True)
@@ -384,7 +400,8 @@ def working_hours_update(request, wh_id):
 def working_hours_delete(request, wh_id):
     """Delete a working hours entry (manager+)."""
     try:
-        wh = WorkingHours.objects.get(id=wh_id)
+        tenant = getattr(request, 'tenant', None)
+        wh = WorkingHours.objects.get(id=wh_id, staff__tenant=tenant)
     except WorkingHours.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     wh.delete()
@@ -402,7 +419,8 @@ def working_hours_bulk_set(request):
     if not staff_id:
         return Response({'error': 'staff is required'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        profile = StaffProfile.objects.get(id=staff_id)
+        tenant = getattr(request, 'tenant', None)
+        profile = StaffProfile.objects.get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     with transaction.atomic():
@@ -452,7 +470,8 @@ def timesheet_list(request):
 def timesheet_update(request, ts_id):
     """Update a timesheet entry (actual times, status, notes). Manager+."""
     try:
-        entry = TimesheetEntry.objects.get(id=ts_id)
+        tenant = getattr(request, 'tenant', None)
+        entry = TimesheetEntry.objects.get(id=ts_id, staff__tenant=tenant)
     except TimesheetEntry.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = TimesheetUpdateSerializer(entry, data=request.data, partial=True)
@@ -489,7 +508,8 @@ def timesheet_generate(request):
     if staff_id:
         staff_filter['staff_id'] = staff_id
 
-    all_wh = WorkingHours.objects.filter(is_active=True, **staff_filter).select_related('staff')
+    tenant = getattr(request, 'tenant', None)
+    all_wh = WorkingHours.objects.filter(is_active=True, staff__tenant=tenant, **staff_filter).select_related('staff')
     # Group by staff
     wh_by_staff = {}
     for wh in all_wh:
@@ -565,7 +585,8 @@ def timesheet_summary(request):
         date_from = ref_date - timedelta(days=ref_date.weekday())  # Monday
         date_to = date_from + timedelta(days=6)  # Sunday
 
-    qs = TimesheetEntry.objects.filter(date__gte=date_from, date__lte=date_to)
+    tenant = getattr(request, 'tenant', None)
+    qs = TimesheetEntry.objects.filter(date__gte=date_from, date__lte=date_to, staff__tenant=tenant)
     staff_id = request.query_params.get('staff_id')
     if staff_id:
         qs = qs.filter(staff_id=staff_id)
