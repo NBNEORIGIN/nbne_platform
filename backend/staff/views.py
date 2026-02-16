@@ -127,9 +127,10 @@ def staff_update(request, staff_id):
         if new_email != user.email and User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
             return Response({'error': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         user.email = new_email
-    if 'role' in data and data['role'] in ('staff', 'manager'):
+    if 'role' in data and data['role'] in ('staff', 'manager', 'owner'):
         user.role = data['role']
         user.is_staff = data['role'] in ('manager', 'owner')
+        user.is_superuser = data['role'] == 'owner'
     if 'phone' in data:
         profile.phone = data['phone'].strip()
     if 'emergency_contact_name' in data:
