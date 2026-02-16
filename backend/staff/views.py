@@ -157,8 +157,8 @@ def staff_delete(request, staff_id):
         profile = StaffProfile.objects.select_related('user').get(id=staff_id)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
-    if profile.user.role == 'owner':
-        return Response({'error': 'Cannot deactivate an owner account.'}, status=status.HTTP_400_BAD_REQUEST)
+    if profile.user.id == request.user.id:
+        return Response({'error': 'Cannot deactivate your own account.'}, status=status.HTTP_400_BAD_REQUEST)
     profile.is_active = False
     profile.save(update_fields=['is_active', 'updated_at'])
     profile.user.is_active = False
