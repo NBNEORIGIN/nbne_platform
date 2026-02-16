@@ -55,8 +55,8 @@ def staff_create(request):
         return Response({'error': 'First name and last name are required.'}, status=status.HTTP_400_BAD_REQUEST)
     if not email:
         return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    if role not in ('staff', 'manager'):
-        return Response({'error': 'Role must be staff or manager.'}, status=status.HTTP_400_BAD_REQUEST)
+    if role not in ('staff', 'manager', 'owner'):
+        return Response({'error': 'Role must be staff, manager, or owner.'}, status=status.HTTP_400_BAD_REQUEST)
     if User.objects.filter(email=email).exists():
         return Response({'error': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -574,6 +574,7 @@ export default function AdminStaffPage() {
                 <select className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
                   <option value="staff">Staff</option>
                   <option value="manager">Manager</option>
+                  <option value="owner">Owner</option>
                 </select>
               </div>
             </div>
