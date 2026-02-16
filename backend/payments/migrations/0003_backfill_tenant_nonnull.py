@@ -8,9 +8,9 @@ def backfill(apps, schema_editor):
     default = TenantSettings.objects.first()
     if not default:
         return
-    for model_name in ('Customer', 'PaymentSession'):
-        Model = apps.get_model('payments', model_name)
-        Model.objects.filter(tenant__isnull=True).update(tenant=default)
+    # Only Customer has a tenant FK (added in 0002). PaymentSession does not.
+    Customer = apps.get_model('payments', 'Customer')
+    Customer.objects.filter(tenant__isnull=True).update(tenant=default)
 
 
 class Migration(migrations.Migration):
