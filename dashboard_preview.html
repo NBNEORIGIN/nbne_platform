@@ -24,11 +24,11 @@
 
   /* ── Main ── */
   .main { flex: 1; padding: 2.5rem; }
-  .content { max-width: 960px; margin: 0 auto; }
+  .content { max-width: 860px; margin: 0 auto; }
 
   /* ── Command bar ── */
   .cmd-bar {
-    display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+    display: flex; gap: 0.5rem; margin-bottom: 0;
     padding: 0.6rem 0.75rem; border-radius: 8px;
     border: 1px solid #e5e7eb; background: #fff;
   }
@@ -40,25 +40,99 @@
     padding: 0.35rem 0.75rem; border-radius: 5px; border: none;
     background: #111827; color: #fff; font-size: 0.8rem; font-weight: 500; cursor: pointer;
   }
-  .cmd-confirm {
-    margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 8px;
-    border: 1px solid #e5e7eb; background: #fafafa;
+
+  /* ── Assistant strip (compact single-line) ── */
+  .cmd-strip {
+    display: none; align-items: center; gap: 0.6rem;
+    padding: 0.4rem 0.75rem; margin-top: 0.35rem;
+    font-size: 0.85rem; color: #374151;
   }
-  .cmd-confirm .msg { font-size: 0.9rem; color: #111827; margin-bottom: 0.5rem; }
-  .cmd-confirm .btns { display: flex; gap: 0.5rem; }
-  .cmd-confirm .btns button {
-    padding: 0.35rem 0.85rem; border-radius: 5px; font-size: 0.8rem; cursor: pointer;
+  .cmd-strip.visible { display: flex; }
+  .cmd-strip .strip-msg { flex: 1; }
+  .cmd-strip .strip-confirm {
+    padding: 0.25rem 0.65rem; border-radius: 4px; border: none;
+    background: #111827; color: #fff; font-size: 0.78rem; font-weight: 500; cursor: pointer;
   }
-  .cmd-confirm .btn-ok { border: none; background: #111827; color: #fff; font-weight: 500; }
-  .cmd-confirm .btn-cancel { border: 1px solid #d1d5db; background: #fff; color: #6b7280; }
+  .cmd-strip .strip-cancel {
+    font-size: 0.78rem; color: #9ca3af; cursor: pointer;
+    text-decoration: none; border: none; background: none;
+  }
+  .cmd-strip .strip-cancel:hover { color: #6b7280; }
+
+  /* ── Assistant feedback (post-confirm) ── */
+  .cmd-feedback {
+    display: none; padding: 0.4rem 0.75rem; margin-top: 0.35rem;
+    font-size: 0.85rem; color: #059669; font-weight: 500;
+  }
+  .cmd-feedback.visible { display: block; }
+
+  .cmd-area { margin-bottom: 1rem; }
+
+  /* ── Operational Snapshot ── */
+  .snapshot {
+    display: flex; align-items: stretch; gap: 0;
+    border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+    margin-bottom: 1rem; overflow: hidden;
+  }
+  .snap-cell {
+    flex: 1; padding: 0.55rem 0.75rem; text-align: center;
+    border-right: 1px solid #f3f4f6; cursor: default;
+  }
+  .snap-cell:last-child { border-right: none; }
+  .snap-cell.clickable { cursor: pointer; }
+  .snap-cell.clickable:hover { background: #fafafa; }
+  .snap-label {
+    font-size: 0.65rem; font-weight: 600; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem;
+  }
+  .snap-value {
+    font-size: 1.05rem; font-weight: 700; color: #111827; line-height: 1.2;
+  }
+  .snap-value .sub {
+    font-size: 0.72rem; font-weight: 400; color: #9ca3af;
+  }
+  .snap-value.warn { color: #f59e0b; }
+  .snap-value.danger { color: #ef4444; }
+
+  /* ── Staff expand panel ── */
+  .snap-expand {
+    display: none; padding: 0.5rem 0.75rem;
+    border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;
+    background: #fafafa; margin-top: -1rem; margin-bottom: 1rem;
+  }
+  .snap-expand.visible { display: block; }
+  .snap-expand .staff-line {
+    font-size: 0.82rem; color: #374151; padding: 0.2rem 0;
+    display: flex; justify-content: space-between;
+  }
+  .snap-expand .staff-line .hours { color: #9ca3af; font-size: 0.78rem; }
+  .snap-expand .staff-line.off { color: #ef4444; }
+  .snap-expand .staff-line.off .hours { color: #ef4444; }
+
+  /* ── Mini timeline ── */
+  .timeline-bar {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 1rem; border-radius: 4px; overflow: hidden;
+    height: 18px; background: #f3f4f6; position: relative;
+  }
+  .timeline-bar .tl-block {
+    height: 100%; transition: width 0.3s ease;
+  }
+  .timeline-bar .tl-block.booked { background: #1e293b; }
+  .timeline-bar .tl-block.free { background: #e5e7eb; }
+  .timeline-labels {
+    display: flex; justify-content: space-between;
+    font-size: 0.65rem; color: #9ca3af; margin-top: 0.15rem; margin-bottom: 0.75rem;
+  }
 
   /* ── Header ── */
-  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.25rem; }
-  .header h1 { font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 0.15rem; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
+  .header h1 { font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 0.1rem; }
   .header .subtitle { font-size: 0.9rem; color: #6b7280; }
+  .header .impact { font-size: 0.8rem; color: #9ca3af; margin-top: 0.15rem; }
 
   /* ── View toggle ── */
-  .view-toggle { display: flex; gap: 0.35rem; }
+  .view-toggle { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
   .view-toggle button {
     padding: 0.3rem 0.85rem; border-radius: 5px;
     border: 1px solid #d1d5db; background: #fff; color: #6b7280;
@@ -73,51 +147,55 @@
   }
   .calm-banner p { font-size: 0.95rem; font-weight: 500; color: #374151; }
 
-  /* ── Column headers ── */
+  /* ── Column headers (3-col: situation | action | options) ── */
   .col-head {
     display: grid; gap: 0.75rem;
-    padding: 0 0 0.4rem 0; border-bottom: 1px solid #e5e7eb;
+    padding: 0 0 0.4rem 0.75rem; border-bottom: 1px solid #e5e7eb;
   }
   .col-head span {
     font-size: 0.7rem; font-weight: 600; color: #9ca3af;
     text-transform: uppercase; letter-spacing: 0.04em;
   }
-  .col-head.active-head { grid-template-columns: 2fr 1.2fr 1fr 1fr; }
-  .col-head.sorted-head { grid-template-columns: 1fr 140px 100px 80px; }
+  .col-head.active-head { grid-template-columns: 2.5fr 1fr 1fr; }
+  .col-head.sorted-head { grid-template-columns: 1fr 140px 100px 80px; padding-left: 0; }
 
-  /* ── Issue row (4-col grid) ── */
+  /* ── Issue row (3-col with left priority border) ── */
   .issue-row {
-    display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr; gap: 0.75rem;
-    padding: 0.65rem 0; border-bottom: 1px solid #f3f4f6;
-    align-items: flex-start;
-    transition: opacity 0.3s ease;
+    display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 0.75rem;
+    padding: 0.6rem 0 0.6rem 0.75rem; border-bottom: 1px solid #f3f4f6;
+    align-items: center;
+    border-left: 3px solid transparent;
+    transition: opacity 0.4s ease, max-height 0.4s ease;
+    max-height: 120px; overflow: hidden;
   }
-  .issue-row.resolving { opacity: 0.4; pointer-events: none; }
+  .issue-row.priority-red { border-left-color: #ef4444; }
+  .issue-row.priority-amber { border-left-color: #f59e0b; }
+  .issue-row.priority-grey { border-left-color: #d1d5db; }
+
+  .issue-row.resolving { opacity: 0.35; pointer-events: none; }
   .issue-row.resolved {
-    opacity: 0; height: 0; padding: 0; margin: 0;
-    border: none; overflow: hidden;
-    transition: opacity 0.3s ease, height 0s 0.3s;
+    opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0;
+    border-bottom: none; overflow: hidden;
   }
-  .issue-row .what { font-size: 0.88rem; color: #111827; line-height: 1.45; }
-  .issue-row .why { font-size: 0.82rem; color: #6b7280; line-height: 1.4; }
+
+  .issue-row .what { font-size: 0.88rem; color: #111827; line-height: 1.4; }
   .issue-row .feedback {
-    grid-column: 1 / -1; font-size: 0.88rem; color: #374151; display: none;
+    grid-column: 1 / -1; font-size: 0.85rem; color: #374151; display: none;
   }
   .issue-row.resolving .feedback { display: block; }
   .issue-row.resolving .what,
-  .issue-row.resolving .why,
   .issue-row.resolving .act,
   .issue-row.resolving .opts { display: none; }
 
   .btn-primary {
-    padding: 0.35rem 0.75rem; border-radius: 5px; border: none;
+    padding: 0.3rem 0.7rem; border-radius: 5px; border: none;
     background: #111827; color: #fff;
     font-size: 0.82rem; font-weight: 500; cursor: pointer; white-space: nowrap;
   }
   .btn-primary:hover { background: #1f2937; }
   .opts a {
     display: block; font-size: 0.78rem; color: #6b7280; cursor: pointer;
-    text-decoration: underline; text-underline-offset: 2px; margin-bottom: 0.15rem;
+    text-decoration: underline; text-underline-offset: 2px; margin-bottom: 0.1rem;
   }
   .opts a:hover { color: #374151; }
 
@@ -130,6 +208,16 @@
   .resolved-row .who { font-size: 0.82rem; color: #6b7280; }
   .resolved-row .type { font-size: 0.78rem; color: #9ca3af; }
   .resolved-row .time { font-size: 0.78rem; color: #9ca3af; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    padding: 0.5rem 1.25rem; border-radius: 6px;
+    background: #111827; color: #fff; font-size: 0.82rem; font-weight: 500;
+    opacity: 0; transition: opacity 0.3s ease;
+    pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
 
   /* ── Dev reset ── */
   .preview-toggle {
@@ -165,25 +253,69 @@
 <div class="main">
 <div class="content">
 
-  <!-- Global Command Bar -->
-  <div class="cmd-bar">
-    <input id="cmd-input" type="text" placeholder="Type what happened or what you want to do&hellip;"
-           onkeydown="if(event.key==='Enter')parseCmd()">
-    <button onclick="parseCmd()">Go</button>
-  </div>
-  <div class="cmd-confirm" id="cmd-confirm" style="display:none">
-    <div class="msg" id="cmd-msg"></div>
-    <div class="btns">
-      <button class="btn-ok" onclick="confirmCmd()">Confirm</button>
-      <button class="btn-cancel" onclick="cancelCmd()">Cancel</button>
+  <!-- ── Command area ── -->
+  <div class="cmd-area">
+    <div class="cmd-bar">
+      <input id="cmd-input" type="text" placeholder="Type what happened or what you want to do&hellip;"
+             onkeydown="if(event.key==='Enter')parseCmd()">
+      <button onclick="parseCmd()">Go</button>
     </div>
+    <!-- Compact single-line confirm strip -->
+    <div class="cmd-strip" id="cmd-strip">
+      <span class="strip-msg" id="strip-msg"></span>
+      <button class="strip-confirm" id="strip-confirm-btn" onclick="confirmCmd()">Confirm absence</button>
+      <button class="strip-cancel" onclick="cancelCmd()">Cancel</button>
+    </div>
+    <!-- Post-confirm feedback -->
+    <div class="cmd-feedback" id="cmd-feedback"></div>
+  </div>
+
+  <!-- Operational Snapshot -->
+  <div class="snapshot" id="snapshot">
+    <div class="snap-cell clickable" onclick="toggleStaffPanel('in')">
+      <div class="snap-label">Staff In</div>
+      <div class="snap-value" id="snap-in">5</div>
+    </div>
+    <div class="snap-cell clickable" onclick="toggleStaffPanel('off')">
+      <div class="snap-label">Staff Off</div>
+      <div class="snap-value danger" id="snap-off">1</div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-label">Bookings</div>
+      <div class="snap-value" id="snap-bookings">18 <span class="sub">(78%)</span></div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-label">Revenue Today</div>
+      <div class="snap-value" id="snap-revenue">&pound;1,240</div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-label">Gaps</div>
+      <div class="snap-value warn" id="snap-gaps">3 <span class="sub">empty slots</span></div>
+    </div>
+  </div>
+
+  <!-- Staff expand panel -->
+  <div class="snap-expand" id="staff-panel">
+    <div class="staff-line"><span>Sam</span><span class="hours">09:00 – 17:00</span></div>
+    <div class="staff-line"><span>Jordan</span><span class="hours">10:00 – 18:00</span></div>
+    <div class="staff-line"><span>Alex</span><span class="hours">09:00 – 15:00</span></div>
+    <div class="staff-line"><span>Morgan</span><span class="hours">11:00 – 19:00</span></div>
+    <div class="staff-line"><span>Taylor</span><span class="hours">09:00 – 17:00</span></div>
+    <div class="staff-line off" id="staff-off-line"><span>Chloe</span><span class="hours">Sick</span></div>
+  </div>
+
+  <!-- Mini timeline 09:00–18:00 -->
+  <div class="timeline-bar" id="timeline-bar"></div>
+  <div class="timeline-labels">
+    <span>09:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span><span>15:00</span><span>16:00</span><span>17:00</span><span>18:00</span>
   </div>
 
   <!-- Header -->
   <div class="header">
     <div>
-      <h1>Today</h1>
+      <h1 id="header-title">Today</h1>
       <div class="subtitle" id="subtitle">3 things need sorting.</div>
+      <div class="impact" id="impact">&pound;85 revenue at risk &middot; 4 bookings affected</div>
     </div>
     <div class="view-toggle">
       <button class="on" id="btn-active" onclick="switchView('active')">Active</button>
@@ -191,45 +323,42 @@
     </div>
   </div>
 
-  <!-- ═══ Active view ═══ -->
+  <!-- ═══ Active view (3-col: situation | action | options) ═══ -->
   <div id="state-active">
     <div class="col-head active-head">
-      <span>What happened</span><span>Why it matters</span><span>Action</span><span>Options</span>
+      <span>Situation</span><span>Action</span><span>Options</span>
     </div>
 
-    <!-- Row 1 — Staff sick -->
-    <div class="issue-row" id="row-1">
-      <div class="feedback">Ask Jordan to cover &mdash; awaiting response.</div>
-      <div class="what">Chloe is off today. 4 bookings need cover.</div>
-      <div class="why">4 bookings affected</div>
-      <div class="act"><button class="btn-primary" onclick="resolveRow('row-1','Ask Jordan to cover','Cover Requested','07:02')">Ask Jordan to cover</button></div>
+    <!-- Row 1 — Staff sick (priority: red — structural disruption) -->
+    <div class="issue-row priority-red" id="row-1" data-priority="1" data-bookings="4" data-revenue="0">
+      <div class="feedback">Cover request sent to Jordan.</div>
+      <div class="what">Chloe off today &mdash; 4 bookings need cover.</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-1','\u2192 Ask Jordan to cover','Cover request sent to Jordan.','Cover Requested')">&#8594; Ask Jordan to cover</button></div>
       <div class="opts">
-        <a onclick="resolveRow('row-1','Ask Sam to cover','Cover Requested','07:02')">Ask Sam</a>
-        <a onclick="resolveRow('row-1','Owner cover','Owner Override','07:02')">Owner cover</a>
+        <a onclick="resolveRow('row-1','\u2192 Ask Sam to cover','Cover request sent to Sam.','Cover Requested')">Ask Sam</a>
+        <a onclick="resolveRow('row-1','\u2192 Owner cover','Owner covering Chloe\u2019s bookings.','Owner Override')">Owner cover</a>
       </div>
     </div>
 
-    <!-- Row 2 — Unassigned booking -->
-    <div class="issue-row" id="row-2">
-      <div class="feedback">Assigned to Sam.</div>
-      <div class="what">11:00 Full Colour for Emma Watson has no stylist.</div>
-      <div class="why">No one assigned &mdash; booking at risk (today).</div>
-      <div class="act"><button class="btn-primary" onclick="resolveRow('row-2','Assign Sam','Booking Assigned','07:03')">Assign Sam</button></div>
+    <!-- Row 2 — Unassigned booking (priority: red — structural) -->
+    <div class="issue-row priority-red" id="row-2" data-priority="2" data-bookings="1" data-revenue="0">
+      <div class="feedback">Sam assigned to 11:00 Full Colour.</div>
+      <div class="what">11:00 Full Colour &mdash; no stylist assigned (at risk today).</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-2','\u2192 Assign Sam','Sam assigned to 11:00 Full Colour.','Booking Assigned')">&#8594; Assign Sam</button></div>
       <div class="opts">
-        <a onclick="resolveRow('row-2','Assign Jordan','Booking Assigned','07:03')">Assign Jordan</a>
-        <a onclick="resolveRow('row-2','Reschedule','Booking Rescheduled','07:03')">Reschedule</a>
+        <a onclick="resolveRow('row-2','\u2192 Assign Jordan','Jordan assigned to 11:00 Full Colour.','Booking Assigned')">Assign Jordan</a>
+        <a onclick="resolveRow('row-2','\u2192 Reschedule','11:00 Full Colour rescheduled.','Booking Rescheduled')">Reschedule</a>
       </div>
     </div>
 
-    <!-- Row 3 — Deposit missing -->
-    <div class="issue-row" id="row-3">
-      <div class="feedback">Payment request sent.</div>
-      <div class="what">Sarah Connor&rsquo;s Balayage at 14:00 has no deposit.</div>
-      <div class="why">&pound;85 revenue at risk.</div>
-      <div class="act"><button class="btn-primary" onclick="resolveRow('row-3','Request payment','Payment Requested','07:04')">Request payment</button></div>
+    <!-- Row 3 — Deposit missing (priority: amber — revenue risk) -->
+    <div class="issue-row priority-amber" id="row-3" data-priority="3" data-bookings="0" data-revenue="85">
+      <div class="feedback">Payment request sent to Sarah Connor.</div>
+      <div class="what">Sarah Connor&rsquo;s 14:00 Balayage &mdash; no deposit (&pound;85 at risk).</div>
+      <div class="act"><button class="btn-primary" onclick="resolveRow('row-3','\u2192 Request payment','Payment request sent to Sarah Connor.','Payment Requested')">&#8594; Request payment</button></div>
       <div class="opts">
-        <a onclick="resolveRow('row-3','Mark as paid','Payment Marked','07:04')">Mark as paid</a>
-        <a onclick="resolveRow('row-3','Cancel booking','Booking Cancelled','07:04')">Cancel booking</a>
+        <a onclick="resolveRow('row-3','\u2192 Mark as paid','Sarah Connor marked as paid.','Payment Marked')">Mark as paid</a>
+        <a onclick="resolveRow('row-3','\u2192 Cancel booking','14:00 Balayage cancelled.','Booking Cancelled')">Cancel booking</a>
       </div>
     </div>
   </div>
@@ -255,27 +384,125 @@
 </div>
 </div>
 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <!-- Dev reset -->
 <div class="preview-toggle">
   <button class="active" onclick="resetDemo()">Reset Demo</button>
 </div>
 
 <script>
-  const totalRows = 3;
+  let totalRows = 3;
   let resolvedCount = 0;
   const resolvedItems = [];
+  let dynamicRows = 0;
 
-  function resolveRow(id, label, type, time) {
+  // Impact tracking
+  let totalRevenue = 85;
+  let totalBookings = 5; // 4 from Chloe + 1 unassigned
+
+  // ── Formatted date ──
+  (function setDate() {
+    const d = new Date();
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('header-title').textContent =
+      'Today \u2014 ' + days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()];
+  })();
+
+  // ── Snapshot state ──
+  let snapStaffIn = 5;
+  let snapStaffOff = 1;
+  let snapBookings = 18;
+  let snapCapacity = 23;
+  let snapRevenue = 1240;
+  let snapGaps = 3;
+
+  function updateSnapshot() {
+    document.getElementById('snap-in').textContent = snapStaffIn;
+    const offEl = document.getElementById('snap-off');
+    offEl.textContent = snapStaffOff;
+    offEl.className = 'snap-value' + (snapStaffOff > 0 ? ' danger' : '');
+    const pct = snapCapacity > 0 ? Math.round((snapBookings / snapCapacity) * 100) : 0;
+    document.getElementById('snap-bookings').innerHTML = snapBookings + ' <span class="sub">(' + pct + '%)</span>';
+    document.getElementById('snap-revenue').innerHTML = '&pound;' + snapRevenue.toLocaleString();
+    document.getElementById('snap-gaps').innerHTML = snapGaps + ' <span class="sub">empty slot' + (snapGaps !== 1 ? 's' : '') + '</span>';
+  }
+
+  // ── Staff panel toggle ──
+  let staffPanelOpen = false;
+  function toggleStaffPanel(type) {
+    const panel = document.getElementById('staff-panel');
+    if (staffPanelOpen) {
+      panel.classList.remove('visible');
+      staffPanelOpen = false;
+    } else {
+      panel.classList.add('visible');
+      staffPanelOpen = true;
+    }
+  }
+
+  // ── Mini timeline (09:00–18:00, 9 hours = 36 quarter-hour blocks) ──
+  // Demo: bookings at various slots
+  const timelineSlots = [
+    // Each entry: [startHour, startMin, endHour, endMin]
+    [9,0,9,45], [9,15,10,0], [10,0,11,0], [10,30,11,30],
+    [11,0,12,0], [11,30,12,30], [12,0,13,0],
+    [13,0,14,0], [13,30,14,30], [14,0,15,0], [14,0,14,45],
+    [15,0,16,0], [15,30,16,30], [16,0,17,0],
+    [16,30,17,30], [17,0,18,0], [17,0,17,45], [17,30,18,0]
+  ];
+
+  function renderTimeline() {
+    const bar = document.getElementById('timeline-bar');
+    const totalMinutes = 9 * 60; // 09:00–18:00
+    // Build density: count bookings per 15-min block
+    const blocks = 36; // 9 hours * 4
+    const density = new Array(blocks).fill(0);
+    timelineSlots.forEach(([sh, sm, eh, em]) => {
+      const startBlock = Math.max(0, Math.floor(((sh - 9) * 60 + sm) / 15));
+      const endBlock = Math.min(blocks, Math.ceil(((eh - 9) * 60 + em) / 15));
+      for (let i = startBlock; i < endBlock; i++) density[i]++;
+    });
+    // Render blocks
+    let html = '';
+    for (let i = 0; i < blocks; i++) {
+      const cls = density[i] > 0 ? 'booked' : 'free';
+      const opacity = density[i] > 0 ? Math.min(1, 0.3 + density[i] * 0.25) : 1;
+      html += '<div class="tl-block ' + cls + '" style="width:' + (100/blocks).toFixed(2) + '%;' +
+        (density[i] > 0 ? 'opacity:' + opacity : '') + '"></div>';
+    }
+    bar.innerHTML = html;
+  }
+  renderTimeline();
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function resolveRow(id, label, toastMsg, type) {
     const row = document.getElementById(id);
     if (!row || row.classList.contains('resolving')) return;
-    row.querySelector('.feedback').textContent = label + ' \u2014 awaiting response.';
     row.classList.add('resolving');
+
     setTimeout(() => {
       row.classList.add('resolved');
       resolvedCount++;
-      resolvedItems.push({ action: label, who: 'Owner', type: type || 'Action', time: time || now() });
+
+      // Track impact reduction
+      const rev = parseInt(row.dataset.revenue || '0');
+      const bk = parseInt(row.dataset.bookings || '0');
+      totalRevenue = Math.max(0, totalRevenue - rev);
+      totalBookings = Math.max(0, totalBookings - bk);
+
+      resolvedItems.push({ action: label, who: 'Owner', type: type || 'Action', time: now() });
       updateUI();
-    }, 1500);
+      showToast(toastMsg || label);
+    }, 800);
   }
 
   function now() {
@@ -286,13 +513,22 @@
   function updateUI() {
     const remaining = totalRows - resolvedCount;
     const sub = document.getElementById('subtitle');
+    const impact = document.getElementById('impact');
+
     if (remaining <= 0) {
       sub.textContent = 'All sorted. You\u2019re good.';
+      impact.style.display = 'none';
       document.getElementById('state-active').style.display = 'none';
       document.getElementById('all-clear').style.display = 'block';
     } else {
       sub.textContent = remaining + ' thing' + (remaining !== 1 ? 's' : '') +
         ' need' + (remaining === 1 ? 's' : '') + ' sorting.';
+      // Update impact line
+      const parts = [];
+      if (totalRevenue > 0) parts.push('\u00A3' + totalRevenue + ' revenue at risk');
+      if (totalBookings > 0) parts.push(totalBookings + ' booking' + (totalBookings !== 1 ? 's' : '') + ' affected');
+      impact.textContent = parts.length > 0 ? parts.join(' \u00B7 ') : '';
+      impact.style.display = parts.length > 0 ? 'block' : 'none';
     }
     document.getElementById('btn-sorted').textContent =
       'Sorted' + (resolvedItems.length > 0 ? ' (' + resolvedItems.length + ')' : '');
@@ -333,48 +569,173 @@
     }
   }
 
-  // Command bar (demo — keyword match)
+  // ── Command bar: compact strip + feedback loop ──
+
+  let pendingCmd = null;
+
   function parseCmd() {
     const input = document.getElementById('cmd-input');
     const text = input.value.trim();
     if (!text) return;
     const lower = text.toLowerCase();
-    let msg = '';
-    if (lower.includes('sick') || lower.includes('off')) msg = 'Mark staff as sick today?';
-    else if (lower.includes('assign')) msg = 'Assign staff to booking?';
-    else if (lower.includes('payment') || lower.includes('deposit')) msg = 'Send payment request?';
-    else if (lower.includes('cancel')) msg = 'Cancel this booking?';
-    else { msg = 'Could not understand. Try: "Chloe is off sick" or "Assign Sam to 11:00 booking".'; }
-    document.getElementById('cmd-msg').textContent = msg;
-    document.getElementById('cmd-confirm').style.display = 'block';
+
+    // Extract staff name (first capitalised word after common patterns)
+    const nameMatch = text.match(/\b([A-Z][a-z]+)\b/);
+    const staffName = nameMatch ? nameMatch[1] : 'Staff member';
+
+    let msg = '', btnLabel = '', feedbackMsg = '', newRowText = '', eventType = '';
+
+    if (lower.includes('sick') || lower.includes('off') || lower.includes('called in')) {
+      msg = staffName + ' called in sick.';
+      btnLabel = 'Confirm absence';
+      feedbackMsg = staffName + ' marked sick. 2 bookings now need cover.';
+      newRowText = staffName + ' off today \u2014 2 bookings need cover.';
+      eventType = 'STAFF_SICK';
+    } else if (lower.includes('assign')) {
+      msg = 'Assign staff to booking.';
+      btnLabel = 'Confirm assignment';
+      feedbackMsg = 'Staff assigned to booking.';
+      eventType = 'BOOKING_ASSIGNED';
+    } else if (lower.includes('payment') || lower.includes('deposit')) {
+      msg = 'Send payment request.';
+      btnLabel = 'Confirm request';
+      feedbackMsg = 'Payment request sent.';
+      eventType = 'PAYMENT_REQUESTED';
+    } else if (lower.includes('cancel')) {
+      msg = 'Cancel this booking.';
+      btnLabel = 'Confirm cancellation';
+      feedbackMsg = 'Booking cancelled.';
+      eventType = 'BOOKING_CANCELLED';
+    } else {
+      msg = 'Could not understand. Try: \u201CJordan called in sick\u201D';
+      btnLabel = '';
+    }
+
+    const strip = document.getElementById('cmd-strip');
+    const feedback = document.getElementById('cmd-feedback');
+    feedback.classList.remove('visible');
+
+    document.getElementById('strip-msg').textContent = msg;
+    if (btnLabel) {
+      document.getElementById('strip-confirm-btn').textContent = btnLabel;
+      document.getElementById('strip-confirm-btn').style.display = '';
+      pendingCmd = { text, staffName, feedbackMsg, newRowText, eventType };
+    } else {
+      document.getElementById('strip-confirm-btn').style.display = 'none';
+      pendingCmd = null;
+    }
+    strip.classList.add('visible');
   }
+
   function confirmCmd() {
-    resolvedItems.push({ action: document.getElementById('cmd-input').value, who: 'Owner', type: 'Assistant', time: now() });
-    document.getElementById('cmd-confirm').style.display = 'none';
+    const strip = document.getElementById('cmd-strip');
+    const feedback = document.getElementById('cmd-feedback');
+    strip.classList.remove('visible');
+
+    if (!pendingCmd) return;
+
+    // Show feedback
+    feedback.textContent = pendingCmd.feedbackMsg;
+    feedback.classList.add('visible');
+
+    // Log to resolved
+    resolvedItems.push({ action: pendingCmd.text, who: 'Owner', type: pendingCmd.eventType || 'Assistant', time: now() });
+
+    // If sick event, inject a new issue row + update snapshot
+    if (pendingCmd.newRowText) {
+      dynamicRows++;
+      totalRows++;
+      totalBookings += 2;
+
+      // Update snapshot: staff in/off
+      snapStaffIn = Math.max(0, snapStaffIn - 1);
+      snapStaffOff++;
+      snapGaps += 2;
+      updateSnapshot();
+
+      // Add to staff panel
+      const panel = document.getElementById('staff-panel');
+      const line = document.createElement('div');
+      line.className = 'staff-line off';
+      line.innerHTML = '<span>' + pendingCmd.staffName + '</span><span class="hours">Sick</span>';
+      panel.appendChild(line);
+
+      const rowId = 'row-dynamic-' + dynamicRows;
+      const container = document.getElementById('state-active');
+      const rowHtml =
+        '<div class="issue-row priority-red" id="' + rowId + '" data-priority="1" data-bookings="2" data-revenue="0">' +
+          '<div class="feedback">Cover request sent.</div>' +
+          '<div class="what">' + pendingCmd.newRowText + '</div>' +
+          '<div class="act"><button class="btn-primary" onclick="resolveRow(\'' + rowId + '\',\'\u2192 Find cover\',\'Cover request sent.\',\'Cover Requested\')">&#8594; Find cover</button></div>' +
+          '<div class="opts"><a onclick="resolveRow(\'' + rowId + '\',\'\u2192 Owner cover\',\'Owner covering.\',\'Owner Override\')">Owner cover</a></div>' +
+        '</div>';
+      container.insertAdjacentHTML('beforeend', rowHtml);
+      updateUI();
+
+      // Ensure active view is showing
+      document.getElementById('state-active').style.display = 'block';
+      document.getElementById('all-clear').style.display = 'none';
+      document.getElementById('view-sorted').style.display = 'none';
+      document.getElementById('btn-active').classList.add('on');
+      document.getElementById('btn-sorted').classList.remove('on');
+    }
+
     document.getElementById('cmd-input').value = '';
+    pendingCmd = null;
+
+    // Auto-hide feedback after 3s
+    setTimeout(() => feedback.classList.remove('visible'), 3000);
+
     updateUI();
   }
+
   function cancelCmd() {
-    document.getElementById('cmd-confirm').style.display = 'none';
+    document.getElementById('cmd-strip').classList.remove('visible');
+    document.getElementById('cmd-feedback').classList.remove('visible');
     document.getElementById('cmd-input').value = '';
+    pendingCmd = null;
   }
 
   function resetDemo() {
     resolvedCount = 0;
+    totalRows = 3;
+    dynamicRows = 0;
+    totalRevenue = 85;
+    totalBookings = 5;
     resolvedItems.length = 0;
+    pendingCmd = null;
+
+    // Reset snapshot
+    snapStaffIn = 5; snapStaffOff = 1;
+    snapBookings = 18; snapCapacity = 23;
+    snapRevenue = 1240; snapGaps = 3;
+    updateSnapshot();
+
+    // Close staff panel & remove dynamic sick lines
+    document.getElementById('staff-panel').classList.remove('visible');
+    staffPanelOpen = false;
+    document.querySelectorAll('#staff-panel .staff-line.off:not(#staff-off-line)').forEach(el => el.remove());
+
     document.getElementById('subtitle').textContent = '3 things need sorting.';
+    document.getElementById('impact').textContent = '\u00A385 revenue at risk \u00B7 4 bookings affected';
+    document.getElementById('impact').style.display = 'block';
     document.getElementById('state-active').style.display = 'block';
     document.getElementById('view-sorted').style.display = 'none';
     document.getElementById('all-clear').style.display = 'none';
-    document.getElementById('cmd-confirm').style.display = 'none';
+    document.getElementById('cmd-strip').classList.remove('visible');
+    document.getElementById('cmd-feedback').classList.remove('visible');
     document.getElementById('cmd-input').value = '';
     document.getElementById('btn-active').classList.add('on');
     document.getElementById('btn-sorted').classList.remove('on');
     document.getElementById('btn-sorted').textContent = 'Sorted';
+
+    // Remove dynamic rows
+    document.querySelectorAll('[id^="row-dynamic-"]').forEach(r => r.remove());
+
+    // Reset original rows
     document.querySelectorAll('.issue-row').forEach(r => {
       r.classList.remove('resolving', 'resolved');
-      r.style.height = ''; r.style.padding = ''; r.style.margin = '';
-      r.style.border = ''; r.style.overflow = '';
+      r.style.maxHeight = ''; r.style.paddingTop = ''; r.style.paddingBottom = '';
     });
     renderResolved();
   }
