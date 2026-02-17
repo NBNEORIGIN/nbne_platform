@@ -7,10 +7,11 @@ from django.utils import timezone
 from django.db import transaction
 from accounts.models import User
 from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove, IsOwner
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
+from .models import StaffProfile, Shift, LeaveRequest, TrainingCourse, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
 from .serializers import (
     StaffProfileSerializer, ShiftSerializer, ShiftCreateSerializer,
     LeaveRequestSerializer, LeaveCreateSerializer, LeaveReviewSerializer,
+    TrainingCourseSerializer, TrainingCourseCreateSerializer,
     TrainingRecordSerializer, TrainingCreateSerializer,
     AbsenceRecordSerializer, AbsenceCreateSerializer,
     WorkingHoursSerializer, WorkingHoursCreateSerializer,
@@ -378,7 +379,7 @@ def leave_delete(request, leave_id):
 def training_list(request):
     """List training records (staff+)."""
     tenant = getattr(request, 'tenant', None)
-    records = TrainingRecord.objects.select_related('staff').filter(staff__tenant=tenant)
+    records = TrainingRecord.objects.select_related('staff', 'course').filter(staff__tenant=tenant)
     if not request.user.is_manager_or_above:
         try:
             profile = request.user.staff_profile
@@ -391,16 +392,178 @@ def training_list(request):
 @api_view(['POST'])
 @permission_classes([IsManagerOrAbove])
 def training_create(request):
-    """Create a training record (manager+)."""
-    serializer = TrainingCreateSerializer(data=request.data)
+    """Create a training record (manager+). If course is provided, auto-populate title/provider/expiry."""
+    from dateutil.relativedelta import relativedelta
+    data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+    tenant = getattr(request, 'tenant', None)
+    # Auto-populate from course if provided
+    course_id = data.get('course')
+    if course_id:
+        try:
+            course = TrainingCourse.objects.get(id=course_id, tenant=tenant, is_active=True)
+            if not data.get('title'):
+                data['title'] = course.name
+            if not data.get('provider'):
+                data['provider'] = course.provider
+            # Auto-calculate expiry from completed_date + renewal_months
+            if not data.get('expiry_date') and data.get('completed_date') and course.renewal_months > 0:
+                from datetime import date as dt_date
+                completed = data['completed_date']
+                if isinstance(completed, str):
+                    completed = dt_date.fromisoformat(completed)
+                data['expiry_date'] = str(completed + relativedelta(months=course.renewal_months))
+        except TrainingCourse.DoesNotExist:
+            pass
+    serializer = TrainingCreateSerializer(data=data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    tenant = getattr(request, 'tenant', None)
-    staff = serializer.validated_data.get('staff')
-    if staff and not StaffProfile.objects.filter(id=staff.id, tenant=tenant).exists():
+    staff_obj = serializer.validated_data.get('staff')
+    if staff_obj and not StaffProfile.objects.filter(id=staff_obj.id, tenant=tenant).exists():
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     record = serializer.save()
     return Response(TrainingRecordSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def training_delete(request, record_id):
+    """Delete a training record (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        record = TrainingRecord.objects.get(id=record_id, staff__tenant=tenant)
+    except TrainingRecord.DoesNotExist:
+        return Response({'error': 'Training record not found'}, status=status.HTTP_404_NOT_FOUND)
+    record.delete()
+    return Response({'detail': 'Training record deleted.'}, status=status.HTTP_200_OK)
+
+
+# --- Training Courses ---
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def training_course_list(request):
+    """List training courses for this tenant."""
+    tenant = getattr(request, 'tenant', None)
+    courses = TrainingCourse.objects.filter(tenant=tenant, is_active=True)
+    return Response(TrainingCourseSerializer(courses, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def training_course_create(request):
+    """Create a training course (manager+)."""
+    serializer = TrainingCourseCreateSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    tenant = getattr(request, 'tenant', None)
+    course = serializer.save(tenant=tenant)
+    return Response(TrainingCourseSerializer(course).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT'])
+@permission_classes([IsManagerOrAbove])
+def training_course_update(request, course_id):
+    """Update a training course (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        course = TrainingCourse.objects.get(id=course_id, tenant=tenant)
+    except TrainingCourse.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = TrainingCourseCreateSerializer(course, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response(TrainingCourseSerializer(course).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def training_course_delete(request, course_id):
+    """Soft-delete a training course (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        course = TrainingCourse.objects.get(id=course_id, tenant=tenant)
+    except TrainingCourse.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    course.is_active = False
+    course.save(update_fields=['is_active', 'updated_at'])
+    return Response({'detail': 'Course deleted.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def training_reminders(request):
+    """Return training records that are expired or expiring soon."""
+    tenant = getattr(request, 'tenant', None)
+    records = TrainingRecord.objects.select_related('staff', 'course').filter(staff__tenant=tenant)
+    if not request.user.is_manager_or_above:
+        try:
+            profile = request.user.staff_profile
+            records = records.filter(staff=profile)
+        except StaffProfile.DoesNotExist:
+            return Response([])
+    # Filter to only expired or expiring soon
+    from datetime import timedelta
+    today = timezone.now().date()
+    # Get all records with expiry dates
+    records_with_expiry = records.filter(expiry_date__isnull=False)
+    # Expired: expiry_date < today
+    expired = list(records_with_expiry.filter(expiry_date__lt=today))
+    # Expiring soon: within the next 60 days (max reminder window)
+    expiring = list(records_with_expiry.filter(expiry_date__gte=today, expiry_date__lte=today + timedelta(days=60)))
+    # Filter expiring to only those within their course's reminder window
+    expiring_filtered = []
+    for r in expiring:
+        reminder_days = r.course.reminder_days_before if r.course else 30
+        if r.expiry_date <= today + timedelta(days=reminder_days):
+            expiring_filtered.append(r)
+    all_alerts = expired + expiring_filtered
+    data = TrainingRecordSerializer(all_alerts, many=True).data
+    # Add alert_type field
+    for item in data:
+        if item.get('is_expired'):
+            item['alert_type'] = 'expired'
+        else:
+            item['alert_type'] = 'expiring_soon'
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def training_compliance(request):
+    """Return compliance matrix: for each mandatory course, show which staff have completed it and status."""
+    tenant = getattr(request, 'tenant', None)
+    mandatory_courses = TrainingCourse.objects.filter(tenant=tenant, is_mandatory=True, is_active=True)
+    active_staff = StaffProfile.objects.filter(tenant=tenant, is_active=True)
+    today = timezone.now().date()
+    matrix = []
+    for course in mandatory_courses:
+        staff_status = []
+        for sp in active_staff:
+            record = TrainingRecord.objects.filter(staff=sp, course=course).order_by('-completed_date').first()
+            if not record:
+                s = 'missing'
+            elif record.is_expired:
+                s = 'expired'
+            elif record.is_expiring_soon:
+                s = 'expiring_soon'
+            else:
+                s = 'valid'
+            staff_status.append({
+                'staff_id': sp.id,
+                'staff_name': sp.display_name,
+                'status': s,
+                'expiry_date': str(record.expiry_date) if record and record.expiry_date else None,
+                'completed_date': str(record.completed_date) if record and record.completed_date else None,
+                'days_until_expiry': record.days_until_expiry if record else None,
+            })
+        matrix.append({
+            'course_id': course.id,
+            'course_name': course.name,
+            'is_mandatory': True,
+            'staff': staff_status,
+        })
+    return Response(matrix)
 
 
 @api_view(['GET'])

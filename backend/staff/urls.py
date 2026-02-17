@@ -20,6 +20,13 @@ urlpatterns = [
     path('leave/<int:leave_id>/delete/', views.leave_delete, name='leave_delete'),
     path('training/', views.training_list, name='training_list'),
     path('training/create/', views.training_create, name='training_create'),
+    path('training/<int:record_id>/delete/', views.training_delete, name='training_delete'),
+    path('training/reminders/', views.training_reminders, name='training_reminders'),
+    path('training/compliance/', views.training_compliance, name='training_compliance'),
+    path('training/courses/', views.training_course_list, name='training_course_list'),
+    path('training/courses/create/', views.training_course_create, name='training_course_create'),
+    path('training/courses/<int:course_id>/update/', views.training_course_update, name='training_course_update'),
+    path('training/courses/<int:course_id>/delete/', views.training_course_delete, name='training_course_delete'),
     path('absence/', views.absence_list, name='absence_list'),
     path('absence/create/', views.absence_create, name='absence_create'),
     # Working Hours

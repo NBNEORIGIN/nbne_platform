@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
+from .models import StaffProfile, Shift, LeaveRequest, TrainingCourse, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):
@@ -59,24 +59,45 @@ class LeaveReviewSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['APPROVED', 'REJECTED'])
 
 
+class TrainingCourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrainingCourse
+        fields = [
+            'id', 'name', 'provider', 'is_mandatory', 'renewal_months',
+            'reminder_days_before', 'description', 'is_active', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class TrainingCourseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrainingCourse
+        fields = ['name', 'provider', 'is_mandatory', 'renewal_months', 'reminder_days_before', 'description']
+
+
 class TrainingRecordSerializer(serializers.ModelSerializer):
     staff_name = serializers.CharField(source='staff.display_name', read_only=True)
+    course_name = serializers.CharField(source='course.name', read_only=True, default=None)
+    is_mandatory = serializers.BooleanField(source='course.is_mandatory', read_only=True, default=False)
     is_expired = serializers.BooleanField(read_only=True)
+    is_expiring_soon = serializers.BooleanField(read_only=True)
+    days_until_expiry = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = TrainingRecord
         fields = [
-            'id', 'staff', 'staff_name', 'title', 'provider',
-            'completed_date', 'expiry_date', 'is_expired',
+            'id', 'staff', 'staff_name', 'course', 'course_name', 'is_mandatory',
+            'title', 'provider', 'completed_date', 'expiry_date',
+            'is_expired', 'is_expiring_soon', 'days_until_expiry',
             'certificate_reference', 'notes', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at', 'is_expired']
+        read_only_fields = ['id', 'created_at', 'is_expired', 'is_expiring_soon', 'days_until_expiry']
 
 
 class TrainingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRecord
-        fields = ['staff', 'title', 'provider', 'completed_date', 'expiry_date', 'certificate_reference', 'notes']
+        fields = ['staff', 'course', 'title', 'provider', 'completed_date', 'expiry_date', 'certificate_reference', 'notes']
 
 
 class AbsenceRecordSerializer(serializers.ModelSerializer):

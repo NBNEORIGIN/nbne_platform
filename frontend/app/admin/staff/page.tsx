@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe } from '@/lib/api'
 import LeaveCalendar from './LeaveCalendar'
+import TrainingTab from './TrainingTab'
 
 interface StaffForm {
   first_name: string
@@ -614,17 +615,11 @@ export default function AdminStaffPage() {
       )}
 
       {tab === 'training' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Staff</th><th>Course</th><th>Provider</th><th>Completed</th><th>Expiry</th><th>Status</th></tr></thead>
-            <tbody>
-              {training.map((t: any) => (
-                <tr key={t.id}><td style={{ fontWeight: 600 }}>{t.staff_name}</td><td>{t.title}</td><td>{t.provider}</td><td>{t.completed_date}</td><td>{t.expiry_date || 'N/A'}</td><td><span className={`badge ${t.is_expired ? 'badge-danger' : 'badge-success'}`}>{t.is_expired ? 'EXPIRED' : 'VALID'}</span></td></tr>
-              ))}
-              {training.length === 0 && <tr><td colSpan={6} className="empty-state">No training records</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <TrainingTab
+          staff={staff}
+          currentUserRole={userRole}
+          onRefresh={loadData}
+        />
       )}
 
       {tab === 'projects' && (

@@ -353,6 +353,38 @@ export async function getTrainingRecords() {
   return apiFetch<any[]>('/staff-module/training/')
 }
 
+export async function createTrainingRecord(data: any) {
+  return apiFetch<any>('/staff-module/training/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function deleteTrainingRecord(id: number) {
+  return apiFetch<any>(`/staff-module/training/${id}/delete/`, { method: 'DELETE' })
+}
+
+export async function getTrainingReminders() {
+  return apiFetch<any[]>('/staff-module/training/reminders/')
+}
+
+export async function getTrainingCompliance() {
+  return apiFetch<any[]>('/staff-module/training/compliance/')
+}
+
+export async function getTrainingCourses() {
+  return apiFetch<any[]>('/staff-module/training/courses/')
+}
+
+export async function createTrainingCourse(data: any) {
+  return apiFetch<any>('/staff-module/training/courses/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateTrainingCourse(id: number, data: any) {
+  return apiFetch<any>(`/staff-module/training/courses/${id}/update/`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function deleteTrainingCourse(id: number) {
+  return apiFetch<any>(`/staff-module/training/courses/${id}/delete/`, { method: 'DELETE' })
+}
+
 // --- Working Hours ---
 export async function getWorkingHours(params?: { staff_id?: number }) {
   const qs = new URLSearchParams()
@@ -562,10 +594,6 @@ export async function getTrainingList(params?: { user?: number; type?: string; s
   if (params?.status) qs.set('status', params.status)
   const q = qs.toString()
   return apiFetch<any[]>(`/compliance/training/${q ? '?' + q : ''}`)
-}
-
-export async function createTrainingRecord(data: any) {
-  return apiFetch<any>('/compliance/training/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function getComplianceDocuments(params?: { type?: string }) {

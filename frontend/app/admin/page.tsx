@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave } from '@/lib/api'
+import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders } from '@/lib/api'
 
 interface DashboardAction {
   label: string
@@ -146,6 +146,9 @@ export default function AdminDashboard() {
   const [pendingLeave, setPendingLeave] = useState<any[]>([])
   const [leaveReviewing, setLeaveReviewing] = useState<Record<number, boolean>>({})
 
+  // Training reminders
+  const [trainingAlerts, setTrainingAlerts] = useState<any[]>([])
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
@@ -157,7 +160,8 @@ export default function AdminDashboard() {
       getTodayResolved().catch(() => ({ error: 'fetch failed', data: null })),
       getPayrollSummary().catch(() => ({ error: 'fetch failed', data: null })),
       getLeaveRequests({ status: 'PENDING' }).catch(() => ({ error: 'fetch failed', data: null })),
-    ]).then(([dashRes, resolvedRes, payrollRes, leaveRes]) => {
+      getTrainingReminders().catch(() => ({ error: 'fetch failed', data: null })),
+    ]).then(([dashRes, resolvedRes, payrollRes, leaveRes, trainingRes]) => {
       if (dashRes.error || !dashRes.data) {
         setData({ state: 'sorted', message: 'All sorted.', events: [], summary: { total: 0, critical: 0, high: 0, warning: 0, info: 0 } })
       } else {
@@ -171,6 +175,9 @@ export default function AdminDashboard() {
       }
       if (!leaveRes.error && leaveRes.data) {
         setPendingLeave(leaveRes.data)
+      }
+      if (!trainingRes.error && trainingRes.data) {
+        setTrainingAlerts(trainingRes.data)
       }
       setLoading(false)
     })
@@ -555,6 +562,55 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Training Alerts ── */}
+      {trainingAlerts.length > 0 && (
+        <div style={{
+          border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#fff',
+          padding: '0.65rem 0.85rem', marginBottom: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Training Alerts
+            </div>
+            <a href="/admin/staff" style={{ fontSize: '0.75rem', color: '#6b7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+              View training →
+            </a>
+          </div>
+          {trainingAlerts.slice(0, 5).map((t: any) => {
+            const isExpired = t.alert_type === 'expired'
+            return (
+              <div key={t.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111827' }}>{t.staff_name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                    {t.title}
+                    {t.is_mandatory && <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>MANDATORY</span>}
+                  </div>
+                </div>
+                <div style={{
+                  padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.78rem', fontWeight: 600,
+                  backgroundColor: isExpired ? '#fee2e2' : '#fef9c3',
+                  color: isExpired ? '#dc2626' : '#a16207',
+                }}>
+                  {isExpired
+                    ? `Expired ${t.days_until_expiry !== null ? Math.abs(t.days_until_expiry) + 'd ago' : ''}`
+                    : `Expires in ${t.days_until_expiry}d`
+                  }
+                </div>
+              </div>
+            )
+          })}
+          {trainingAlerts.length > 5 && (
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '0.3rem' }}>
+              +{trainingAlerts.length - 5} more alerts
+            </div>
+          )}
         </div>
       )}
 

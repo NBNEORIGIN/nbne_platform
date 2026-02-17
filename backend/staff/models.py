@@ -81,8 +81,31 @@ class LeaveRequest(models.Model):
         return (self.end_date - self.start_date).days + 1
 
 
+class TrainingCourse(models.Model):
+    """A configurable training course that can be assigned to staff."""
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='training_courses')
+    name = models.CharField(max_length=255, help_text='e.g. Manual Handling, First Aid')
+    provider = models.CharField(max_length=255, blank=True, default='', help_text='Default training provider')
+    is_mandatory = models.BooleanField(default=False, help_text='If true, all staff must complete this')
+    renewal_months = models.PositiveIntegerField(default=12, help_text='How often this must be renewed (months). 0 = no renewal.')
+    reminder_days_before = models.PositiveIntegerField(default=30, help_text='Days before expiry to show a reminder')
+    description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'staff_training_course'
+        ordering = ['-is_mandatory', 'name']
+        unique_together = ['tenant', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({'Mandatory' if self.is_mandatory else 'Optional'})"
+
+
 class TrainingRecord(models.Model):
     staff = models.ForeignKey(StaffProfile, on_delete=models.CASCADE, related_name='training_records')
+    course = models.ForeignKey(TrainingCourse, on_delete=models.SET_NULL, null=True, blank=True, related_name='records')
     title = models.CharField(max_length=255)
     provider = models.CharField(max_length=255, blank=True, default='')
     completed_date = models.DateField(null=True, blank=True)
@@ -104,6 +127,26 @@ class TrainingRecord(models.Model):
             return False
         from django.utils import timezone
         return self.expiry_date < timezone.now().date()
+
+    @property
+    def is_expiring_soon(self):
+        """True if within the reminder window but not yet expired."""
+        if not self.expiry_date:
+            return False
+        from django.utils import timezone
+        today = timezone.now().date()
+        if self.expiry_date < today:
+            return False  # already expired
+        reminder_days = self.course.reminder_days_before if self.course else 30
+        from datetime import timedelta
+        return self.expiry_date <= today + timedelta(days=reminder_days)
+
+    @property
+    def days_until_expiry(self):
+        if not self.expiry_date:
+            return None
+        from django.utils import timezone
+        return (self.expiry_date - timezone.now().date()).days
 
 
 class WorkingHours(models.Model):
