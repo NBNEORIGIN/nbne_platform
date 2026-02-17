@@ -7,6 +7,8 @@ urlpatterns = [
     # Dashboard & scoring
     path('dashboard/', views.dashboard, name='dashboard'),
     path('dashboard-v2/', views.dashboard_v2, name='dashboard-v2'),
+    path('wiggum/', views.wiggum, name='wiggum'),
+    path('parse-command/', views.parse_command, name='parse-command'),
     path('breakdown/', views.breakdown, name='breakdown'),
     path('priorities/', views.priority_actions, name='priorities'),
     path('audit-log/', views.audit_log, name='audit-log'),

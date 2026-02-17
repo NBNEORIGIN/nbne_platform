@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders } from '@/lib/api'
+import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders, getWiggumDashboard } from '@/lib/api'
 
 interface DashboardAction {
   label: string
@@ -151,6 +151,9 @@ export default function AdminDashboard() {
   // Training reminders
   const [trainingAlerts, setTrainingAlerts] = useState<any[]>([])
 
+  // H&S compliance alerts
+  const [hsAlerts, setHsAlerts] = useState<any>(null)
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
@@ -163,7 +166,8 @@ export default function AdminDashboard() {
       getPayrollSummary().catch(() => ({ error: 'fetch failed', data: null })),
       getLeaveRequests({ status: 'PENDING' }).catch(() => ({ error: 'fetch failed', data: null })),
       getTrainingReminders().catch(() => ({ error: 'fetch failed', data: null })),
-    ]).then(([dashRes, resolvedRes, payrollRes, leaveRes, trainingRes]) => {
+      getWiggumDashboard().catch(() => ({ error: 'fetch failed', data: null })),
+    ]).then(([dashRes, resolvedRes, payrollRes, leaveRes, trainingRes, hsRes]) => {
       if (dashRes.error || !dashRes.data) {
         setData({ state: 'sorted', message: 'All sorted.', events: [], summary: { total: 0, critical: 0, high: 0, warning: 0, info: 0 } })
       } else {
@@ -180,6 +184,9 @@ export default function AdminDashboard() {
       }
       if (!trainingRes.error && trainingRes.data) {
         setTrainingAlerts(trainingRes.data)
+      }
+      if (!hsRes.error && hsRes.data) {
+        setHsAlerts(hsRes.data)
       }
       setLoading(false)
     })
@@ -631,6 +638,54 @@ export default function AdminDashboard() {
           {trainingAlerts.length > 5 && (
             <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '0.3rem' }}>
               +{trainingAlerts.length - 5} more alerts
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── H&S Compliance Alerts ── */}
+      {hsAlerts && hsAlerts.status_level !== 'green' && hsAlerts.action_items?.length > 0 && (
+        <div style={{
+          border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#fff',
+          borderLeft: `4px solid ${hsAlerts.status_level === 'red' ? '#ef4444' : '#f59e0b'}`,
+          padding: '0.65rem 0.85rem', marginBottom: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: hsAlerts.status_level === 'red' ? '#dc2626' : '#a16207', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Health & Safety — {hsAlerts.score_label}
+            </div>
+            <a href="/admin/health-safety" style={{ fontSize: '0.75rem', color: '#6b7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+              Open H&S \u2192
+            </a>
+          </div>
+          {hsAlerts.action_items.slice(0, 3).map((item: any) => (
+            <div key={item.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6',
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111827' }}>{item.what}</div>
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                  {item.why}
+                  {item.days_info && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: item.status === 'OVERDUE' ? '#dc2626' : '#a16207' }}>{item.days_info}</span>}
+                </div>
+              </div>
+              <a
+                href="/admin/health-safety"
+                style={{
+                  padding: '0.3rem 0.7rem', borderRadius: 5, border: 'none',
+                  backgroundColor: item.status === 'OVERDUE' && item.item_type === 'LEGAL' ? '#dc2626' : '#111827',
+                  color: '#fff', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {item.do_this}
+              </a>
+            </div>
+          ))}
+          {hsAlerts.action_items.length > 3 && (
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '0.3rem' }}>
+              +{hsAlerts.action_items.length - 3} more items
             </div>
           )}
         </div>

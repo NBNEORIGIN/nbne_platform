@@ -265,6 +265,12 @@ class ComplianceItem(models.Model):
     frequency_type = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='annual', db_index=True)
     last_completed_date = models.DateField(null=True, blank=True)
     next_due_date = models.DateField(null=True, blank=True, db_index=True)
+    # Expiry & reminders
+    expiry_date = models.DateField(null=True, blank=True, db_index=True, help_text='When this item expires (e.g. insurance renewal date)')
+    reminder_days = models.IntegerField(default=30, help_text='Days before expiry to start reminding')
+    # Plain English (Wiggum UX)
+    plain_english_why = models.CharField(max_length=500, blank=True, default='', help_text='Why this matters in plain English')
+    primary_action = models.CharField(max_length=100, blank=True, default='', help_text='Primary action label e.g. Upload document, Book testing')
     # Evidence
     evidence_required = models.BooleanField(default=False, help_text='Whether evidence upload is required on completion')
     document = models.FileField(upload_to='compliance/evidence/%Y/%m/', null=True, blank=True, help_text='Latest evidence document')
@@ -311,19 +317,31 @@ class ComplianceItem(models.Model):
         return val
 
     def compute_status(self):
-        """Compute status from next_due_date"""
-        if not self.next_due_date:
-            return 'COMPLIANT'
+        """Compute status from next_due_date and expiry_date"""
         from django.utils import timezone
         from datetime import timedelta
         today = timezone.now().date()
+
+        # Check expiry_date first (e.g. insurance renewal)
+        expiry = self._ensure_date(self.expiry_date)
+        if expiry:
+            if expiry < today:
+                return 'OVERDUE'
+            elif expiry <= today + timedelta(days=self.reminder_days):
+                return 'DUE_SOON'
+
+        # Then check next_due_date (recurring compliance)
         due = self._ensure_date(self.next_due_date)
-        if not due:
-            return 'COMPLIANT'
-        if due < today:
+        if due:
+            if due < today:
+                return 'OVERDUE'
+            elif due <= today + timedelta(days=self.reminder_days):
+                return 'DUE_SOON'
+
+        # If neither date is set, item is missing (not yet done)
+        if not due and not expiry and not self.last_completed_date:
             return 'OVERDUE'
-        elif due <= today + timedelta(days=30):
-            return 'DUE_SOON'
+
         return 'COMPLIANT'
 
     def compute_next_due(self):

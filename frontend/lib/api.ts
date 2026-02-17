@@ -660,6 +660,14 @@ export async function deleteComplianceItem(id: number) {
   return apiFetch<any>(`/compliance/items/${id}/delete/`, { method: 'DELETE' })
 }
 
+export async function getWiggumDashboard() {
+  return apiFetch<any>('/compliance/wiggum/')
+}
+
+export async function parseComplianceCommand(text: string) {
+  return apiFetch<any>('/compliance/parse-command/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export async function getRams() {
   return apiFetch<any[]>('/compliance/rams/')
 }

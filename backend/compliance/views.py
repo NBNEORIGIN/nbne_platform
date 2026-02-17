@@ -40,11 +40,15 @@ def _serialize_item(item):
         'frequency_type': item.frequency_type,
         'due_date': _safe_date(item.due_date),
         'next_due_date': _safe_date(item.next_due_date),
+        'expiry_date': _safe_date(getattr(item, 'expiry_date', None)),
+        'reminder_days': getattr(item, 'reminder_days', 30),
         'last_completed_date': _safe_date(item.last_completed_date),
         'completed_at': _safe_date(item.completed_at),
         'completed_by': item.completed_by,
         'regulatory_ref': item.regulatory_ref,
         'legal_reference': item.legal_reference,
+        'plain_english_why': getattr(item, 'plain_english_why', ''),
+        'primary_action': getattr(item, 'primary_action', ''),
         'evidence_required': item.evidence_required,
         'document': item.document.url if item.document else None,
         'notes': item.notes,
@@ -626,4 +630,219 @@ def dashboard_v2(request):
         'priority_items': priority_items,
         'open_accidents': open_accidents,
         'riddor_count': riddor_count,
+    })
+
+
+# ========== WIGGUM DASHBOARD ==========
+
+def _action_label(item):
+    """Return the primary action label for a compliance item."""
+    pa = getattr(item, 'primary_action', '')
+    if pa:
+        return pa
+    if item.evidence_required and not item.document:
+        return 'Upload document'
+    if item.status == 'OVERDUE':
+        return 'Fix now'
+    return 'Mark complete'
+
+
+def _why_label(item):
+    """Return plain-English why this matters."""
+    pe = getattr(item, 'plain_english_why', '')
+    if pe:
+        return pe
+    if item.item_type == 'LEGAL':
+        return 'Required by law'
+    return 'Best practice for your business'
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def wiggum(request):
+    """
+    GET /api/compliance/wiggum/
+    Wiggum Loop dashboard — answers "Am I safe, or am I in trouble?"
+    Returns: status_level, status_message, action_items[], sorted_items[], score
+    """
+    tenant = getattr(request, 'tenant', None)
+    today = timezone.now().date()
+
+    items = list(ComplianceItem.objects.select_related('category').filter(category__tenant=tenant))
+    open_incidents = IncidentReport.objects.filter(tenant=tenant).exclude(status__in=['RESOLVED', 'CLOSED']).count()
+    open_accidents = AccidentReport.objects.filter(tenant=tenant).exclude(status='CLOSED').count()
+
+    # Categorise items
+    overdue_legal = [i for i in items if i.status == 'OVERDUE' and i.item_type == 'LEGAL']
+    overdue_bp = [i for i in items if i.status == 'OVERDUE' and i.item_type == 'BEST_PRACTICE']
+    due_soon = [i for i in items if i.status == 'DUE_SOON']
+    compliant = [i for i in items if i.status == 'COMPLIANT']
+    missing = [i for i in items if not i.last_completed_date and not i.document and i.status == 'OVERDUE']
+
+    # Determine status level
+    needs_attention_count = len(overdue_bp) + len(due_soon)
+    if overdue_legal or open_incidents > 0:
+        status_level = 'red'
+        if overdue_legal:
+            status_message = f"You have legal risk. {len(overdue_legal)} legal item{'s' if len(overdue_legal) != 1 else ''} overdue. Fix today."
+        else:
+            status_message = f"You have {open_incidents} open incident{'s' if open_incidents != 1 else ''}. Resolve now."
+    elif needs_attention_count > 0:
+        status_level = 'amber'
+        status_message = f"{needs_attention_count} thing{'s' if needs_attention_count != 1 else ''} need{'s' if needs_attention_count == 1 else ''} doing."
+    else:
+        status_level = 'green'
+        status_message = "All sorted. Nothing urgent."
+
+    # Build action table — ordered: overdue legal first, then overdue BP, then due soon
+    action_items = []
+    for item in overdue_legal + overdue_bp + due_soon:
+        days_info = ''
+        effective_date = item.expiry_date or item.next_due_date
+        if effective_date:
+            d = daysUntil_py(effective_date, today)
+            if d < 0:
+                days_info = f'{abs(d)} days overdue'
+            elif d == 0:
+                days_info = 'Due today'
+            else:
+                days_info = f'Due in {d} days'
+
+        action_items.append({
+            'id': item.id,
+            'what': item.title,
+            'why': _why_label(item),
+            'do_this': _action_label(item),
+            'status': item.status,
+            'item_type': item.item_type,
+            'days_info': days_info,
+            'category': item.category.name,
+            'has_document': bool(item.document),
+            'plain_english_why': getattr(item, 'plain_english_why', ''),
+            'description': item.description,
+            'legal_reference': item.legal_reference,
+        })
+
+    # Sorted view — recently completed items
+    week_ago = today - timedelta(days=7)
+    completed_today = [i for i in items if i.last_completed_date and i.last_completed_date == today]
+    completed_this_week = [i for i in items if i.last_completed_date and week_ago <= i.last_completed_date < today]
+
+    sorted_items = []
+    for item in completed_today:
+        sorted_items.append({'id': item.id, 'title': item.title, 'when': 'today', 'category': item.category.name})
+    for item in completed_this_week:
+        sorted_items.append({'id': item.id, 'title': item.title, 'when': str(item.last_completed_date), 'category': item.category.name})
+
+    # Score
+    score_obj = PeaceOfMindScore.objects.filter(tenant=tenant).first()
+    score = score_obj.score if score_obj else 0
+    score_label = 'Safe' if status_level == 'green' else ('Attention needed' if status_level == 'amber' else 'Legal risk')
+
+    return Response({
+        'status_level': status_level,
+        'status_message': status_message,
+        'score': score,
+        'score_label': score_label,
+        'action_items': action_items,
+        'sorted_items': sorted_items,
+        'counts': {
+            'total': len(items),
+            'compliant': len(compliant),
+            'overdue_legal': len(overdue_legal),
+            'overdue_bp': len(overdue_bp),
+            'due_soon': len(due_soon),
+            'missing': len(missing),
+            'open_incidents': open_incidents,
+            'open_accidents': open_accidents,
+        },
+    })
+
+
+def daysUntil_py(date_val, today):
+    """Calculate days between today and a date."""
+    if isinstance(date_val, str):
+        from datetime import date as dt_date
+        parts = date_val.split('-')
+        date_val = dt_date(int(parts[0]), int(parts[1]), int(parts[2]))
+    return (date_val - today).days
+
+
+# ========== NATURAL LANGUAGE PARSE ==========
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def parse_command(request):
+    """
+    POST /api/compliance/parse-command/
+    Accepts: { "text": "Upload fire risk assessment" }
+    Returns: { "action": "complete", "item_id": 5, "message": "..." }
+    or: { "action": "create_incident", "data": {...} }
+    Uses keyword matching (Claude API integration optional future enhancement).
+    """
+    text = (request.data.get('text', '') or '').strip().lower()
+    tenant = getattr(request, 'tenant', None)
+
+    if not text:
+        return Response({'error': 'No text provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    items = list(ComplianceItem.objects.select_related('category').filter(category__tenant=tenant))
+
+    # Try to match against existing compliance items
+    best_match = None
+    best_score = 0
+    for item in items:
+        title_lower = item.title.lower()
+        # Exact title match
+        if title_lower in text or text in title_lower:
+            score = len(title_lower)
+            if score > best_score:
+                best_score = score
+                best_match = item
+        # Keyword matching
+        words = title_lower.split()
+        matching_words = sum(1 for w in words if w in text and len(w) > 2)
+        if matching_words > best_score:
+            best_score = matching_words
+            best_match = item
+
+    # Detect action type from text
+    action_type = 'complete'
+    if any(w in text for w in ['upload', 'uploaded', 'renew', 'renewed']):
+        action_type = 'complete'
+    elif any(w in text for w in ['log accident', 'accident', 'injury', 'hurt', 'cut', 'fell', 'slip']):
+        action_type = 'create_accident'
+    elif any(w in text for w in ['log incident', 'incident', 'near miss', 'near-miss', 'report']):
+        action_type = 'create_incident'
+    elif any(w in text for w in ['book', 'schedule', 'arrange']):
+        action_type = 'complete'
+    elif any(w in text for w in ['mark done', 'mark complete', 'completed', 'done', 'finished']):
+        action_type = 'complete'
+
+    if action_type == 'create_accident':
+        return Response({
+            'action': 'create_accident',
+            'message': 'Ready to log an accident. Please fill in the details.',
+            'parsed': {'description': text},
+        })
+
+    if action_type == 'create_incident':
+        return Response({
+            'action': 'create_incident',
+            'message': 'Ready to report an incident. Please fill in the details.',
+            'parsed': {'title': text, 'description': text},
+        })
+
+    if best_match:
+        return Response({
+            'action': 'complete',
+            'item_id': best_match.id,
+            'item_title': best_match.title,
+            'item_status': best_match.status,
+            'message': f'Found: "{best_match.title}". Mark as complete?',
+        })
+
+    return Response({
+        'action': 'unknown',
+        'message': f'Could not match "{text}" to a compliance item. Try being more specific.',
     })
