@@ -278,14 +278,48 @@ def leave_list(request):
     return Response(LeaveRequestSerializer(leaves, many=True).data)
 
 
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def leave_calendar(request):
+    """Return all approved + pending leave for a date range (all staff in tenant).
+    Used by the calendar overlay so staff can see who's already off.
+    ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+    """
+    tenant = getattr(request, 'tenant', None)
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
+    if not date_from or not date_to:
+        return Response({'error': 'date_from and date_to are required'}, status=status.HTTP_400_BAD_REQUEST)
+    qs = LeaveRequest.objects.select_related('staff').filter(
+        staff__tenant=tenant,
+        status__in=['APPROVED', 'PENDING'],
+        start_date__lte=date_to,
+        end_date__gte=date_from,
+    )
+    return Response(LeaveRequestSerializer(qs, many=True).data)
+
+
 @api_view(['POST'])
 @permission_classes([IsStaffOrAbove])
 def leave_create(request):
-    """Create a leave request (staff+)."""
+    """Create a leave request (staff+). Max 12 months ahead."""
+    from datetime import timedelta
     serializer = LeaveCreateSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     tenant = getattr(request, 'tenant', None)
+    start_date = serializer.validated_data['start_date']
+    end_date = serializer.validated_data['end_date']
+    # Validate: not in the past
+    today = timezone.now().date()
+    if start_date < today:
+        return Response({'error': 'Cannot book leave in the past.'}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate: max 12 months ahead
+    max_date = today + timedelta(days=365)
+    if end_date > max_date:
+        return Response({'error': 'Cannot book leave more than 12 months in advance.'}, status=status.HTTP_400_BAD_REQUEST)
+    if end_date < start_date:
+        return Response({'error': 'End date must be on or after start date.'}, status=status.HTTP_400_BAD_REQUEST)
     staff_id = serializer.validated_data.get('staff', getattr(serializer.validated_data.get('staff'), 'id', None))
     if staff_id and not StaffProfile.objects.filter(id=staff_id if isinstance(staff_id, int) else staff_id.id, tenant=tenant).exists():
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -314,6 +348,15 @@ def leave_review(request, leave_id):
         pass
     leave.reviewed_at = timezone.now()
     leave.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
+    # Send email notification to the staff member
+    try:
+        from .emails import send_leave_decision_email
+        origin = request.META.get('HTTP_ORIGIN', request.META.get('HTTP_REFERER', ''))
+        if '//' in origin:
+            origin = origin.split('//')[0] + '//' + origin.split('//')[1].split('/')[0]
+        send_leave_decision_email(leave, origin)
+    except Exception:
+        pass  # email is best-effort
     return Response(LeaveRequestSerializer(leave).data)
 
 

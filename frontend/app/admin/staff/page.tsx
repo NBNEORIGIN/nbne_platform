@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe } from '@/lib/api'
+import LeaveCalendar from './LeaveCalendar'
 
 interface StaffForm {
   first_name: string
@@ -20,6 +21,8 @@ export default function AdminStaffPage() {
   const [leave, setLeave] = useState<any[]>([])
   const [training, setTraining] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState('staff')
+  const [userStaffId, setUserStaffId] = useState<number | null>(null)
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any | null>(null)
@@ -72,7 +75,15 @@ export default function AdminStaffPage() {
     })
   }
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadData()
+    getMe().then(res => {
+      if (res.data) {
+        setUserRole(res.data.role || 'staff')
+        setUserStaffId(res.data.staff_profile_id || null)
+      }
+    })
+  }, [])
 
   const openAdd = () => {
     setForm(emptyForm)
@@ -594,17 +605,12 @@ export default function AdminStaffPage() {
       )}
 
       {tab === 'leave' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
-            <tbody>
-              {leave.map((l: any) => (
-                <tr key={l.id}><td style={{ fontWeight: 600 }}>{l.staff_name}</td><td>{l.leave_type}</td><td>{l.start_date}</td><td>{l.end_date}</td><td>{l.duration_days}</td><td style={{ maxWidth: 200 }}>{l.reason}</td><td><span className={`badge ${l.status === 'APPROVED' ? 'badge-success' : l.status === 'PENDING' ? 'badge-warning' : 'badge-danger'}`}>{l.status}</span></td></tr>
-              ))}
-              {leave.length === 0 && <tr><td colSpan={7} className="empty-state">No leave requests</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <LeaveCalendar
+          staff={staff}
+          currentUserRole={userRole}
+          currentUserStaffId={userStaffId}
+          onRefresh={loadData}
+        />
       )}
 
       {tab === 'training' && (

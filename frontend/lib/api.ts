@@ -330,6 +330,13 @@ export async function getLeaveRequests(params?: { status?: string }) {
   return apiFetch<any[]>(`/staff-module/leave/${q ? '?' + q : ''}`)
 }
 
+export async function getLeaveCalendar(params: { date_from: string; date_to: string }) {
+  const qs = new URLSearchParams()
+  qs.set('date_from', params.date_from)
+  qs.set('date_to', params.date_to)
+  return apiFetch<any[]>(`/staff-module/leave/calendar/?${qs.toString()}`)
+}
+
 export async function createLeaveRequest(data: any) {
   return apiFetch<any>('/staff-module/leave/create/', { method: 'POST', body: JSON.stringify(data) })
 }

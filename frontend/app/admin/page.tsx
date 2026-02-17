@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary } from '@/lib/api'
+import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave } from '@/lib/api'
 
 interface DashboardAction {
   label: string
@@ -142,6 +142,10 @@ export default function AdminDashboard() {
   // Payroll
   const [payroll, setPayroll] = useState<any>(null)
 
+  // Pending leave
+  const [pendingLeave, setPendingLeave] = useState<any[]>([])
+  const [leaveReviewing, setLeaveReviewing] = useState<Record<number, boolean>>({})
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
@@ -152,7 +156,8 @@ export default function AdminDashboard() {
       getDashboardToday().catch(() => ({ error: 'fetch failed', data: null })),
       getTodayResolved().catch(() => ({ error: 'fetch failed', data: null })),
       getPayrollSummary().catch(() => ({ error: 'fetch failed', data: null })),
-    ]).then(([dashRes, resolvedRes, payrollRes]) => {
+      getLeaveRequests({ status: 'PENDING' }).catch(() => ({ error: 'fetch failed', data: null })),
+    ]).then(([dashRes, resolvedRes, payrollRes, leaveRes]) => {
       if (dashRes.error || !dashRes.data) {
         setData({ state: 'sorted', message: 'All sorted.', events: [], summary: { total: 0, critical: 0, high: 0, warning: 0, info: 0 } })
       } else {
@@ -164,9 +169,21 @@ export default function AdminDashboard() {
       if (!payrollRes.error && payrollRes.data) {
         setPayroll(payrollRes.data)
       }
+      if (!leaveRes.error && leaveRes.data) {
+        setPendingLeave(leaveRes.data)
+      }
       setLoading(false)
     })
   }, [])
+
+  const handleLeaveReview = async (leaveId: number, decision: 'APPROVED' | 'REJECTED') => {
+    setLeaveReviewing(prev => ({ ...prev, [leaveId]: true }))
+    const res = await reviewLeave(leaveId, decision)
+    if (res.error) { alert(res.error); setLeaveReviewing(prev => ({ ...prev, [leaveId]: false })); return }
+    setPendingLeave(prev => prev.filter(l => l.id !== leaveId))
+    setLeaveReviewing(prev => { const n = { ...prev }; delete n[leaveId]; return n })
+    showToast(`Leave ${decision === 'APPROVED' ? 'approved' : 'declined'}`)
+  }
 
   const evtKey = (evt: DashboardEvent) => `${evt.event_type}-${evt.entity_id}`
 
@@ -480,6 +497,64 @@ export default function AdminDashboard() {
               <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{payroll.staff_count} staff</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Pending Leave Requests ── */}
+      {pendingLeave.length > 0 && (
+        <div style={{
+          border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#fff',
+          padding: '0.65rem 0.85rem', marginBottom: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Leave Requests Awaiting Review
+            </div>
+            <a href="/admin/staff" style={{ fontSize: '0.75rem', color: '#6b7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+              View calendar \u2192
+            </a>
+          </div>
+          {pendingLeave.map((l: any) => (
+            <div key={l.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0.5rem 0', borderBottom: '1px solid #f3f4f6',
+              opacity: leaveReviewing[l.id] ? 0.4 : 1,
+              transition: 'opacity 0.3s',
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111827' }}>{l.staff_name}</div>
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                  {l.leave_type === 'ANNUAL' ? 'Annual Leave' : l.leave_type === 'SICK' ? 'Sick Leave' : l.leave_type === 'UNPAID' ? 'Unpaid' : l.leave_type}
+                  {' \u00B7 '}{l.start_date} to {l.end_date} ({l.duration_days} day{l.duration_days !== 1 ? 's' : ''})
+                </div>
+                {l.reason && <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 2 }}>{l.reason}</div>}
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', marginLeft: '1rem' }}>
+                <button
+                  onClick={() => handleLeaveReview(l.id, 'APPROVED')}
+                  disabled={!!leaveReviewing[l.id]}
+                  style={{
+                    padding: '0.3rem 0.7rem', borderRadius: 5, border: 'none',
+                    backgroundColor: '#16a34a', color: '#fff',
+                    fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleLeaveReview(l.id, 'REJECTED')}
+                  disabled={!!leaveReviewing[l.id]}
+                  style={{
+                    padding: '0.3rem 0.7rem', borderRadius: 5, border: '1px solid #e5e7eb',
+                    backgroundColor: '#fff', color: '#dc2626',
+                    fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

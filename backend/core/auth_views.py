@@ -205,6 +205,12 @@ def me_view(request):
     user = request.user
     role = _get_role(user)
 
+    staff_profile_id = None
+    try:
+        staff_profile_id = user.staff_profile.id
+    except Exception:
+        pass
+
     return Response({
         'id': user.id,
         'username': user.username,
@@ -214,6 +220,7 @@ def me_view(request):
         'role': role,
         'is_superuser': user.is_superuser,
         'is_staff': user.is_staff,
+        'staff_profile_id': staff_profile_id,
     })
 
 
