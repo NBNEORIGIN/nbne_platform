@@ -50,6 +50,7 @@ class TenantSettingsCSSVarsSerializer(serializers.ModelSerializer):
             'colour_background', 'colour_text',
             'font_heading', 'font_body', 'font_url',
             'currency_symbol',
+            'phone', 'email',
             'pwa_theme_colour', 'pwa_background_colour', 'pwa_short_name',
         ]
         read_only_fields = fields

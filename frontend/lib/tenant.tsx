@@ -18,6 +18,8 @@ export interface TenantConfig {
   font_heading: string
   font_body: string
   font_url: string
+  phone: string
+  email: string
 }
 
 const DEFAULT_CONFIG: TenantConfig = {
@@ -35,6 +37,8 @@ const DEFAULT_CONFIG: TenantConfig = {
   font_heading: '',
   font_body: '',
   font_url: '',
+  phone: '',
+  email: '',
 }
 
 const TenantContext = createContext<TenantConfig>(DEFAULT_CONFIG)

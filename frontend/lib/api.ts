@@ -198,16 +198,21 @@ export async function getTenantBranding(params?: { tenant?: string }) {
 }
 
 // --- Bookings ---
-export async function getServices() {
-  return apiFetch<any[]>('/bookings/services/')
+export async function getServices(params?: { all?: boolean }) {
+  const qs = params?.all ? '?all=1' : ''
+  return apiFetch<any[]>(`/bookings/services/${qs}`)
 }
 
 export async function createService(data: any) {
-  return apiFetch<any>('/bookings/services/create/', { method: 'POST', body: JSON.stringify(data) })
+  return apiFetch<any>('/bookings/services/', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function updateService(id: number, data: any) {
-  return apiFetch<any>(`/bookings/services/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+  return apiFetch<any>(`/bookings/services/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteService(id: number) {
+  return apiFetch<any>(`/bookings/services/${id}/`, { method: 'DELETE' })
 }
 
 export function getSlots(params?: { service_id?: number; date_from?: string; date_to?: string }) {
