@@ -11,6 +11,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe } from '@/lib/api'
 import LeaveCalendar from './LeaveCalendar'
 import TrainingTab from './TrainingTab'
@@ -26,7 +27,11 @@ interface StaffForm {
 const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff' }
 
 export default function AdminStaffPage() {
-  const [tab, setTab] = useState<'profiles' | 'hours' | 'timesheets' | 'shifts' | 'leave' | 'training' | 'projects'>('profiles')
+  const searchParams = useSearchParams()
+  const validTabs = ['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training', 'projects'] as const
+  type TabKey = typeof validTabs[number]
+  const initialTab = (searchParams.get('tab') as TabKey) || 'profiles'
+  const [tab, setTab] = useState<TabKey>(validTabs.includes(initialTab) ? initialTab : 'profiles')
   const [staff, setStaff] = useState<any[]>([])
   const [shifts, setShifts] = useState<any[]>([])
   const [leave, setLeave] = useState<any[]>([])
