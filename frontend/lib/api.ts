@@ -851,6 +851,16 @@ export async function getLeadRevenue(id: number) {
   return apiFetch<any>(`/crm/leads/${id}/revenue/`)
 }
 
+// --- Global Command Bar ---
+export async function executeCommand(text: string) {
+  return apiFetch<any>('/command/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function getCommandSuggestions(q?: string) {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : ''
+  return apiFetch<any[]>(`/command/suggestions/${qs}`)
+}
+
 // --- Dashboard Today V2 (Operational Incident Board) ---
 export async function getDashboardToday() {
   return apiFetch<any>('/dashboard/today/')

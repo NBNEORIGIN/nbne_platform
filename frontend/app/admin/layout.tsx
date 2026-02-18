@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useTenant, hasModule } from '@/lib/tenant'
+import CommandBar from '@/components/CommandBar'
 import '../app/staff.css'
 
 const NAV_ITEMS = [
@@ -40,11 +41,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <button className="btn btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-        <span className="topbar-title">{tenant.business_name} — Admin</span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span className="badge badge-danger">Tier 3</span>
+      <header className="topbar" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <button className="btn btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ flexShrink: 0 }}>☰</button>
+        <span className="topbar-title" style={{ flexShrink: 0, marginRight: '0.5rem' }}>{tenant.business_name}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <CommandBar />
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
           <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
         </div>
       </header>

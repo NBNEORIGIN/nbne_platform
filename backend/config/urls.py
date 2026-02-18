@@ -17,6 +17,7 @@ from core.auth_views import (
 from core.views_dashboard_v2 import dashboard_today
 from core.views_events import log_event, today_resolved, decline_cover
 from core.views_assistant import parse_command
+from core.command_router import execute_command, command_suggestions
 
 
 def api_index(request):
@@ -79,6 +80,9 @@ urlpatterns = [
     path('api/events/decline/', decline_cover, name='events-decline'),
     # Assistant — stateless command parser
     path('api/assistant/parse/', parse_command, name='assistant-parse'),
+    # Global command bar
+    path('api/command/', execute_command, name='command-execute'),
+    path('api/command/suggestions/', command_suggestions, name='command-suggestions'),
     # Core catch-all (health check etc.)
     path('', include('core.urls')),
 ]
