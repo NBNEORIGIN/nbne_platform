@@ -145,6 +145,8 @@ if settings.BOOKINGS_MODULE_ENABLED:
         path('api/staff/timesheets/generate/', timesheets_generate, name='timesheets-generate'),
         path('api/staff/timesheets/summary/', timesheets_summary, name='timesheets-summary'),
         path('api/staff/timesheets/<int:pk>/update/', timesheets_update, name='timesheets-update'),
+        # Alias: old frontend calls staff-slots, new calls slots — both work
+        path('api/bookings/staff-slots/', BookingViewSet.as_view({'get': 'slots'}), name='booking-staff-slots-alias'),
         # DRF router (bookings, services, staff, etc.)
         path('api/', include(router.urls)),
         # Stripe checkout
