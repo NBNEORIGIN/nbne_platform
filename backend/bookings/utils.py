@@ -67,8 +67,8 @@ def generate_time_slots(staff_id, service_id, date, business_hours_start=9, busi
         
         if is_available:
             slots.append({
-                'start_time': current_time.isoformat(),
-                'end_time': slot_end.isoformat(),
+                'start_time': current_time.strftime('%H:%M'),
+                'end_time': slot_end.strftime('%H:%M'),
                 'available': True
             })
         
