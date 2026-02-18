@@ -623,19 +623,41 @@ class Command(BaseCommand):
         self.stdout.write(f'  Document tags: {tag_count}')
 
     def _seed_crm(self, owner, manager):
-        from crm.models import Lead
+        from crm.models import Lead, LeadNote, LeadHistory
 
+        today = date.today()
         leads_data = [
-            ('Emma Wilson', 'emma@example.com', 'website', 'CONVERTED', 15000),
-            ('Liam Brown', 'liam@example.com', 'referral', 'QUALIFIED', 8000),
-            ('Sophia Davis', 'sophia@example.com', 'social', 'NEW', 5000),
-            ('Noah Taylor', 'noah@example.com', 'manual', 'CONTACTED', 12000),
-            ('Olivia Jones', 'olivia@example.com', 'other', 'LOST', 3000),
+            {'name': 'Emma Wilson', 'email': 'emma@example.com', 'phone': '07700 900123', 'source': 'website', 'status': 'CONVERTED', 'value_pence': 15000, 'marketing_consent': True, 'notes': 'Regular client, books monthly.', 'last_contact_date': today - timedelta(days=3)},
+            {'name': 'Liam Brown', 'email': 'liam@example.com', 'phone': '07700 900456', 'source': 'referral', 'status': 'QUALIFIED', 'value_pence': 8000, 'marketing_consent': True, 'notes': 'Referred by Emma. Interested in premium package.', 'follow_up_date': today + timedelta(days=2)},
+            {'name': 'Sophia Davis', 'email': 'sophia@example.com', 'phone': '07700 900789', 'source': 'social', 'status': 'NEW', 'value_pence': 5000, 'marketing_consent': False, 'notes': 'Enquired via Instagram DM.'},
+            {'name': 'Noah Taylor', 'email': 'noah@example.com', 'phone': '07700 900321', 'source': 'manual', 'status': 'CONTACTED', 'value_pence': 12000, 'marketing_consent': True, 'notes': 'Called, asked to ring back next week.', 'follow_up_date': today - timedelta(days=3), 'last_contact_date': today - timedelta(days=10)},
+            {'name': 'Olivia Jones', 'email': 'olivia@example.com', 'phone': '07700 900654', 'source': 'other', 'status': 'LOST', 'value_pence': 3000, 'marketing_consent': False, 'notes': 'Went with competitor.'},
+            {'name': 'James Anderson', 'email': 'james.a@example.com', 'phone': '07700 900111', 'source': 'website', 'status': 'NEW', 'value_pence': 7500, 'marketing_consent': True, 'notes': 'Filled in contact form yesterday.'},
+            {'name': 'Charlotte Hughes', 'email': 'charlotte.h@example.com', 'phone': '07700 900222', 'source': 'referral', 'status': 'CONTACTED', 'value_pence': 20000, 'marketing_consent': True, 'notes': 'Wedding party booking enquiry. High value.', 'follow_up_date': today, 'last_contact_date': today - timedelta(days=5)},
+            {'name': 'Harry Clarke', 'email': 'harry.c@example.com', 'phone': '', 'source': 'social', 'status': 'CONTACTED', 'value_pence': 4000, 'marketing_consent': False, 'notes': 'Messaged on Facebook.', 'follow_up_date': today - timedelta(days=8), 'last_contact_date': today - timedelta(days=15)},
         ]
-        for name, email, source, status, value in leads_data:
-            Lead.objects.get_or_create(
-                tenant=self.tenant, email=email,
-                defaults={'name': name, 'source': source, 'status': status, 'value_pence': value}
+        for ld in leads_data:
+            lead, created = Lead.objects.get_or_create(
+                tenant=self.tenant, email=ld['email'],
+                defaults={
+                    'name': ld['name'], 'phone': ld.get('phone', ''), 'source': ld['source'],
+                    'status': ld['status'], 'value_pence': ld['value_pence'],
+                    'marketing_consent': ld.get('marketing_consent', False),
+                    'notes': ld.get('notes', ''),
+                    'follow_up_date': ld.get('follow_up_date'),
+                    'last_contact_date': ld.get('last_contact_date'),
+                }
             )
+            if created:
+                LeadHistory.objects.get_or_create(lead=lead, action='Lead created', defaults={'detail': f'Source: {ld["source"]}'})
+                if ld['status'] == 'CONTACTED':
+                    LeadHistory.objects.get_or_create(lead=lead, action='Contacted', defaults={'detail': 'Initial contact made'})
+                if ld['status'] == 'QUALIFIED':
+                    LeadHistory.objects.get_or_create(lead=lead, action='Qualified', defaults={'detail': 'Moved to qualified'})
+                if ld['status'] == 'CONVERTED':
+                    LeadHistory.objects.get_or_create(lead=lead, action='Converted to client', defaults={'detail': ''})
+                if ld.get('notes'):
+                    LeadNote.objects.get_or_create(lead=lead, text=ld['notes'], defaults={'created_by': 'System'})
+
         lead_count = Lead.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Leads: {lead_count}')

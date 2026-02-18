@@ -807,8 +807,40 @@ export async function createLead(data: any) {
   return apiFetch<any>('/crm/leads/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function updateLead(id: number, data: any) {
+  return apiFetch<any>(`/crm/leads/${id}/update/`, { method: 'POST', body: JSON.stringify(data) })
+}
+
 export async function updateLeadStatus(id: number, status: string) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
+}
+
+export async function quickAddLead(text: string) {
+  return apiFetch<any>('/crm/leads/quick-add/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function actionContact(id: number) {
+  return apiFetch<any>(`/crm/leads/${id}/contact/`, { method: 'POST' })
+}
+
+export async function actionConvert(id: number) {
+  return apiFetch<any>(`/crm/leads/${id}/convert/`, { method: 'POST' })
+}
+
+export async function actionFollowupDone(id: number) {
+  return apiFetch<any>(`/crm/leads/${id}/followup-done/`, { method: 'POST' })
+}
+
+export async function getLeadNotes(id: number) {
+  return apiFetch<any[]>(`/crm/leads/${id}/notes/`)
+}
+
+export async function addLeadNote(id: number, text: string) {
+  return apiFetch<any>(`/crm/leads/${id}/notes/`, { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function getLeadHistory(id: number) {
+  return apiFetch<any[]>(`/crm/leads/${id}/history/`)
 }
 
 // --- Dashboard Today V2 (Operational Incident Board) ---
