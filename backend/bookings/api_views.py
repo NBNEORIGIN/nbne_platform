@@ -161,7 +161,11 @@ class StaffViewSet(viewsets.ModelViewSet):
         show_all = self.request.query_params.get('all', '')
         if show_all == '1' or self.action in ('update', 'partial_update', 'destroy', 'retrieve'):
             return qs
-        return qs.filter(active=True)
+        qs = qs.filter(active=True)
+        service_id = self.request.query_params.get('service_id')
+        if service_id:
+            qs = qs.filter(services__id=service_id).distinct()
+        return qs
 
     def _get_name(self, data):
         """Extract name from first_name+last_name or name field."""

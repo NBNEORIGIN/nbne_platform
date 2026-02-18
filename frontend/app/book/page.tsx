@@ -161,7 +161,7 @@ export default function BookPage() {
     setError('')
     setLoadingSlots(true)
     if (selectedStaff) {
-      const res = await getStaffSlots(selectedStaff.user_id, selectedService.id, dateStr)
+      const res = await getStaffSlots(selectedStaff.id, selectedService.id, dateStr)
       setTimeSlots(res.data?.slots || [])
       setLegacySlots([])
     } else {
@@ -225,7 +225,7 @@ export default function BookPage() {
       bookingData.booking_date = selectedDate
       bookingData.booking_time = selectedTime
       if (selectedStaff) {
-        bookingData.staff_id = selectedStaff.user_id
+        bookingData.staff_id = selectedStaff.id
       }
     }
     const res = await createBooking(bookingData)
@@ -393,11 +393,11 @@ export default function BookPage() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
                 {staffList.map((s: any) => {
-                  const isSel = selectedStaff?.user_id === s.user_id
+                  const isSel = selectedStaff?.id === s.id
                   const sName = staffName(s)
                   return (
                     <div
-                      key={s.user_id}
+                      key={s.id}
                       onClick={() => selectStaffMember(s)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '0.6rem',

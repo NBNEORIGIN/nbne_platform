@@ -27,6 +27,11 @@ TENANTS = {
             ('Bridal Package', 'Special', 180, '250.00', 7500),
             ('Gents Cut', 'Cuts', 30, '20.00', 0),
         ],
+        'booking_staff': [
+            ('chloe@salonx.demo', 'Chloe Williams', 'staff'),
+            ('jordan@salonx.demo', 'Jordan Taylor', 'staff'),
+            ('Mia@salonx.demo', 'Mia Patel', 'staff'),
+        ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
     'restaurant-x': {
@@ -337,11 +342,27 @@ class Command(BaseCommand):
         svc_count = Service.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Services: {svc_count}')
 
-        demo_staff, _ = BookingStaff.objects.get_or_create(
-            tenant=self.tenant, email=f'staff@{self.tenant.slug}.demo',
-            defaults={'name': 'Demo Staff', 'role': 'staff'}
-        )
-        demo_staff.services.set(Service.objects.filter(tenant=self.tenant))
+        # Create named bookable staff per tenant
+        staff_configs = cfg.get('booking_staff', [
+            (f'staff1@{self.tenant.slug}.demo', 'Staff Member', 'staff'),
+        ])
+        all_services = list(Service.objects.filter(tenant=self.tenant))
+        booking_staff = []
+        for s_email, s_name, s_role in staff_configs:
+            bs, _ = BookingStaff.objects.get_or_create(
+                tenant=self.tenant, email=s_email,
+                defaults={'name': s_name, 'role': s_role}
+            )
+            if bs.name != s_name:
+                bs.name = s_name
+                bs.save(update_fields=['name'])
+            bs.services.set(all_services)
+            booking_staff.append(bs)
+        # Clean up old 'Demo Staff' if it exists
+        BookingStaff.objects.filter(tenant=self.tenant, email=f'staff@{self.tenant.slug}.demo').exclude(
+            id__in=[s.id for s in booking_staff]
+        ).delete()
+        self.stdout.write(f'  Booking staff: {len(booking_staff)}')
 
         demo_client, _ = Client.objects.get_or_create(
             tenant=self.tenant, email=customer.email,
@@ -350,17 +371,19 @@ class Command(BaseCommand):
 
         if not Booking.objects.filter(tenant=self.tenant).exists():
             svc = Service.objects.filter(tenant=self.tenant).first()
-            if svc:
+            default_staff = booking_staff[0] if booking_staff else None
+            if svc and default_staff:
                 today = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
                 statuses = ['confirmed', 'pending', 'completed', 'cancelled', 'confirmed']
                 for i, st in enumerate(statuses):
+                    staff_member = booking_staff[i % len(booking_staff)]
                     start = today + timedelta(days=i + 1)
                     end = start + timedelta(minutes=svc.duration_minutes)
                     Booking.objects.create(
                         tenant=self.tenant,
                         client=demo_client,
                         service=svc,
-                        staff=demo_staff,
+                        staff=staff_member,
                         start_time=start,
                         end_time=end,
                         status=st,

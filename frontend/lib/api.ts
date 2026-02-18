@@ -226,7 +226,7 @@ export function getSlots(params?: { service_id?: number; date_from?: string; dat
 
 export async function getBookableStaff(serviceId?: number) {
   const q = serviceId ? `?service_id=${serviceId}` : ''
-  return apiFetch<any[]>(`/bookings/staff-available/${q}`)
+  return apiFetch<any[]>(`/staff/${q}`)
 }
 
 export async function getStaffSlots(staffId: number, serviceId: number, date: string) {
