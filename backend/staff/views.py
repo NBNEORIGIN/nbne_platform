@@ -88,12 +88,12 @@ def staff_create(request):
             phone=phone,
             hire_date=timezone.now().date(),
         )
-        # Auto-add to all active team chat channels (not DMs)
+        # Auto-add to all tenant chat channels (not DMs)
         try:
-            from comms.models import Channel
-            channels = Channel.objects.filter(is_archived=False).exclude(channel_type='DIRECT')
+            from comms.models import Channel, ChannelMember
+            channels = Channel.objects.filter(tenant=tenant).exclude(channel_type='DIRECT')
             for ch in channels:
-                ch.members.add(user)
+                ChannelMember.objects.get_or_create(channel=ch, user=user)
         except Exception:
             pass  # comms module may not be enabled
     # Send welcome email with temp credentials

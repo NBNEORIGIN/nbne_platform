@@ -97,12 +97,27 @@ def create_message(request, channel_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def ensure_general_channel(request):
-    """POST /api/comms/ensure-general/ — create the General channel if it doesn't exist."""
+    """POST /api/comms/ensure-general/ — create the General channel if it doesn't exist.
+    Also auto-adds ALL active tenant staff to the channel."""
     tenant = getattr(request, 'tenant', None)
     ch, created = Channel.objects.get_or_create(
         tenant=tenant, channel_type='GENERAL',
-        defaults={'name': 'General'},
+        defaults={'name': 'Team Chat'},
     )
+    # Always add the requesting user
     if not ch.members.filter(user=request.user).exists():
         ChannelMember.objects.create(channel=ch, user=request.user)
+    # Auto-add all active tenant staff
+    try:
+        from django.conf import settings
+        User = settings.AUTH_USER_MODEL
+        from django.apps import apps
+        UserModel = apps.get_model(*User.split('.')) if isinstance(User, str) else User
+        tenant_users = UserModel.objects.filter(tenant=tenant, is_active=True)
+        existing_user_ids = set(ch.members.values_list('user_id', flat=True))
+        for u in tenant_users:
+            if u.id not in existing_user_ids:
+                ChannelMember.objects.get_or_create(channel=ch, user=u)
+    except Exception:
+        pass
     return Response(_serialize_channel(ch))

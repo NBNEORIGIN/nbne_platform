@@ -570,6 +570,10 @@ export async function sendMessage(channelId: number, body: string, files?: File[
   })
 }
 
+export async function ensureGeneralChannel() {
+  return apiFetch<any>('/comms/ensure-general/', { method: 'POST' })
+}
+
 // --- Compliance ---
 export async function getComplianceDashboard() {
   return apiFetch<any>('/compliance/dashboard/')
