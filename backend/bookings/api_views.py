@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Service, Staff, Client, Booking, Session, StaffBlock, ServiceOptimisationLog
 from .serializers import ServiceSerializer, StaffSerializer, ClientSerializer, BookingSerializer, SessionSerializer
@@ -209,6 +210,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         return Booking.objects.filter(tenant=tenant) if tenant else Booking.objects.none()
     
+    def get_permissions(self):
+        if self.action in ('create', 'slots', 'available_dates'):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def create(self, request, *args, **kwargs):
         """
         Create a booking. Accepts client details and creates/finds client automatically.
@@ -438,7 +444,7 @@ Thank you,
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def slots(self, request):
         """
         Get available time slots for booking.
@@ -457,7 +463,7 @@ Thank you,
         slots = generate_time_slots(staff_id, service_id, date)
         return Response({'slots': slots})
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def available_dates(self, request):
         """
         Get dates with available slots.
