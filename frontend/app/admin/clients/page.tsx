@@ -5,6 +5,7 @@ import {
   getLeads, createLead, updateLead, quickAddLead,
   actionContact, actionConvert, actionFollowupDone,
   getLeadNotes, addLeadNote, getLeadHistory,
+  getRevenueStats, getLeadRevenue,
 } from '@/lib/api'
 
 function fmtPrice(pence: number) { return '£' + (pence / 100).toFixed(pence % 100 === 0 ? 0 : 2) }
@@ -30,6 +31,14 @@ const PIPELINE_COLS = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED'] as const
 
 type ViewMode = 'table' | 'pipeline'
 
+const SOURCE_LABELS: Record<string, string> = {
+  booking: 'Booking', website: 'Website', referral: 'Referral',
+  social: 'Social', manual: 'Manual', other: 'Other',
+}
+const FUNNEL_COLORS: Record<string, string> = {
+  NEW: '#3b82f6', CONTACTED: '#f59e0b', QUALIFIED: '#8b5cf6', CONVERTED: '#22c55e', LOST: '#ef4444',
+}
+
 export default function AdminClientsPage() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +56,7 @@ export default function AdminClientsPage() {
   const [notes, setNotes] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
   const [newNote, setNewNote] = useState('')
-  const [panelTab, setPanelTab] = useState<'details' | 'notes' | 'history'>('details')
+  const [panelTab, setPanelTab] = useState<'details' | 'notes' | 'history' | 'revenue'>('details')
 
   // Inline editing
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null)
@@ -55,6 +64,11 @@ export default function AdminClientsPage() {
 
   // Add lead form
   const [showAdd, setShowAdd] = useState(false)
+
+  // Revenue tracking
+  const [revStats, setRevStats] = useState<any>(null)
+  const [leadRev, setLeadRev] = useState<any>(null)
+  const [showRevenue, setShowRevenue] = useState(false)
 
   const flash = useCallback((msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500) }, [])
 
@@ -66,11 +80,17 @@ export default function AdminClientsPage() {
 
   useEffect(() => { reload() }, [reload])
 
-  // Load notes + history when selecting a lead
+  // Load revenue stats
+  useEffect(() => {
+    getRevenueStats().then(r => setRevStats(r.data || null))
+  }, [leads.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load notes + history + revenue when selecting a lead
   useEffect(() => {
     if (!selected) return
     getLeadNotes(selected.id).then(r => setNotes(r.data || []))
     getLeadHistory(selected.id).then(r => setHistory(r.data || []))
+    getLeadRevenue(selected.id).then(r => setLeadRev(r.data || null))
   }, [selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Handlers ---
@@ -209,10 +229,92 @@ export default function AdminClientsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <h1 style={{ margin: 0, fontSize: '1.5rem' }}>CRM</h1>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Pipeline: <strong>{fmtPrice(pipelineValue)}</strong></span>
+            <button className={`filter-pill ${showRevenue ? 'active' : ''}`} onClick={() => setShowRevenue(!showRevenue)} style={{ fontSize: '0.8rem' }}>
+              {showRevenue ? 'Hide Revenue' : 'Revenue'}
+            </button>
             <a href={exportUrl} className="btn btn-sm" style={{ textDecoration: 'none' }}>Export CSV</a>
           </div>
         </div>
+
+        {/* ═══ REVENUE DASHBOARD ═══ */}
+        {showRevenue && revStats && (
+          <div style={{ marginBottom: '1rem' }}>
+            {/* KPI row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <div className="stat-card" style={{ padding: '0.6rem 0.75rem' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-primary)' }}>{fmtPrice(revStats.pipeline_value_pence)}</div>
+              </div>
+              <div className="stat-card" style={{ padding: '0.6rem 0.75rem' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Converted Revenue</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#15803d' }}>{fmtPrice(revStats.converted_revenue_pence)}</div>
+              </div>
+              <div className="stat-card" style={{ padding: '0.6rem 0.75rem' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Leads</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700 }}>{revStats.total_leads}</div>
+              </div>
+              <div className="stat-card" style={{ padding: '0.6rem 0.75rem' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700 }}>{revStats.overall_conversion_rate}%</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {/* Conversion Funnel */}
+              <div style={{ background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 8, padding: '0.75rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Conversion Funnel</div>
+                {revStats.funnel && (['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'] as const).map(stage => {
+                  const f = revStats.funnel[stage]
+                  if (!f) return null
+                  const maxCount = Math.max(...Object.values(revStats.funnel).map((v: any) => v.count || 0), 1)
+                  const pct = (f.count / maxCount) * 100
+                  return (
+                    <div key={stage} style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
+                        <span style={{ fontWeight: 600 }}>{stage}</span>
+                        <span>{f.count} leads · {fmtPrice(f.value_pence)}</span>
+                      </div>
+                      <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: FUNNEL_COLORS[stage], borderRadius: 4, transition: 'width 0.3s' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Source Attribution */}
+              <div style={{ background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 8, padding: '0.75rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Revenue by Source</div>
+                {revStats.sources && revStats.sources.length > 0 ? (
+                  <table style={{ width: '100%', fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ textAlign: 'left', padding: '2px 4px', fontWeight: 600 }}>Source</th>
+                        <th style={{ textAlign: 'right', padding: '2px 4px', fontWeight: 600 }}>Leads</th>
+                        <th style={{ textAlign: 'right', padding: '2px 4px', fontWeight: 600 }}>Conv.</th>
+                        <th style={{ textAlign: 'right', padding: '2px 4px', fontWeight: 600 }}>Rate</th>
+                        <th style={{ textAlign: 'right', padding: '2px 4px', fontWeight: 600 }}>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {revStats.sources.map((s: any) => (
+                        <tr key={s.source} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: 500 }}>{SOURCE_LABELS[s.source] || s.source}</td>
+                          <td style={{ padding: '3px 4px', textAlign: 'right' }}>{s.leads}</td>
+                          <td style={{ padding: '3px 4px', textAlign: 'right' }}>{s.converted}</td>
+                          <td style={{ padding: '3px 4px', textAlign: 'right', color: s.conversion_rate >= 50 ? '#15803d' : s.conversion_rate >= 20 ? '#854d0e' : 'var(--color-text-muted)' }}>{s.conversion_rate}%</td>
+                          <td style={{ padding: '3px 4px', textAlign: 'right', fontWeight: 600 }}>{fmtPrice(s.revenue_pence)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem 0' }}>No source data yet</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Follow-up reminders panel */}
         {urgentFollowUps.length > 0 && (
@@ -453,9 +555,9 @@ export default function AdminClientsPage() {
 
           {/* Panel tabs */}
           <div className="tabs" style={{ marginBottom: '0.5rem' }}>
-            {(['details', 'notes', 'history'] as const).map(t => (
+            {(['details', 'notes', 'history', 'revenue'] as const).map(t => (
               <button key={t} className={`tab ${panelTab === t ? 'active' : ''}`} onClick={() => setPanelTab(t)} style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
-                {t === 'details' ? 'Details' : t === 'notes' ? 'Notes' : 'History'}
+                {t === 'details' ? 'Details' : t === 'notes' ? 'Notes' : t === 'history' ? 'History' : 'Revenue'}
               </button>
             ))}
           </div>
@@ -507,6 +609,51 @@ export default function AdminClientsPage() {
                       <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>{new Date(h.created_at).toLocaleString('en-GB')}</div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Revenue tab */}
+          {panelTab === 'revenue' && (
+            <div>
+              {!leadRev || !leadRev.linked ? (
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem 0' }}>
+                  {selected.status === 'CONVERTED' ? 'No client record linked yet' : 'Convert this lead to see revenue data'}
+                </div>
+              ) : (
+                <div>
+                  {/* Client revenue KPIs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem', fontSize: '0.78rem', marginBottom: '0.6rem', padding: '0.5rem', background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 6 }}>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Lifetime value:</span><div style={{ fontWeight: 700, fontSize: '1rem', color: '#15803d' }}>{fmtPrice(leadRev.lifetime_value_pence)}</div></div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Bookings:</span><div style={{ fontWeight: 700, fontSize: '1rem' }}>{leadRev.total_bookings}</div></div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Completed:</span> {leadRev.completed_bookings}</div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Cancelled:</span> {leadRev.cancelled_bookings}</div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>No-shows:</span> {leadRev.no_show_count}</div>
+                    <div><span style={{ color: 'var(--color-text-muted)' }}>Reliability:</span> <span style={{ fontWeight: 600, color: leadRev.reliability_score >= 80 ? '#15803d' : leadRev.reliability_score >= 50 ? '#854d0e' : '#991b1b' }}>{leadRev.reliability_score}%</span></div>
+                    {leadRev.avg_days_between_bookings && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--color-text-muted)' }}>Avg. days between visits:</span> <strong>{Math.round(leadRev.avg_days_between_bookings)}</strong></div>}
+                  </div>
+
+                  {/* Booking history */}
+                  {leadRev.bookings && leadRev.bookings.length > 0 && (
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.3rem' }}>Recent Bookings</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        {leadRev.bookings.map((b: any) => (
+                          <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.3rem 0.4rem', background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 4, fontSize: '0.75rem' }}>
+                            <div>
+                              <div style={{ fontWeight: 500 }}>{b.service}</div>
+                              <div style={{ color: 'var(--color-text-muted)', fontSize: '0.65rem' }}>{fmtDate(b.date)} {b.time}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 600 }}>{fmtPrice(b.amount_pence)}</div>
+                              <span className={`badge ${b.status === 'completed' ? 'badge-success' : b.status === 'cancelled' ? 'badge-danger' : b.status === 'no_show' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.6rem' }}>{b.status}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

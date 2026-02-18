@@ -843,6 +843,14 @@ export async function getLeadHistory(id: number) {
   return apiFetch<any[]>(`/crm/leads/${id}/history/`)
 }
 
+export async function getRevenueStats() {
+  return apiFetch<any>('/crm/revenue/')
+}
+
+export async function getLeadRevenue(id: number) {
+  return apiFetch<any>(`/crm/leads/${id}/revenue/`)
+}
+
 // --- Dashboard Today V2 (Operational Incident Board) ---
 export async function getDashboardToday() {
   return apiFetch<any>('/dashboard/today/')

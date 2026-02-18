@@ -329,6 +329,146 @@ def export_leads_csv(request):
     return response
 
 
+# --- Revenue Tracking ---
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def revenue_stats(request):
+    """GET /api/crm/revenue/ — Pipeline forecast, source attribution, conversion funnel."""
+    from collections import defaultdict
+    from bookings.models import Client, Booking
+
+    tenant = getattr(request, 'tenant', None)
+    leads = Lead.objects.filter(tenant=tenant)
+
+    # --- Per-lead revenue enrichment ---
+    client_ids = [l.client_id for l in leads if l.client_id]
+    clients_by_id = {}
+    if client_ids:
+        clients_by_id = {c.id: c for c in Client.objects.filter(id__in=client_ids, tenant=tenant)}
+
+    # Booking aggregates per client
+    booking_stats = {}
+    if client_ids:
+        from django.db.models import Sum, Count, Max, Q
+        qs = Booking.objects.filter(
+            client_id__in=client_ids, tenant=tenant
+        ).values('client_id').annotate(
+            total_bookings=Count('id'),
+            completed_bookings=Count('id', filter=Q(status='completed')),
+            total_revenue=Sum('payment_amount', filter=Q(status__in=['completed', 'confirmed'])),
+            last_booking=Max('start_time'),
+        )
+        for row in qs:
+            booking_stats[row['client_id']] = row
+
+    # --- Pipeline forecast ---
+    pipeline_value = 0
+    converted_revenue = 0
+    for l in leads:
+        if l.status in ('NEW', 'CONTACTED', 'QUALIFIED'):
+            pipeline_value += l.value_pence
+        if l.status == 'CONVERTED' and l.client_id and l.client_id in booking_stats:
+            rev = booking_stats[l.client_id].get('total_revenue') or 0
+            converted_revenue += int(float(rev) * 100)  # Decimal → pence
+
+    # --- Source attribution ---
+    source_stats = defaultdict(lambda: {'leads': 0, 'converted': 0, 'revenue_pence': 0, 'pipeline_pence': 0})
+    for l in leads:
+        s = source_stats[l.source]
+        s['leads'] += 1
+        if l.status == 'CONVERTED':
+            s['converted'] += 1
+            if l.client_id and l.client_id in booking_stats:
+                rev = booking_stats[l.client_id].get('total_revenue') or 0
+                s['revenue_pence'] += int(float(rev) * 100)
+        elif l.status != 'LOST':
+            s['pipeline_pence'] += l.value_pence
+
+    source_list = []
+    for source, data in sorted(source_stats.items(), key=lambda x: -x[1]['revenue_pence']):
+        conv_rate = (data['converted'] / data['leads'] * 100) if data['leads'] > 0 else 0
+        source_list.append({
+            'source': source,
+            'leads': data['leads'],
+            'converted': data['converted'],
+            'conversion_rate': round(conv_rate, 1),
+            'revenue_pence': data['revenue_pence'],
+            'pipeline_pence': data['pipeline_pence'],
+        })
+
+    # --- Conversion funnel ---
+    funnel = {}
+    for s in ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST']:
+        stage_leads = [l for l in leads if l.status == s]
+        stage_value = sum(l.value_pence for l in stage_leads)
+        funnel[s] = {'count': len(stage_leads), 'value_pence': stage_value}
+
+    total_leads = leads.count()
+    converted_count = funnel['CONVERTED']['count']
+    overall_conversion_rate = round((converted_count / total_leads * 100) if total_leads > 0 else 0, 1)
+
+    return Response({
+        'pipeline_value_pence': pipeline_value,
+        'converted_revenue_pence': converted_revenue,
+        'total_leads': total_leads,
+        'overall_conversion_rate': overall_conversion_rate,
+        'sources': source_list,
+        'funnel': funnel,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def lead_revenue(request, lead_id):
+    """GET /api/crm/leads/<id>/revenue/ — Per-lead revenue: client stats + booking history."""
+    from bookings.models import Client, Booking
+
+    tenant = getattr(request, 'tenant', None)
+    try:
+        lead = Lead.objects.get(id=lead_id, tenant=tenant)
+    except Lead.DoesNotExist:
+        return Response({'error': 'Lead not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not lead.client_id:
+        return Response({
+            'linked': False,
+            'message': 'No client record linked',
+        })
+
+    try:
+        client = Client.objects.get(id=lead.client_id, tenant=tenant)
+    except Client.DoesNotExist:
+        return Response({'linked': False, 'message': 'Client record not found'})
+
+    bookings = Booking.objects.filter(client=client, tenant=tenant).select_related('service').order_by('-start_time')
+
+    booking_list = []
+    for b in bookings[:20]:  # last 20 bookings
+        booking_list.append({
+            'id': b.id,
+            'service': b.service.name if b.service else '—',
+            'date': b.start_time.strftime('%Y-%m-%d'),
+            'time': b.start_time.strftime('%H:%M'),
+            'status': b.status,
+            'amount_pence': int(float(b.payment_amount or 0) * 100) if b.payment_amount else (b.service.price_pence if b.service else 0),
+        })
+
+    return Response({
+        'linked': True,
+        'client_id': client.id,
+        'client_name': client.name,
+        'lifetime_value_pence': int(float(client.lifetime_value) * 100),
+        'total_bookings': client.total_bookings,
+        'completed_bookings': client.completed_bookings,
+        'cancelled_bookings': client.cancelled_bookings,
+        'no_show_count': client.no_show_count,
+        'reliability_score': round(client.reliability_score, 1),
+        'avg_days_between_bookings': client.avg_days_between_bookings,
+        'bookings': booking_list,
+    })
+
+
 # --- Sync from bookings ---
 
 @api_view(['POST'])
