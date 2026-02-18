@@ -33,5 +33,8 @@ echo "Backfilling Smart Booking Engine scores..."
 echo "Starting booking reminder worker (background)..."
 python manage.py send_booking_reminders --loop &
 
+echo "Starting compliance reminder worker (background, daily)..."
+python manage.py send_compliance_reminders --loop &
+
 echo "Starting Gunicorn..."
 exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120
