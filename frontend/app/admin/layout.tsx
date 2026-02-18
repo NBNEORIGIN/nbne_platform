@@ -39,8 +39,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/login')
   }
 
+  const isDemo = tenant.slug && tenant.slug !== 'nbne'
+
   return (
     <div className="shell">
+      {isDemo && (
+        <div style={{
+          background: '#2563eb', color: '#fff', textAlign: 'center',
+          padding: '0.35rem 1rem', fontSize: '0.78rem', fontWeight: 500,
+        }}>
+          This is a demo. Data resets nightly. <a href="/" style={{ color: '#bfdbfe', marginLeft: '0.5rem' }}>Back to site</a>
+        </div>
+      )}
       <header className="topbar" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <button className="btn btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ flexShrink: 0 }}>☰</button>
         <span className="topbar-title" style={{ flexShrink: 0, marginRight: '0.5rem' }}>{tenant.business_name}</span>

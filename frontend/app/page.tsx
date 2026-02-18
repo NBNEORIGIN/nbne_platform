@@ -1,359 +1,221 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking } from '@/lib/api'
-// getSlots still used for legacy TimeSlot fallback path
 import { useTenant } from '@/lib/tenant'
 
-function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
-
-type Step = 'service' | 'staff' | 'datetime' | 'details' | 'disclaimer' | 'confirm'
-
-export default function PublicHomePage() {
+export default function HomePage() {
   const tenant = useTenant()
-  const [step, setStep] = useState<Step>('service')
-  const [services, setServices] = useState<any[]>([])
-  const [staffList, setStaffList] = useState<any[]>([])
-  const [selectedService, setSelectedService] = useState<any>(null)
-  const [selectedStaff, setSelectedStaff] = useState<any>(null)
-  const [selectedDate, setSelectedDate] = useState('')
-  const [selectedTime, setSelectedTime] = useState('')
-  const [timeSlots, setTimeSlots] = useState<any[]>([])
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [notes, setNotes] = useState('')
-  const [disclaimerData, setDisclaimerData] = useState<any>(null)
-  const [confirmed, setConfirmed] = useState<any>(null)
-  const [loadingServices, setLoadingServices] = useState(true)
-  const [loadingStaff, setLoadingStaff] = useState(false)
-  const [loadingSlots, setLoadingSlots] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
-  // Also keep legacy slot support as fallback
-  const [legacySlots, setLegacySlots] = useState<any[]>([])
-  const [selectedLegacySlot, setSelectedLegacySlot] = useState<any>(null)
-
-  useEffect(() => {
-    getServices().then(r => { setServices(r.data || []); setLoadingServices(false) })
-  }, [])
-
-  async function selectService(svc: any) {
-    setSelectedService(svc)
-    setSelectedStaff(null)
-    setSelectedDate('')
-    setSelectedTime('')
-    setTimeSlots([])
-    setLoadingStaff(true)
-    const res = await getBookableStaff(svc.id)
-    const staff = res.data || []
-    setStaffList(staff)
-    setLoadingStaff(false)
-    if (staff.length > 0) {
-      setStep('staff')
-    } else {
-      // No staff configured — fall back to legacy TimeSlot flow
-      setStep('datetime')
-    }
-  }
-
-  function selectStaffMember(s: any) {
-    setSelectedStaff(s)
-    setSelectedDate('')
-    setSelectedTime('')
-    setTimeSlots([])
-    setStep('datetime')
-  }
-
-  async function selectDate(dateStr: string) {
-    setSelectedDate(dateStr)
-    setSelectedTime('')
-    setError('')
-    setLoadingSlots(true)
-    if (selectedStaff) {
-      const res = await getStaffSlots(selectedStaff.user_id, selectedService.id, dateStr)
-      setTimeSlots(res.data?.slots || [])
-      setLegacySlots([])
-    } else {
-      // Legacy: use pre-created TimeSlots
-      const res = await getSlots({ service_id: selectedService.id, date_from: dateStr, date_to: dateStr })
-      setLegacySlots(res.data || [])
-      setTimeSlots([])
-    }
-    setLoadingSlots(false)
-  }
-
-  function selectTime(time: string) {
-    setSelectedTime(time)
-    setError('')
-    setStep('details')
-  }
-
-  function selectLegacySlot(slot: any) {
-    setSelectedLegacySlot(slot)
-    setSelectedTime(slot.start_time.slice(0, 5))
-    setError('')
-    setStep('details')
-  }
-
-  async function handleDetailsSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    // Check disclaimer before proceeding
-    const res = await checkDisclaimer(email)
-    if (res.data?.required && !res.data?.valid) {
-      setDisclaimerData(res.data.disclaimer)
-      setStep('disclaimer')
-      return
-    }
-    // No disclaimer needed or already valid — submit booking
-    await submitBooking()
-  }
-
-  async function handleDisclaimerSign() {
-    if (!disclaimerData) return
-    setSubmitting(true)
-    const res = await signDisclaimer({ email, name, disclaimer_id: disclaimerData.id })
-    setSubmitting(false)
-    if (res.data?.signed) {
-      await submitBooking()
-    } else {
-      setError('Failed to sign disclaimer. Please try again.')
-    }
-  }
-
-  async function submitBooking() {
-    setSubmitting(true)
-    setError('')
-    const bookingData: any = {
-      service_id: selectedService.id,
-      customer_name: name,
-      customer_email: email,
-      customer_phone: phone,
-      notes,
-    }
-    if (selectedLegacySlot) {
-      // Legacy path: pre-created TimeSlot
-      bookingData.time_slot_id = selectedLegacySlot.id
-    } else {
-      // Staff-aware path: send date + time + staff directly
-      bookingData.booking_date = selectedDate
-      bookingData.booking_time = selectedTime
-      if (selectedStaff) {
-        bookingData.staff_id = selectedStaff.user_id
-      }
-    }
-    const res = await createBooking(bookingData)
-    setSubmitting(false)
-    if (res.data) {
-      setConfirmed(res.data)
-      setStep('confirm')
-    } else {
-      setError(res.error || 'Booking failed. Please try again.')
-    }
-  }
-
-  function resetBooking() {
-    setStep('service')
-    setSelectedService(null)
-    setSelectedStaff(null)
-    setSelectedDate('')
-    setSelectedTime('')
-    setTimeSlots([])
-    setLegacySlots([])
-    setSelectedLegacySlot(null)
-    setName(''); setEmail(''); setPhone(''); setNotes('')
-    setDisclaimerData(null)
-    setConfirmed(null)
-    setError('')
-  }
-
-  // Generate next 14 days
-  const dates: string[] = []
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(); d.setDate(d.getDate() + i)
-    dates.push(d.toISOString().split('T')[0])
-  }
-
-  const stepLabels = selectedStaff
-    ? ['Service', 'Staff', 'Date & Time', 'Details', 'Confirm']
-    : ['Service', 'Date & Time', 'Details', 'Confirm']
+  const isSalon = tenant.business_name?.toLowerCase().includes('salon')
+  const bizName = tenant.business_name || 'Salon-X'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <header style={{ background: 'var(--color-primary-dark)', color: '#fff', padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ color: '#fff', fontSize: '1.5rem' }}>{tenant.business_name}</h1>
-        <a href="/login" style={{ color: '#fff', opacity: 0.8, fontSize: '0.85rem' }}>Staff Login →</a>
-      </header>
+    <div style={{ minHeight: '100vh', background: '#fff' }}>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
-        {error && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#991b1b' }}>
-            {error}
-            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+      {/* ── Nav ── */}
+      <nav style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '1rem 2rem', borderBottom: '1px solid #f1f5f9',
+        position: 'sticky', top: 0, background: '#fff', zIndex: 50,
+      }}>
+        <a href="/" style={{ fontWeight: 800, fontSize: '1.3rem', color: '#111827', textDecoration: 'none', letterSpacing: '-0.02em' }}>
+          {bizName}
+        </a>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', fontSize: '0.9rem' }}>
+          <a href="#features" style={{ color: '#4b5563', textDecoration: 'none' }}>Features</a>
+          <a href="/pricing" style={{ color: '#4b5563', textDecoration: 'none' }}>Pricing</a>
+          <a href="/book" style={{
+            background: '#111827', color: '#fff', padding: '0.5rem 1.25rem',
+            borderRadius: 6, textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
+          }}>Book Now</a>
+          <a href="/login" style={{ color: '#6b7280', textDecoration: 'none', fontSize: '0.85rem' }}>Login</a>
+        </div>
+      </nav>
+
+      {/* ── Hero ── */}
+      <section style={{
+        padding: '5rem 2rem 4rem', textAlign: 'center',
+        background: 'linear-gradient(180deg, #f8fafc 0%, #fff 100%)',
+      }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem' }}>
+            Built in the UK for UK small businesses
           </div>
-        )}
+          <h1 style={{ fontSize: '2.75rem', fontWeight: 800, color: '#111827', lineHeight: 1.15, marginBottom: '1.25rem', letterSpacing: '-0.03em' }}>
+            Bookings, staff cover, and compliance — <span style={{ color: '#2563eb' }}>sorted</span>.
+          </h1>
+          <p style={{ fontSize: '1.15rem', color: '#6b7280', lineHeight: 1.6, marginBottom: '2rem', maxWidth: 520, margin: '0 auto 2rem' }}>
+            Everything a UK {isSalon ? 'salon' : 'business'} owner needs to run the day without the stress.
+            No per-client fees. No per-seat limits. Just straightforward software that works.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/book" style={{
+              background: '#111827', color: '#fff', padding: '0.75rem 2rem',
+              borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '1rem',
+            }}>Book an Appointment</a>
+            <a href="/login?redirect=/admin" style={{
+              background: '#fff', color: '#111827', padding: '0.75rem 2rem',
+              borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '1rem',
+              border: '2px solid #e5e7eb',
+            }}>Try the Demo</a>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.75rem' }}>
+            Demo login: <strong>owner</strong> / <strong>admin123</strong> — data resets nightly
+          </p>
+        </div>
+      </section>
 
-        {/* Step 1: Service */}
-        {step === 'service' && (
-          <div>
-            <h2 style={{ marginBottom: '1rem' }}>Choose a Service</h2>
-            {loadingServices ? <div className="empty-state">Loading services…</div> : (
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
-                {services.filter((s: any) => s.is_active !== false).map((svc: any) => (
-                  <div key={svc.id} className="card" style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => selectService(svc)}>
-                    <div>
-                      <strong>{svc.name}</strong>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{svc.description}</div>
-                      <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>{svc.duration_minutes} min</div>
-                    </div>
-                    <div style={{ textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-primary-dark)' }}>{svc.price_pence > 0 ? formatPrice(svc.price_pence) : 'Contact for pricing'}</div>
-                      {(svc.deposit_percentage > 0 || svc.deposit_pence > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                          Deposit: {svc.deposit_percentage > 0 ? `${svc.deposit_percentage}%` : formatPrice(svc.deposit_pence)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+      {/* ── How it works (owner brain) ── */}
+      <section style={{ padding: '4rem 2rem', background: '#fff' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <h2 style={{ textAlign: 'center', fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '2.5rem' }}>
+            How your morning goes
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem' }}>
+            {[
+              { num: '1', title: 'What happened?', desc: 'Sick calls, no-shows, gaps in the diary, deposits not paid. It\'s all there when you open up.' },
+              { num: '2', title: 'What do I do?', desc: 'One-click actions. Sensible options. The system tells you what needs doing and lets you do it.' },
+              { num: '3', title: 'Sorted.', desc: 'Then crack on with the day. Run your business, not your software.' },
+            ].map(item => (
+              <div key={item.num} style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: '50%', background: '#f0f9ff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 1rem', fontSize: '1.25rem', fontWeight: 800, color: '#2563eb',
+                }}>{item.num}</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>{item.title}</h3>
+                <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>{item.desc}</p>
               </div>
-            )}
+            ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Step 2: Staff */}
-        {step === 'staff' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep('service')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>Choose Your {tenant.business_name?.toLowerCase().includes('hair') || tenant.business_name?.toLowerCase().includes('salon') ? 'Stylist' : 'Staff Member'}</h2>
-            {loadingStaff ? <div className="empty-state">Loading…</div> : (
-              <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-                {staffList.map((s: any) => (
-                  <div key={s.user_id} className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '1.5rem 1rem' }} onClick={() => selectStaffMember(s)}>
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary-dark)' }}>
-                      {s.display_name?.charAt(0) || '?'}
-                    </div>
-                    <strong>{s.display_name}</strong>
-                  </div>
-                ))}
+      {/* ── Features ── */}
+      <section id="features" style={{ padding: '4rem 2rem', background: '#f8fafc' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <h2 style={{ textAlign: 'center', fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>
+            Everything you need. Nothing you don&rsquo;t.
+          </h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '2.5rem', fontSize: '1rem' }}>
+            All included. No add-ons. No upgrades. No surprises.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            {[
+              { icon: '📅', title: 'Online Booking', desc: 'Clients book 24/7. You set the rules — services, staff, availability, deposits.' },
+              { icon: '💳', title: 'Stripe Payments', desc: 'Take deposits or full payment. No fees from us, ever. Just standard Stripe rates.' },
+              { icon: '👥', title: 'Staff Management', desc: 'Rota, leave, hours, timesheets, training records. All in one place.' },
+              { icon: '📋', title: 'CRM & Leads', desc: 'Track enquiries, follow up, convert to clients. See which sources bring real revenue.' },
+              { icon: '🛡️', title: 'Health & Safety', desc: 'Compliance register, incident log, training tracker. Stay legal without the stress.' },
+              { icon: '📊', title: 'Dashboard', desc: 'Open up, see what\'s happening, deal with it. One command bar to run everything.' },
+              { icon: '🌐', title: 'Your Website', desc: 'We build and host your booking website. It\'s included. No extra charge.' },
+              { icon: '💬', title: 'Team Chat', desc: 'Simple internal messaging. No WhatsApp groups needed.' },
+              { icon: '📁', title: 'Documents', desc: 'Store policies, contracts, certificates. Everything in one secure place.' },
+            ].map(f => (
+              <div key={f.title} style={{
+                background: '#fff', borderRadius: 10, padding: '1.5rem',
+                border: '1px solid #e5e7eb',
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{f.icon}</div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', marginBottom: '0.35rem' }}>{f.title}</h3>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.5, margin: 0 }}>{f.desc}</p>
               </div>
-            )}
+            ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Step 3: Date & Time */}
-        {step === 'datetime' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep(staffList.length > 0 ? 'staff' : 'service')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>
-              Pick a Date{selectedStaff ? ` with ${selectedStaff.display_name}` : ''} — {selectedService?.name}
-            </h2>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-              {dates.map(d => (
-                <button key={d} className={`btn ${selectedDate === d ? 'btn-primary' : 'btn-outline'}`} style={{ minWidth: 90 }} onClick={() => selectDate(d)}>
-                  {new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </button>
+      {/* ── Pricing preview ── */}
+      <section style={{ padding: '4rem 2rem', background: '#fff' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>
+            Simple pricing. Proper value.
+          </h2>
+          <p style={{ color: '#6b7280', marginBottom: '2rem' }}>One plan. Everything included. No hidden costs.</p>
+          <div style={{
+            background: '#f8fafc', borderRadius: 12, padding: '2.5rem 2rem',
+            border: '2px solid #e5e7eb',
+          }}>
+            <div style={{ fontSize: '3rem', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
+              £30<span style={{ fontSize: '1rem', fontWeight: 500, color: '#6b7280' }}>/month + VAT</span>
+            </div>
+            <div style={{ marginTop: '1.5rem', textAlign: 'left', maxWidth: 320, margin: '1.5rem auto 0' }}>
+              {[
+                'Your own booking website',
+                'Online payments via Stripe',
+                'Staff rota, leave & timesheets',
+                'CRM & lead tracking',
+                'Health & safety compliance',
+                'Team chat',
+                'Document storage',
+                'Unlimited staff logins',
+                'No per-client charges, ever',
+              ].map(item => (
+                <div key={item} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>
+                  <span style={{ color: '#22c55e', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                  <span>{item}</span>
+                </div>
               ))}
             </div>
-            {selectedDate && (
-              <div>
-                <h3 style={{ marginBottom: '0.75rem' }}>Available Times</h3>
-                {loadingSlots ? <div className="empty-state">Loading slots…</div> : (
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {/* Staff-aware dynamic slots */}
-                    {timeSlots.map((slot: any) => (
-                      <button key={slot.start_time} className="btn btn-outline" onClick={() => selectTime(slot.start_time)}>
-                        {slot.start_time}
-                      </button>
-                    ))}
-                    {/* Legacy pre-created TimeSlots */}
-                    {legacySlots.filter((s: any) => s.has_capacity).map((slot: any) => (
-                      <button key={slot.id} className="btn btn-outline" onClick={() => selectLegacySlot(slot)}>
-                        {slot.start_time.slice(0, 5)}
-                      </button>
-                    ))}
-                    {timeSlots.length === 0 && legacySlots.filter((s: any) => s.has_capacity).length === 0 && (
-                      <p style={{ color: 'var(--color-text-muted)' }}>No slots available on this date.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            <a href="/pricing" style={{
+              display: 'inline-block', marginTop: '1.5rem',
+              background: '#111827', color: '#fff', padding: '0.65rem 2rem',
+              borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem',
+            }}>See full details</a>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Step 4: Customer Details */}
-        {step === 'details' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => { setStep('datetime'); setSelectedTime('') }}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>Your Details</h2>
-            <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', background: 'var(--color-primary-light)' }}>
-              <strong>{selectedService!.name}</strong>
-              {selectedStaff && <span> with {selectedStaff.display_name}</span>}
-              <span> — {selectedDate} at {selectedTime}</span>
-              <div style={{ fontWeight: 700, marginTop: '0.25rem' }}>{formatPrice(selectedService!.price_pence)}</div>
-            </div>
-            <form onSubmit={handleDetailsSubmit} style={{ display: 'grid', gap: '1rem' }}>
-              <div><label>Full Name</label><input required value={name} onChange={e => setName(e.target.value)} /></div>
-              <div><label>Email</label><input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-              <div><label>Phone</label><input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} /></div>
-              <div><label>Notes (optional)</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
-                {submitting ? 'Processing…' : 'Continue'}
-              </button>
-            </form>
+      {/* ── Trust / fish & chips ── */}
+      <section style={{ padding: '4rem 2rem', background: '#f0f9ff' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', marginBottom: '1rem' }}>
+            Built in the UK by a small business, for UK small businesses.
+          </h2>
+          <p style={{ fontSize: '1rem', color: '#4b5563', lineHeight: 1.7, marginBottom: '1rem' }}>
+            We&rsquo;re not a Silicon Valley startup trying to lock you in.
+            We&rsquo;re a small British company that builds straightforward software for people who run real businesses.
+          </p>
+          <p style={{ fontSize: '1rem', color: '#4b5563', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+            No per-client fees. No per-seat fees. No surprise price hikes.
+            No &ldquo;free tier&rdquo; that suddenly isn&rsquo;t free.
+            Just honest software at a fair price.
+          </p>
+          <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap', fontSize: '0.85rem', color: '#6b7280' }}>
+            <span>No contracts</span>
+            <span>Cancel anytime</span>
+            <span>UK data hosting</span>
+            <span>Real support</span>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Step 5: Disclaimer */}
-        {step === 'disclaimer' && disclaimerData && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>{disclaimerData.title}</h2>
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', maxHeight: 300, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6 }}>
-              {disclaimerData.body.split('\n').map((line: string, i: number) => (
-                <p key={i} style={{ marginBottom: '0.5rem' }}>{line}</p>
-              ))}
-            </div>
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>By clicking below, you confirm:</p>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
-                <li>You have read and understood the above terms</li>
-                <li>You agree to be bound by these terms</li>
-                <li>This agreement is valid for 12 months</li>
-              </ul>
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleDisclaimerSign} disabled={submitting}>
-              {submitting ? 'Signing…' : 'I Agree — Sign & Continue'}
-            </button>
+      {/* ── CTA ── */}
+      <section style={{ padding: '4rem 2rem', background: '#111827', textAlign: 'center' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#fff', marginBottom: '0.75rem' }}>
+            See it in action
+          </h2>
+          <p style={{ color: '#9ca3af', marginBottom: '2rem', fontSize: '1rem' }}>
+            Log into the demo and have a play. No sign-up required.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/login?redirect=/admin" style={{
+              background: '#fff', color: '#111827', padding: '0.75rem 2rem',
+              borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '1rem',
+            }}>Try the Demo</a>
+            <a href="/book" style={{
+              background: 'transparent', color: '#fff', padding: '0.75rem 2rem',
+              borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '1rem',
+              border: '2px solid #4b5563',
+            }}>Book an Appointment</a>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Step 6: Confirmation */}
-        {step === 'confirm' && confirmed && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✓</div>
-            <h2>Booking Confirmed!</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-              Reference: <strong>#{confirmed.id}</strong> — {selectedService?.name}
-            </p>
-            {selectedStaff && <p style={{ color: 'var(--color-text-muted)' }}>with {selectedStaff.display_name}</p>}
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-              {selectedDate} at {selectedTime}
-            </p>
-            {confirmed.checkout_url && (
-              <a href={confirmed.checkout_url} className="btn btn-primary" style={{ display: 'inline-block', marginTop: '1.5rem' }}>
-                Pay Deposit Now
-              </a>
-            )}
-            <button className="btn btn-outline" style={{ marginTop: '1rem', display: 'block', margin: '1rem auto 0' }} onClick={resetBooking}>
-              Book Another
-            </button>
-          </div>
-        )}
-      </main>
+      {/* ── Footer ── */}
+      <footer style={{ padding: '2rem', textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af', borderTop: '1px solid #f1f5f9' }}>
+        <p>{bizName} — powered by NBNE Business Platform</p>
+        <p style={{ marginTop: '0.25rem' }}>Built in Britain. Straightforward pricing. Proper support.</p>
+      </footer>
     </div>
   )
 }
