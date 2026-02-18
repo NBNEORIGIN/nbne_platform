@@ -28,9 +28,9 @@ TENANTS = {
             ('Gents Cut', 'Cuts', 30, '20.00', 0),
         ],
         'booking_staff': [
-            ('chloe@salonx.demo', 'Chloe Williams', 'staff'),
-            ('jordan@salonx.demo', 'Jordan Taylor', 'staff'),
-            ('Mia@salonx.demo', 'Mia Patel', 'staff'),
+            ('chloe@salonx.demo', 'Chloe Williams', 'staff', ['Cut & Style', 'Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package']),
+            ('jordan@salonx.demo', 'Jordan Taylor', 'staff', ['Cut & Style', 'Blow Dry', 'Gents Cut']),
+            ('Mia@salonx.demo', 'Mia Patel', 'staff', ['Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package']),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
@@ -352,11 +352,14 @@ class Command(BaseCommand):
 
         # Create named bookable staff per tenant
         staff_configs = cfg.get('booking_staff', [
-            (f'staff1@{self.tenant.slug}.demo', 'Staff Member', 'staff'),
+            (f'staff1@{self.tenant.slug}.demo', 'Staff Member', 'staff', []),
         ])
         all_services = list(Service.objects.filter(tenant=self.tenant))
+        svc_by_name = {s.name: s for s in all_services}
         booking_staff = []
-        for s_email, s_name, s_role in staff_configs:
+        for entry in staff_configs:
+            s_email, s_name, s_role = entry[0], entry[1], entry[2]
+            svc_names = entry[3] if len(entry) > 3 else []
             bs, _ = BookingStaff.objects.get_or_create(
                 tenant=self.tenant, email=s_email,
                 defaults={'name': s_name, 'role': s_role}
@@ -364,7 +367,10 @@ class Command(BaseCommand):
             if bs.name != s_name:
                 bs.name = s_name
                 bs.save(update_fields=['name'])
-            bs.services.set(all_services)
+            if svc_names:
+                bs.services.set([svc_by_name[n] for n in svc_names if n in svc_by_name])
+            else:
+                bs.services.set(all_services)
             booking_staff.append(bs)
         # Clean up old 'Demo Staff' if it exists
         BookingStaff.objects.filter(tenant=self.tenant, email=f'staff@{self.tenant.slug}.demo').exclude(
