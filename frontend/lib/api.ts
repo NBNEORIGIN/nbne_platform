@@ -126,13 +126,6 @@ async function apiFetch<T = any>(
       if (!base.endsWith('/')) url = base + '/' + qs
     }
 
-    // Always pass tenant slug as query param for reliable tenant resolution
-    const tenantSlug = typeof window !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_TENANT_SLUG || 'salon-x')
-      : 'salon-x'
-    const sep = url.includes('?') ? '&' : '?'
-    url = `${url}${sep}tenant=${tenantSlug}`
-
     const res = await fetch(url, {
       ...options,
       headers,
