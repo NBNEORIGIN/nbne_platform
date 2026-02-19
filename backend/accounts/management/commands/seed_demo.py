@@ -32,45 +32,143 @@ TENANTS = {
             ('jordan@salonx.demo', 'Jordan Taylor', 'staff', ['Cut & Style', 'Blow Dry', 'Gents Cut'], '12:00', '12:30'),
             ('Mia@salonx.demo', 'Mia Patel', 'staff', ['Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package'], '13:00', '13:30'),
         ],
+        'demo_clients': [
+            ('Alice Hartley', 'alice.h@example.com', '07700 100001'),
+            ('Ben Cooper', 'ben.c@example.com', '07700 100002'),
+            ('Charlotte Reed', 'charlotte.r@example.com', '07700 100003'),
+            ('Dylan Foster', 'dylan.f@example.com', '07700 100004'),
+            ('Emily Watson', 'emily.w@example.com', '07700 100005'),
+            ('Finn O\'Reilly', 'finn.or@example.com', '07700 100006'),
+            ('Grace Liu', 'grace.l@example.com', '07700 100007'),
+            ('Harry Blackwell', 'harry.b@example.com', '07700 100008'),
+            ('Isla Campbell', 'isla.c@example.com', '07700 100009'),
+            ('Jack Thornton', 'jack.t@example.com', '07700 100010'),
+        ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
     'restaurant-x': {
-        'business_name': 'Restaurant X',
+        'business_name': 'Tavola',
         'tagline': 'Fine Dining & Events',
-        'colour_primary': '#b91c1c',
-        'colour_secondary': '#7f1d1d',
-        'email': 'hello@restaurantx.demo',
+        'colour_primary': '#059669',
+        'colour_secondary': '#065f46',
+        'email': 'hello@tavola.demo',
         'phone': '07700 900100',
         'address': '45 Market Square, Manchester, M1 2AB',
         'deposit_percentage': 20,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Table for 2', 'Dining', 90, '0.00', 0),
-            ('Table for 4', 'Dining', 120, '0.00', 0),
-            ('Private Dining Room', 'Events', 180, '500.00', 10000),
-            ('Afternoon Tea', 'Experiences', 120, '45.00', 1500),
-            ('Chef\'s Table', 'Experiences', 150, '120.00', 5000),
-            ('Corporate Event', 'Events', 240, '2000.00', 50000),
+            # Standard table reservations — free to book, deposit to reduce no-shows
+            ('Table for 2', 'Table Reservations', 90, '0.00', 500),
+            ('Table for 4', 'Table Reservations', 120, '0.00', 1000),
+            ('Table for 6', 'Table Reservations', 120, '0.00', 1500),
+            ('Table for 8+', 'Table Reservations', 150, '0.00', 2000),
+            # Experiences
+            ('Afternoon Tea for 2', 'Experiences', 120, '55.00', 1500),
+            ('Afternoon Tea for 4', 'Experiences', 120, '110.00', 3000),
+            ('Chef\'s Table (6 Course Tasting)', 'Experiences', 180, '150.00', 5000),
+            ('Sunday Roast (per person)', 'Experiences', 90, '28.00', 0),
+            # Events & corporate
+            ('Private Dining Room (up to 12)', 'Events', 180, '500.00', 15000),
+            ('Corporate Lunch Package', 'Events', 150, '45.00', 2000),
+            ('Corporate Dinner & Drinks', 'Events', 240, '85.00', 5000),
+            ('Wedding Reception', 'Events', 300, '3500.00', 100000),
         ],
-        'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM')],
+        'booking_staff': [
+            ('marco@tavola.demo', 'Marco Rossi', 'manager',
+             ['Table for 2', 'Table for 4', 'Table for 6', 'Table for 8+',
+              'Afternoon Tea for 2', 'Afternoon Tea for 4', 'Sunday Roast (per person)'],
+             '15:00', '16:00'),
+            ('elena@tavola.demo', 'Elena Marchetti', 'staff',
+             ['Table for 2', 'Table for 4', 'Table for 6', 'Table for 8+',
+              'Afternoon Tea for 2', 'Afternoon Tea for 4', 'Sunday Roast (per person)'],
+             '15:00', '16:00'),
+            ('chef.luca@tavola.demo', 'Chef Luca De Luca', 'staff',
+             ['Chef\'s Table (6 Course Tasting)', 'Private Dining Room (up to 12)',
+              'Corporate Lunch Package', 'Corporate Dinner & Drinks', 'Wedding Reception'],
+             '15:30', '16:00'),
+        ],
+        'demo_clients': [
+            ('Sophie Turner', 'sophie.t@example.com', '07700 800001'),
+            ('David Mitchell', 'david.m@example.com', '07700 800002'),
+            ('Rachel Green', 'rachel.g@example.com', '07700 800003'),
+            ('Tom Hardy', 'tom.h@example.com', '07700 800004'),
+            ('Lucy Chen', 'lucy.c@example.com', '07700 800005'),
+            ('Mark Williams', 'mark.w@example.com', '07700 800006'),
+            ('Priya Sharma', 'priya.s@example.com', '07700 800007'),
+            ('James O\'Brien', 'james.ob@example.com', '07700 800008'),
+            ('Hannah Baker', 'hannah.b@example.com', '07700 800009'),
+            ('Oliver Stone', 'oliver.s@example.com', '07700 800010'),
+            ('Emma Woodhouse', 'emma.w@example.com', '07700 800011'),
+            ('Daniel Craig', 'daniel.c@example.com', '07700 800012'),
+        ],
+        'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM'), ('Front of House', 'TEAM')],
     },
     'health-club-x': {
-        'business_name': 'Health Club X',
+        'business_name': 'FitHub',
         'tagline': 'Fitness, Wellness & Recovery',
-        'colour_primary': '#059669',
-        'colour_secondary': '#065f46',
-        'email': 'hello@healthclubx.demo',
+        'colour_primary': '#dc2626',
+        'colour_secondary': '#991b1b',
+        'email': 'hello@fithub.demo',
         'phone': '07700 900200',
         'address': '8 Riverside Park, Birmingham, B1 3CD',
         'deposit_percentage': 0,
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Personal Training', 'Training', 60, '50.00', 1500),
-            ('Group Class', 'Classes', 45, '12.00', 0),
+            # Memberships
+            ('Monthly Membership', 'Memberships', 30, '49.99', 0),
+            ('6-Month Membership', 'Memberships', 30, '269.99', 5000),
+            ('Annual Membership', 'Memberships', 30, '479.99', 10000),
+            ('Student Monthly', 'Memberships', 30, '29.99', 0),
+            # Personal Training
+            ('1:1 Personal Training', 'Personal Training', 60, '50.00', 1500),
+            ('PT Block (5 Sessions)', 'Personal Training', 60, '225.00', 5000),
+            ('PT Block (10 Sessions)', 'Personal Training', 60, '400.00', 10000),
+            ('Couples PT Session', 'Personal Training', 60, '75.00', 2000),
+            # Classes
+            ('HIIT Class', 'Classes', 45, '12.00', 0),
+            ('Yoga Flow', 'Classes', 60, '12.00', 0),
+            ('Spin Class', 'Classes', 45, '12.00', 0),
+            ('Boxing Fitness', 'Classes', 45, '14.00', 0),
+            ('Pilates', 'Classes', 60, '12.00', 0),
+            ('CrossFit WOD', 'Classes', 60, '15.00', 0),
+            # Wellness
             ('Sports Massage', 'Wellness', 60, '55.00', 1500),
-            ('Swimming Lane', 'Facilities', 60, '8.00', 0),
-            ('Sauna & Steam', 'Wellness', 90, '15.00', 0),
-            ('Physiotherapy', 'Medical', 45, '75.00', 2000),
+            ('Physiotherapy', 'Wellness', 45, '75.00', 2000),
+            ('Sauna & Steam Room', 'Wellness', 90, '15.00', 0),
+            ('Swimming Lane Booking', 'Facilities', 60, '8.00', 0),
+        ],
+        'booking_staff': [
+            ('jake@fithub.demo', 'Jake Morrison', 'staff',
+             ['1:1 Personal Training', 'PT Block (5 Sessions)', 'PT Block (10 Sessions)',
+              'Couples PT Session', 'HIIT Class', 'Boxing Fitness', 'CrossFit WOD'],
+             '12:00', '12:30'),
+            ('sarah@fithub.demo', 'Sarah Okonkwo', 'staff',
+             ['1:1 Personal Training', 'PT Block (5 Sessions)', 'PT Block (10 Sessions)',
+              'Couples PT Session', 'Yoga Flow', 'Pilates'],
+             '13:00', '13:30'),
+            ('ryan@fithub.demo', 'Ryan Patel', 'staff',
+             ['Spin Class', 'HIIT Class', 'CrossFit WOD', 'Boxing Fitness'],
+             '12:00', '12:30'),
+            ('lisa@fithub.demo', 'Lisa Nguyen', 'staff',
+             ['Sports Massage', 'Physiotherapy'],
+             '12:30', '13:00'),
+        ],
+        'demo_clients': [
+            ('Chris Evans', 'chris.e@example.com', '07700 900301'),
+            ('Amy Johnson', 'amy.j@example.com', '07700 900302'),
+            ('Ben Taylor', 'ben.t@example.com', '07700 900303'),
+            ('Zara Khan', 'zara.k@example.com', '07700 900304'),
+            ('Mike O\'Donnell', 'mike.od@example.com', '07700 900305'),
+            ('Freya Larsson', 'freya.l@example.com', '07700 900306'),
+            ('Sam Okafor', 'sam.ok@example.com', '07700 900307'),
+            ('Katie Price', 'katie.p@example.com', '07700 900308'),
+            ('Dan Wilson', 'dan.w@example.com', '07700 900309'),
+            ('Megan Fox', 'megan.f@example.com', '07700 900310'),
+            ('Raj Patel', 'raj.p@example.com', '07700 900311'),
+            ('Isla Murray', 'isla.m@example.com', '07700 900312'),
+            ('Luke Brennan', 'luke.b@example.com', '07700 900313'),
+            ('Nina Petrova', 'nina.p@example.com', '07700 900314'),
+            ('Oscar Lee', 'oscar.l@example.com', '07700 900315'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
     },
@@ -334,8 +432,11 @@ class Command(BaseCommand):
         return ts
 
     def _seed_bookings(self, cfg, customer):
+        import random
+        import hashlib
         from bookings.models import Service, Staff as BookingStaff, Client, Booking
 
+        # --- Services ---
         for name, cat, dur, price, dep in cfg['services']:
             Service.objects.get_or_create(
                 tenant=self.tenant, name=name,
@@ -350,7 +451,7 @@ class Command(BaseCommand):
         svc_count = Service.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Services: {svc_count}')
 
-        # Create named bookable staff per tenant
+        # --- Booking Staff ---
         staff_configs = cfg.get('booking_staff', [
             (f'staff1@{self.tenant.slug}.demo', 'Staff Member', 'staff', []),
         ])
@@ -396,38 +497,112 @@ class Command(BaseCommand):
             else:
                 bs.services.set(all_services)
             booking_staff.append(bs)
-        # Clean up old 'Demo Staff' if it exists
         BookingStaff.objects.filter(tenant=self.tenant, email=f'staff@{self.tenant.slug}.demo').exclude(
             id__in=[s.id for s in booking_staff]
         ).delete()
         self.stdout.write(f'  Booking staff: {len(booking_staff)}')
 
-        demo_client, _ = Client.objects.get_or_create(
+        # --- Demo Clients ---
+        demo_clients = []
+        # Always include the default customer user
+        default_client, _ = Client.objects.get_or_create(
             tenant=self.tenant, email=customer.email,
             defaults={'name': customer.get_full_name(), 'phone': '07700 900001'}
         )
+        demo_clients.append(default_client)
+        # Create additional named demo clients from config
+        for c_name, c_email, c_phone in cfg.get('demo_clients', []):
+            cl, _ = Client.objects.get_or_create(
+                tenant=self.tenant, email=c_email,
+                defaults={'name': c_name, 'phone': c_phone}
+            )
+            demo_clients.append(cl)
+        self.stdout.write(f'  Clients: {len(demo_clients)}')
 
-        if not Booking.objects.filter(tenant=self.tenant).exists():
-            svc = Service.objects.filter(tenant=self.tenant).first()
-            default_staff = booking_staff[0] if booking_staff else None
-            if svc and default_staff:
-                today = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
-                statuses = ['confirmed', 'pending', 'completed', 'cancelled', 'confirmed']
-                for i, st in enumerate(statuses):
-                    staff_member = booking_staff[i % len(booking_staff)]
-                    start = today + timedelta(days=i + 1)
-                    end = start + timedelta(minutes=svc.duration_minutes)
-                    Booking.objects.create(
-                        tenant=self.tenant,
-                        client=demo_client,
-                        service=svc,
-                        staff=staff_member,
-                        start_time=start,
-                        end_time=end,
-                        status=st,
-                    )
+        # --- Historic + Future Bookings (90 days back, 14 days forward) ---
+        if Booking.objects.filter(tenant=self.tenant).count() >= 50:
+            bk_count = Booking.objects.filter(tenant=self.tenant).count()
+            self.stdout.write(f'  Bookings: {bk_count} (already seeded)')
+            return
+
+        # Deterministic seed per tenant for reproducible data
+        rng = random.Random(hashlib.md5(self.tenant.slug.encode()).hexdigest())
+
+        # Build staff→services mapping for realistic assignment
+        staff_svc_map = {}
+        for bs in booking_staff:
+            staff_svc_map[bs.id] = list(bs.services.all())
+            if not staff_svc_map[bs.id]:
+                staff_svc_map[bs.id] = all_services
+
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        bookings_to_create = []
+        HOURS = [9, 10, 11, 13, 14, 15, 16, 17, 18, 19]  # bookable hours
+
+        for day_offset in range(-90, 15):
+            day = today_start + timedelta(days=day_offset)
+            if day.weekday() == 6:  # skip Sundays
+                continue
+            # Vary bookings per day: weekdays busier, weekends moderate
+            if day.weekday() == 5:  # Saturday
+                n_bookings = rng.randint(3, 6)
+            elif day.weekday() == 4:  # Friday
+                n_bookings = rng.randint(4, 8)
+            else:
+                n_bookings = rng.randint(2, 6)
+
+            for _ in range(n_bookings):
+                staff_member = rng.choice(booking_staff)
+                available_svcs = staff_svc_map.get(staff_member.id, all_services)
+                if not available_svcs:
+                    continue
+                svc = rng.choice(available_svcs)
+                client = rng.choice(demo_clients)
+                hour = rng.choice(HOURS)
+                minute = rng.choice([0, 15, 30, 45])
+                start = day.replace(hour=hour, minute=minute)
+                end = start + timedelta(minutes=svc.duration_minutes)
+
+                # Status distribution: past bookings mostly completed
+                if day_offset < -7:
+                    status = rng.choices(
+                        ['completed', 'cancelled', 'no_show'],
+                        weights=[80, 12, 8]
+                    )[0]
+                elif day_offset < 0:
+                    status = rng.choices(
+                        ['completed', 'confirmed', 'cancelled', 'no_show'],
+                        weights=[60, 20, 12, 8]
+                    )[0]
+                elif day_offset == 0:
+                    status = rng.choices(
+                        ['confirmed', 'pending', 'completed'],
+                        weights=[50, 30, 20]
+                    )[0]
+                else:
+                    status = rng.choices(
+                        ['confirmed', 'pending'],
+                        weights=[70, 30]
+                    )[0]
+
+                bookings_to_create.append(Booking(
+                    tenant=self.tenant,
+                    client=client,
+                    service=svc,
+                    staff=staff_member,
+                    start_time=start,
+                    end_time=end,
+                    status=status,
+                    payment_amount=svc.price if status == 'completed' else None,
+                    payment_status='paid' if status == 'completed' else 'pending',
+                ))
+
+        # Bulk create for speed
+        if bookings_to_create:
+            Booking.objects.bulk_create(bookings_to_create, ignore_conflicts=True)
         bk_count = Booking.objects.filter(tenant=self.tenant).count()
-        self.stdout.write(f'  Bookings: {bk_count}')
+        self.stdout.write(f'  Bookings: {bk_count} ({len(bookings_to_create)} generated)')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
         from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord, WorkingHours, ProjectCode, TimesheetEntry

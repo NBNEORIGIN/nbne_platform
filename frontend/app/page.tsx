@@ -66,6 +66,14 @@ export default function HomePage() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
 
+  // Non-NBNE tenants redirect to their own admin panel (self-contained demo sites)
+  useEffect(() => {
+    const slug = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+    if (slug && slug !== 'nbne') {
+      window.location.href = '/login?redirect=/admin'
+    }
+  }, [])
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', onScroll, { passive: true })
