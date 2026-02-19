@@ -167,7 +167,7 @@ export default function HomePage() {
             fontSize: '0.82rem', fontWeight: 500, color: 'rgba(255,255,255,0.9)',
             letterSpacing: '0.05em', border: '1px solid rgba(255,255,255,0.15)',
           }}>
-            UK-Built &middot; No Nonsense &middot; Just Results
+            UK-Built &middot; No Hidden Fees &middot; Unlimited Staff
           </div>
           <h1 style={{
             fontFamily: SERIF, fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
@@ -182,8 +182,9 @@ export default function HomePage() {
             color: 'rgba(255,255,255,0.75)', fontWeight: 400,
             marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 2.5rem',
           }}>
-            A small UK team that builds proper websites for salons, gyms, and restaurants &mdash;
-            with booking, payments, staff management, and CRM built right in. No jargon. No fluff.
+            One flat price. No per-seat charges. Add as many staff as you want.
+            Booking, payments, compliance, CRM &mdash; all included. We even handle the stuff
+            you keep meaning to sort out, like PAT certs and document audits.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="#demos" style={{
