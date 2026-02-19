@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTenant } from '@/lib/tenant'
 
 /* ── Design tokens ── */
 const SERIF = "'Playfair Display', Georgia, serif"
@@ -54,8 +53,7 @@ const HOURS = [
 ]
 
 export default function SalonPage() {
-  const tenant = useTenant()
-  const bizName = tenant.business_name || 'Salon X'
+  const bizName = 'Salon X'
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
 
