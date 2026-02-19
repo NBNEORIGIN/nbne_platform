@@ -2,10 +2,14 @@
 Tenant middleware — resolves the current tenant for every request.
 
 Resolution order:
-1. Authenticated user → user.tenant
-2. X-Tenant-Slug header (sent by frontend proxy)
-3. ?tenant= query param (backward compat)
-4. First tenant in DB (fallback)
+1. X-Tenant-Slug header (sent by frontend proxy — always wins when present)
+2. ?tenant= query param (backward compat / demo pages)
+3. Authenticated user → user.tenant (fallback for direct Django admin access)
+4. First tenant in DB (last resort)
+
+The header/param take priority so the frontend controls which tenant is active.
+This prevents user.tenant from overriding the intended tenant when a user
+belongs to one tenant but the frontend proxy specifies another (e.g. demo sites).
 """
 from tenants.models import TenantSettings
 
@@ -17,21 +21,20 @@ class TenantMiddleware:
     def __call__(self, request):
         tenant = None
 
-        # 1. From authenticated user
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            tenant = getattr(request.user, 'tenant', None)
+        # 1. From X-Tenant-Slug header (frontend proxy always sends this)
+        slug = request.META.get('HTTP_X_TENANT_SLUG', '')
+        if slug:
+            tenant = TenantSettings.objects.filter(slug=slug).first()
 
-        # 2. From X-Tenant-Slug header
-        if not tenant:
-            slug = request.META.get('HTTP_X_TENANT_SLUG', '')
-            if slug:
-                tenant = TenantSettings.objects.filter(slug=slug).first()
-
-        # 3. From ?tenant= query param
+        # 2. From ?tenant= query param
         if not tenant:
             slug = request.GET.get('tenant', '')
             if slug:
                 tenant = TenantSettings.objects.filter(slug=slug).first()
+
+        # 3. From authenticated user (fallback for direct Django admin)
+        if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
+            tenant = getattr(request.user, 'tenant', None)
 
         # 4. Fallback to first tenant
         if not tenant:
