@@ -429,7 +429,7 @@ export default function HomePage() {
             }}>Try Admin Panel</a>
           </div>
           <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', marginTop: '1.5rem' }}>
-            Demo login: <strong>owner</strong> / <strong>admin123</strong> &mdash; data resets nightly
+            Demo login: <strong>owner@{process.env.NEXT_PUBLIC_TENANT_SLUG || 'demo'}.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
           </p>
         </div>
       </section>

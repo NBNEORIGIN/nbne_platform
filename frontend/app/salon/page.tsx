@@ -510,7 +510,7 @@ export default function SalonPage() {
             }}>See Pricing</a>
           </div>
           <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '1rem' }}>
-            Demo login: <strong>owner</strong> / <strong>admin123</strong> &mdash; data resets nightly
+            Demo login: <strong>owner@salon-x.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
           </p>
         </div>
       </section>

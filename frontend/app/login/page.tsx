@@ -176,7 +176,7 @@ function LoginForm() {
               <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>or</div>
               <button
                 type="button"
-                onClick={() => { setEmail('owner'); setPassword('admin123'); setTimeout(() => { const form = document.querySelector('form'); if (form) form.requestSubmit() }, 100) }}
+                onClick={() => { setEmail(`owner@${tenant.slug}.demo`); setPassword('admin123'); setTimeout(() => { const form = document.querySelector('form'); if (form) form.requestSubmit() }, 100) }}
                 style={{
                   width: '100%', padding: '0.65rem', borderRadius: 'var(--radius)',
                   border: '2px solid #2563eb', background: '#eff6ff', color: '#1d4ed8',
@@ -187,9 +187,9 @@ function LoginForm() {
               </button>
               <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', fontSize: '0.78rem' }}>
                 <div style={{ display: 'grid', gap: '0.2rem' }}>
-                  <div><strong>owner</strong> / admin123 — <span className="badge badge-info">Full access</span></div>
-                  <div><strong>manager</strong> / admin123 — <span className="badge badge-success">Manager</span></div>
-                  <div><strong>staff1</strong> / admin123 — <span className="badge badge-neutral">Staff portal</span></div>
+                  <div><strong>owner@{tenant.slug}.demo</strong> / admin123 — <span className="badge badge-info">Full access</span></div>
+                  <div><strong>manager@{tenant.slug}.demo</strong> / admin123 — <span className="badge badge-success">Manager</span></div>
+                  <div><strong>staff1@{tenant.slug}.demo</strong> / admin123 — <span className="badge badge-neutral">Staff portal</span></div>
                 </div>
                 <div style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.72rem' }}>
                   Demo data resets nightly. Have a play!
