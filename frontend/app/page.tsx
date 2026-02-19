@@ -65,23 +65,13 @@ const TESTIMONIALS = [
   { name: 'Maria L.', biz: 'Restaurant Owner', text: 'The website NBNE built us is gorgeous. We get compliments on it constantly, and the reservation system just works.' },
 ]
 
-// Resolve tenant from build-time env var OR runtime hostname
-function resolveTenant(): string {
-  const envSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
-  if (envSlug) return envSlug
-  if (typeof window === 'undefined') return ''
-  const host = window.location.hostname
-  if (host.includes('restaurant')) return 'restaurant-x'
-  if (host.includes('health-club')) return 'health-club-x'
-  if (host.includes('salon-x') || host.includes('salon')) return 'salon-x'
-  return ''
-}
+// Tenant slug inlined at build time by Next.js from Vercel env vars
+const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
 
 export default function HomePage() {
-  const slug = resolveTenant()
-  if (slug === 'salon-x') return <SalonPage />
-  if (slug === 'restaurant-x') return <TavolaPage />
-  if (slug === 'health-club-x') return <FitHubPage />
+  if (TENANT_SLUG === 'salon-x') return <SalonPage />
+  if (TENANT_SLUG === 'restaurant-x') return <TavolaPage />
+  if (TENANT_SLUG === 'health-club-x') return <FitHubPage />
 
   return <NBNELandingPage />
 }
