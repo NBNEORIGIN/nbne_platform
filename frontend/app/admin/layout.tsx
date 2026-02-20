@@ -11,6 +11,10 @@ const NAV_ITEMS = [
   { href: '/admin/bookings', label: 'Bookings', icon: '📅', module: 'bookings' },
   { href: '/admin/reports', label: 'Reports', icon: '💰', module: 'bookings' },
   { href: '/admin/services', label: 'Services', icon: '💇', module: 'bookings' },
+  { href: '/admin/tables', label: 'Tables', icon: '🍽️', module: 'bookings', businessType: 'restaurant' },
+  { href: '/admin/service-windows', label: 'Service Windows', icon: '🕐', module: 'bookings', businessType: 'restaurant' },
+  { href: '/admin/class-types', label: 'Class Types', icon: '🏋️', module: 'bookings', businessType: 'gym' },
+  { href: '/admin/timetable', label: 'Timetable', icon: '📆', module: 'bookings', businessType: 'gym' },
   { href: '/admin/staff', label: 'Staff', icon: '👥', module: 'staff' },
   { href: '/admin/clients', label: 'CRM', icon: '📋', module: 'crm' },
   { href: '/admin/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
@@ -19,14 +23,18 @@ const NAV_ITEMS = [
   { href: '/admin/analytics', label: 'Analytics', icon: '📈', module: 'analytics' },
   { href: '/admin/audit', label: 'Audit Log', icon: '🔍', module: '_always' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️', module: '_always' },
-]
+] as const
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const tenant = useTenant()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const visibleNav = NAV_ITEMS.filter(item => item.module === '_always' || hasModule(tenant, item.module))
+  const visibleNav = NAV_ITEMS.filter(item => {
+    if (item.module !== '_always' && !hasModule(tenant, item.module)) return false
+    if ('businessType' in item && item.businessType && item.businessType !== tenant.business_type) return false
+    return true
+  })
 
   async function handleLogout() {
     localStorage.removeItem('nbne_access')
