@@ -202,6 +202,26 @@ export default function SalonPage() {
         </div>
       </section>
 
+      {/* ── Demo banner (prominent, right after hero) ── */}
+      <section style={{ padding: '1.5rem 2rem', background: DARK, textAlign: 'center' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+            This is a demo website built by <strong style={{ color: '#fff' }}>NBNE</strong>.
+            Log in to explore the full admin panel behind it.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <a href="/login?redirect=/admin" style={{
+              background: '#fff', color: DARK, padding: '0.55rem 1.5rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem',
+              letterSpacing: '0.03em', borderRadius: 4,
+            }}>Try the Admin Demo</a>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+              owner@salon-x.demo / admin123
+            </span>
+          </div>
+        </div>
+      </section>
+
       {/* ── Welcome strip ── */}
       <section style={{ padding: '5rem 2rem', background: BG_CREAM, textAlign: 'center' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
@@ -480,38 +500,6 @@ export default function SalonPage() {
               }}>Book Now</a>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── Demo banner (subtle) ── */}
-      <section style={{ padding: '3rem 2rem', background: DARK, textAlign: 'center' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <p style={{
-            fontFamily: SERIF, fontSize: '1.25rem', fontWeight: 400,
-            color: '#fff', marginBottom: '0.75rem',
-          }}>
-            This is a demo website built by NBNE
-          </p>
-          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-            We build beautiful booking websites like this for salons, gyms, and restaurants.
-            Log into the admin panel to see the full platform behind it.
-          </p>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/login?redirect=/admin" style={{
-              background: '#fff', color: DARK, padding: '0.7rem 2rem',
-              textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
-              letterSpacing: '0.05em',
-            }}>Try the Admin Demo</a>
-            <a href="/pricing" style={{
-              background: 'transparent', color: 'rgba(255,255,255,0.7)',
-              padding: '0.7rem 2rem', textDecoration: 'none', fontWeight: 500,
-              fontSize: '0.85rem', letterSpacing: '0.05em',
-              border: '1px solid rgba(255,255,255,0.2)',
-            }}>See Pricing</a>
-          </div>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '1rem' }}>
-            Demo login: <strong>owner@salon-x.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
-          </p>
         </div>
       </section>
 
