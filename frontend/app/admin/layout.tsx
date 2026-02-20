@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useTenant, hasModule } from '@/lib/tenant'
+import { useTenant, hasModule, TENANT_SLUG } from '@/lib/tenant'
 import CommandBar from '@/components/CommandBar'
 import '../app/staff.css'
 
@@ -47,7 +47,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/login')
   }
 
-  const isDemo = tenant.slug && tenant.slug !== 'nbne'
+  // Live tenants (nbne) never show demo banner — check both runtime and build-time slug
+  const isDemo = TENANT_SLUG !== 'nbne' && tenant.slug !== 'nbne' && !!tenant.slug
 
   return (
     <div className="shell">

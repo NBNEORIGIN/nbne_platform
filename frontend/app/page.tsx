@@ -73,6 +73,12 @@ export default function HomePage() {
   if (TENANT_SLUG === 'restaurant-x') return <TavolaPage />
   if (TENANT_SLUG === 'health-club-x') return <FitHubPage />
 
+  // Live client tenants (e.g. nbne) go straight to admin login
+  if (TENANT_SLUG === 'nbne') {
+    if (typeof window !== 'undefined') window.location.href = '/admin'
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Redirecting…</div>
+  }
+
   return <NBNELandingPage />
 }
 

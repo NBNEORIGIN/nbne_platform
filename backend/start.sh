@@ -7,16 +7,22 @@ python manage.py migrate --noinput || { echo "FATAL: migrations failed"; exit 1;
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "WARNING: collectstatic failed"
 
-# Seed demo data only if SEED_TENANT is set (e.g. SEED_TENANT=salon-x)
-# This prevents cross-tenant contamination on isolated instances
+# Seed demo data
 if [ -n "$SEED_TENANT" ]; then
   echo "Clearing old demo data for tenant: $SEED_TENANT..."
   (python manage.py seed_demo --tenant "$SEED_TENANT" --delete-demo) || echo "WARNING: delete-demo failed"
   echo "Seeding fresh demo data for tenant: $SEED_TENANT..."
   (python manage.py seed_demo --tenant "$SEED_TENANT") || echo "WARNING: seed_demo failed"
+elif [ "$SEED_ALL_TENANTS" = "true" ]; then
+  echo "Seeding ALL demo tenants..."
+  (python manage.py seed_demo) || echo "WARNING: seed_demo failed"
 else
   echo "SEED_TENANT not set — skipping demo seed."
 fi
+
+# Always ensure nbne tenant exists with real staff (idempotent)
+echo "Ensuring nbne tenant is seeded..."
+(python manage.py seed_demo --tenant nbne) || echo "WARNING: nbne seed failed"
 
 # TMD-origin setup commands — non-fatal
 echo "Running production setup..."
