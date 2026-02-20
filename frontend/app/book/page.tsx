@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking, createCheckoutSession, setDemoTenant } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
+import RestaurantBookingFlow from './RestaurantBookingFlow'
+import GymBookingFlow from './GymBookingFlow'
 
 /* ── Design tokens (matching homepage) ── */
 const SERIF = "'Playfair Display', Georgia, serif"
@@ -631,10 +633,25 @@ function BookPageInner() {
   )
 }
 
+function BookingFlowRouter() {
+  const tenant = useTenant()
+
+  switch (tenant.business_type) {
+    case 'restaurant':
+      return <RestaurantBookingFlow />
+    case 'gym':
+      return <GymBookingFlow />
+    case 'salon':
+    case 'generic':
+    default:
+      return <BookPageInner />
+  }
+}
+
 export default function BookPage() {
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
-      <BookPageInner />
+      <BookingFlowRouter />
     </Suspense>
   )
 }
