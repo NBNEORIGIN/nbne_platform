@@ -275,52 +275,45 @@ Design: Bold, high-energy aesthetic matching FitHub's brand. Use tenant branding
 
 ---
 
-### Loop 9.7: Admin UI — Business type selector + onboarding checklist
+### Loop 9.7: Admin pages for restaurant & gym entities
 
-**Scope:** Frontend admin panel
+**Scope:** Frontend admin panel — new management pages only
 
-Add to the admin Settings page (or as a new "Setup" page):
+**Important:** The `business_type` is set by NBNE during tenant onboarding (via seed data or direct DB update). Clients do NOT need a UI to select or change their business type. No business type selector card UI. No onboarding checklist.
 
-1. **Business type selector** — 3 cards (Salon, Restaurant, Gym) + Generic. Selecting one calls `PATCH /api/config/settings/` to update `business_type`. Show current selection with a checkmark. Warn if changing type: "This will change your booking page layout. Your existing data will be kept."
+Add the following admin pages, conditionally visible in the sidebar based on `tenant.business_type`:
 
-2. **Onboarding checklist** — Dynamic based on `business_type`:
+1. **Tables management** (restaurant only — show when `business_type === 'restaurant'`)
+   - List view: table name, seats (min-max), zone, combinable flag, active toggle
+   - Add/edit modal: name, min_seats, max_seats, zone, combinable, combine_with, sort_order
+   - Delete with confirmation
+   - Route: `/admin/tables`
 
-   **Salon:**
-   - [ ] Add your services → link to Services page
-   - [ ] Add your staff → link to Staff page
-   - [ ] Set opening hours → link to Settings
-   - [ ] Configure deposits/payments → link to Settings
-   - [ ] Customise your booking page → link to Settings (colours, logo)
+2. **Service Windows management** (restaurant only)
+   - List view grouped by day: window name, time range, last booking time, turn time, max covers
+   - Add/edit modal: name, day_of_week, open_time, close_time, last_booking_time, turn_time_minutes, max_covers
+   - Quick-copy: duplicate a window to other days of the week
+   - Route: `/admin/service-windows`
 
-   **Restaurant:**
-   - [ ] Set up your tables → link to new Tables admin page
-   - [ ] Configure service windows (lunch/dinner) → link to new Service Windows admin page
-   - [ ] Add your menu/services → link to Services page
-   - [ ] Add your hosts → link to Staff page
-   - [ ] Configure deposits → link to Settings
+3. **Class Types management** (gym only — show when `business_type === 'gym'`)
+   - List view: class name, day, time, instructor, capacity, location
+   - Add/edit modal: service (dropdown), instructor (dropdown), day_of_week, start_time, capacity, location
+   - Route: `/admin/class-types`
 
-   **Gym:**
-   - [ ] Add your class types → link to new Class Types admin page
-   - [ ] Set up your timetable → link to new Timetable admin page
-   - [ ] Add your trainers → link to Staff page
-   - [ ] Add 1:1 services (PT, massage) → link to Services page
-   - [ ] Configure memberships → link to Services page
+4. **Timetable view** (gym only)
+   - Weekly grid: columns = Mon-Sun, rows = time slots (hourly)
+   - Each cell shows class sessions for that slot with: class name, instructor, enrolled/capacity, cancelled badge
+   - Click a session to cancel or modify (change instructor, override capacity)
+   - Button to generate next week's sessions from class type templates
+   - Route: `/admin/timetable`
 
-   Each item checks real data: e.g. "Add your services" is checked if `services.count() > 0`.
-
-3. **Admin pages for new entities:**
-   - Tables management page (restaurant only) — CRUD table inventory
-   - Service Windows management page (restaurant only) — CRUD lunch/dinner windows
-   - Class Types management page (gym only) — CRUD class definitions
-   - Timetable view (gym only) — Weekly grid showing class sessions, ability to cancel/modify individual sessions
-
-   These pages should only be visible in the admin sidebar when the tenant's `business_type` matches.
+**Sidebar changes:** Read `tenant.business_type` from `useTenant()`. Show "Tables" and "Service Windows" links only for restaurant. Show "Class Types" and "Timetable" links only for gym. Salon tenants see no new sidebar items (they already have Services and Staff which is all they need).
 
 **Exit criteria:**
-- Business type can be changed from admin
-- Checklist items reflect real data state
-- New admin pages work for restaurant and gym entities
-- Sidebar shows/hides pages based on business type
+- Restaurant admin can CRUD tables and service windows
+- Gym admin can CRUD class types and view/manage timetable
+- Sidebar items only appear for the correct business type
+- Salon admin panel unchanged
 - No regression in existing admin functionality
 
 ---
