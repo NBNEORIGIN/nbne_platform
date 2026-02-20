@@ -190,6 +190,52 @@ TENANTS = {
             ('Oscar Lee', 'oscar.l@example.com', '07700 900315'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
+        'class_types': [
+            # (name, category, duration, difficulty, capacity, colour, price_pence)
+            ('HIIT', 'Cardio', 45, 'intermediate', 25, '#ef4444', 1200),
+            ('Yoga Flow', 'Mind & Body', 60, 'all', 20, '#8b5cf6', 1200),
+            ('Spin', 'Cardio', 45, 'intermediate', 30, '#f59e0b', 1200),
+            ('Boxing Fitness', 'Cardio', 45, 'intermediate', 20, '#dc2626', 1400),
+            ('Pilates', 'Mind & Body', 60, 'beginner', 18, '#06b6d4', 1200),
+            ('CrossFit WOD', 'Strength', 60, 'advanced', 16, '#22c55e', 1500),
+        ],
+        'class_sessions': [
+            # (class_type_name, instructor_email, day, start, end, room)
+            # Monday
+            ('HIIT', 'jake@fithub.demo', 0, '06:30', '07:15', 'Studio 1'),
+            ('Yoga Flow', 'sarah@fithub.demo', 0, '07:30', '08:30', 'Studio 2'),
+            ('Spin', 'ryan@fithub.demo', 0, '12:15', '13:00', 'Spin Room'),
+            ('Boxing Fitness', 'jake@fithub.demo', 0, '17:30', '18:15', 'Studio 1'),
+            ('Pilates', 'sarah@fithub.demo', 0, '18:30', '19:30', 'Studio 2'),
+            # Tuesday
+            ('CrossFit WOD', 'jake@fithub.demo', 1, '06:30', '07:30', 'Functional Zone'),
+            ('Spin', 'ryan@fithub.demo', 1, '07:30', '08:15', 'Spin Room'),
+            ('HIIT', 'ryan@fithub.demo', 1, '12:15', '13:00', 'Studio 1'),
+            ('Yoga Flow', 'sarah@fithub.demo', 1, '17:30', '18:30', 'Studio 2'),
+            # Wednesday
+            ('HIIT', 'jake@fithub.demo', 2, '06:30', '07:15', 'Studio 1'),
+            ('Pilates', 'sarah@fithub.demo', 2, '07:30', '08:30', 'Studio 2'),
+            ('Boxing Fitness', 'jake@fithub.demo', 2, '12:15', '13:00', 'Studio 1'),
+            ('Spin', 'ryan@fithub.demo', 2, '17:30', '18:15', 'Spin Room'),
+            ('Yoga Flow', 'sarah@fithub.demo', 2, '18:30', '19:30', 'Studio 2'),
+            # Thursday
+            ('CrossFit WOD', 'jake@fithub.demo', 3, '06:30', '07:30', 'Functional Zone'),
+            ('HIIT', 'ryan@fithub.demo', 3, '12:15', '13:00', 'Studio 1'),
+            ('Pilates', 'sarah@fithub.demo', 3, '17:30', '18:30', 'Studio 2'),
+            ('Boxing Fitness', 'jake@fithub.demo', 3, '18:30', '19:15', 'Studio 1'),
+            # Friday
+            ('HIIT', 'jake@fithub.demo', 4, '06:30', '07:15', 'Studio 1'),
+            ('Yoga Flow', 'sarah@fithub.demo', 4, '07:30', '08:30', 'Studio 2'),
+            ('Spin', 'ryan@fithub.demo', 4, '12:15', '13:00', 'Spin Room'),
+            ('CrossFit WOD', 'jake@fithub.demo', 4, '17:30', '18:30', 'Functional Zone'),
+            # Saturday
+            ('HIIT', 'jake@fithub.demo', 5, '09:00', '09:45', 'Studio 1'),
+            ('Yoga Flow', 'sarah@fithub.demo', 5, '10:00', '11:00', 'Studio 2'),
+            ('Spin', 'ryan@fithub.demo', 5, '11:15', '12:00', 'Spin Room'),
+            # Sunday
+            ('Yoga Flow', 'sarah@fithub.demo', 6, '09:00', '10:00', 'Studio 2'),
+            ('Pilates', 'sarah@fithub.demo', 6, '10:15', '11:15', 'Studio 2'),
+        ],
     },
     'mind-department': {
         'business_type': 'generic',
@@ -306,6 +352,8 @@ class Command(BaseCommand):
                 self._seed_bookings(cfg, customer)
             if cfg.get('tables') or cfg.get('service_windows'):
                 self._seed_restaurant(cfg)
+            if cfg.get('class_types') or cfg.get('class_sessions'):
+                self._seed_gym(cfg)
             if 'staff' in modules:
                 if cfg.get('staff_users'):
                     self._seed_staff_custom(cfg)
@@ -363,6 +411,14 @@ class Command(BaseCommand):
                 models_to_clear += [
                     ('Table', Table.objects.filter(tenant=tenant)),
                     ('ServiceWindow', ServiceWindow.objects.filter(tenant=tenant)),
+                ]
+            except Exception:
+                pass
+            try:
+                from bookings.models_gym import ClassSession, ClassType
+                models_to_clear += [
+                    ('ClassSession', ClassSession.objects.filter(tenant=tenant)),
+                    ('ClassType', ClassType.objects.filter(tenant=tenant)),
                 ]
             except Exception:
                 pass
@@ -672,6 +728,52 @@ class Command(BaseCommand):
                 )
         sw_count = ServiceWindow.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Service windows: {sw_count}')
+
+    def _seed_gym(self, cfg):
+        from bookings.models_gym import ClassType, ClassSession
+        from bookings.models import Staff as BookingStaff
+        from datetime import time as dt_time
+
+        # --- Class Types ---
+        ct_map = {}
+        for entry in cfg.get('class_types', []):
+            name, category, duration, difficulty, capacity, colour, price = entry
+            ct, _ = ClassType.objects.get_or_create(
+                tenant=self.tenant, name=name,
+                defaults={
+                    'category': category,
+                    'duration_minutes': duration,
+                    'difficulty': difficulty,
+                    'max_capacity': capacity,
+                    'colour': colour,
+                    'price_pence': price,
+                }
+            )
+            ct_map[name] = ct
+        self.stdout.write(f'  Class types: {len(ct_map)}')
+
+        # --- Class Sessions (timetable) ---
+        staff_by_email = {s.email: s for s in BookingStaff.objects.filter(tenant=self.tenant)}
+        session_count = 0
+        for entry in cfg.get('class_sessions', []):
+            ct_name, instr_email, day, start_str, end_str, room = entry
+            ct = ct_map.get(ct_name)
+            if not ct:
+                continue
+            instructor = staff_by_email.get(instr_email)
+            h_s, m_s = map(int, start_str.split(':'))
+            h_e, m_e = map(int, end_str.split(':'))
+            ClassSession.objects.get_or_create(
+                tenant=self.tenant, class_type=ct, day_of_week=day,
+                start_time=dt_time(h_s, m_s),
+                defaults={
+                    'end_time': dt_time(h_e, m_e),
+                    'instructor': instructor,
+                    'room': room,
+                }
+            )
+            session_count += 1
+        self.stdout.write(f'  Class sessions: {session_count}')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
         from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord, WorkingHours, ProjectCode, TimesheetEntry

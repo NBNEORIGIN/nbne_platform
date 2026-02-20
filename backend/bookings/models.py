@@ -25,6 +25,9 @@ from .models_availability import (
 # Import restaurant models
 from .models_restaurant import Table, ServiceWindow
 
+# Import gym models
+from .models_gym import ClassType, ClassSession
+
 class Service(models.Model):
     PAYMENT_TYPE_CHOICES = [
         ('full', 'Full Payment'),

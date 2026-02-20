@@ -304,6 +304,49 @@ export async function deleteServiceWindow(id: number) {
   return apiFetch<any>(`/service-windows/${id}/`, { method: 'DELETE' })
 }
 
+// --- Gym ---
+export async function getGymTimetable(date?: string) {
+  const qs = date ? `?date=${date}` : ''
+  return apiFetch<any>(`/gym-timetable/${qs}`)
+}
+
+export async function getGymClassTypes() {
+  return apiFetch<any[]>('/gym-class-types/')
+}
+
+export async function getClassTypes() {
+  return apiFetch<any[]>('/class-types/')
+}
+
+export async function createClassType(data: any) {
+  return apiFetch<any>('/class-types/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateClassType(id: number, data: any) {
+  return apiFetch<any>(`/class-types/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteClassType(id: number) {
+  return apiFetch<any>(`/class-types/${id}/`, { method: 'DELETE' })
+}
+
+export async function getClassSessions(day?: number) {
+  const qs = day !== undefined ? `?day=${day}` : ''
+  return apiFetch<any[]>(`/class-sessions/${qs}`)
+}
+
+export async function createClassSession(data: any) {
+  return apiFetch<any>('/class-sessions/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateClassSession(id: number, data: any) {
+  return apiFetch<any>(`/class-sessions/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteClassSession(id: number) {
+  return apiFetch<any>(`/class-sessions/${id}/`, { method: 'DELETE' })
+}
+
 export async function getBookings(params?: { status?: string; email?: string }) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)
