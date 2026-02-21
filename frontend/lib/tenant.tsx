@@ -28,7 +28,7 @@ export interface TenantConfig {
 const DEFAULT_CONFIG: TenantConfig = {
   slug: 'default',
   business_name: 'Business',
-  business_type: 'salon',
+  business_type: '',
   enabled_modules: [],
   tagline: '',
   colour_primary: '#2563eb',

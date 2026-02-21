@@ -90,7 +90,7 @@ urlpatterns = [
 # --- Bookings module ---
 if settings.BOOKINGS_MODULE_ENABLED:
     from rest_framework.routers import DefaultRouter
-    from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, ClientViewSet, StaffBlockViewSet
+    from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, ClientViewSet, StaffBlockViewSet, SessionViewSet
     from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, ClosureViewSet, StaffLeaveViewSet
     from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaimerViewSet
     from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
@@ -102,6 +102,8 @@ if settings.BOOKINGS_MODULE_ENABLED:
         reports_overview, reports_daily, reports_monthly, reports_staff,
         reports_insights, reports_staff_hours, reports_staff_hours_csv, reports_leave,
     )
+    from bookings.views_restaurant import TableViewSet, ServiceWindowViewSet, restaurant_availability, restaurant_available_dates
+    from bookings.views_gym import ClassTypeViewSet, ClassSessionViewSet, gym_timetable, gym_class_types
     from bookings.views_demo import demo_seed_view, demo_status_view
     from bookings.views_demo_availability import demo_availability_seed_view
     from bookings.views_availability import (
@@ -126,6 +128,13 @@ if settings.BOOKINGS_MODULE_ENABLED:
     router.register(r'packages', ClassPackageViewSet)
     router.register(r'credits', ClientCreditViewSet)
     router.register(r'payment', PaymentIntegrationViewSet, basename='payment')
+    router.register(r'sessions', SessionViewSet, basename='session')
+    # Restaurant
+    router.register(r'tables', TableViewSet, basename='table')
+    router.register(r'service-windows', ServiceWindowViewSet, basename='service-window')
+    # Gym
+    router.register(r'class-types', ClassTypeViewSet, basename='class-type')
+    router.register(r'class-sessions', ClassSessionViewSet, basename='class-session')
     # Availability engine
     router.register(r'working-patterns', WorkingPatternViewSet, basename='working-pattern')
     router.register(r'working-pattern-rules', WorkingPatternRuleViewSet, basename='working-pattern-rule')
@@ -145,6 +154,11 @@ if settings.BOOKINGS_MODULE_ENABLED:
         path('api/staff/timesheets/generate/', timesheets_generate, name='timesheets-generate'),
         path('api/staff/timesheets/summary/', timesheets_summary, name='timesheets-summary'),
         path('api/staff/timesheets/<int:pk>/update/', timesheets_update, name='timesheets-update'),
+        # Restaurant & Gym public endpoints
+        path('api/restaurant-availability/', restaurant_availability, name='restaurant-availability'),
+        path('api/restaurant-available-dates/', restaurant_available_dates, name='restaurant-available-dates'),
+        path('api/gym-timetable/', gym_timetable, name='gym-timetable'),
+        path('api/gym-class-types/', gym_class_types, name='gym-class-types'),
         # Aliases for frontend compatibility
         path('api/bookings/staff-slots/', BookingViewSet.as_view({'get': 'slots'}), name='booking-staff-slots-alias'),
         path('api/bookings/create/', BookingViewSet.as_view({'post': 'create'}), name='booking-create-alias'),
