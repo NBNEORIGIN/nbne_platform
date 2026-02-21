@@ -223,32 +223,37 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Create a booking. Accepts client details and creates/finds client automatically.
-        Expected data: service, staff, date, time, client_name, client_email, client_phone, notes
+        Create a booking. Handles salon, restaurant, and gym flows.
+
+        Salon:      service, staff, date, time, client_name, client_email, client_phone
+        Restaurant: date, start_time, party_size, client_name, client_email, client_phone
+        Gym:        date, start_time, client_name, client_email, client_phone
         """
-        from datetime import datetime
+        from datetime import datetime, timedelta
         from django.db import transaction
-        
-        # Extract data (accept both old and new field names)
-        service_id = request.data.get('service') or request.data.get('service_id')
-        staff_id = request.data.get('staff') or request.data.get('staff_id')
-        date_str = request.data.get('date') or request.data.get('booking_date')
-        time_str = request.data.get('time') or request.data.get('booking_time')
+        from django.utils import timezone as tz
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        business_type = getattr(tenant, 'business_type', 'salon')
+
+        # --- Common fields ---
         client_name = request.data.get('client_name') or request.data.get('customer_name')
         client_email = request.data.get('client_email') or request.data.get('customer_email')
         client_phone = request.data.get('client_phone') or request.data.get('customer_phone')
+        date_str = request.data.get('date') or request.data.get('booking_date')
         notes = request.data.get('notes', '')
-        
-        # Validate required fields
-        if not all([service_id, staff_id, date_str, time_str, client_name, client_email, client_phone]):
+
+        if not all([date_str, client_name, client_email, client_phone]):
             return Response(
-                {'error': 'Missing required fields: service, staff, date, time, client_name, client_email, client_phone'},
+                {'error': 'Missing required fields: date, client_name, client_email, client_phone'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             # Find or create client by email (scoped to tenant)
-            tenant = getattr(request, 'tenant', None)
             client, created = Client.objects.get_or_create(
                 tenant=tenant, email=client_email,
                 defaults={
@@ -256,43 +261,97 @@ class BookingViewSet(viewsets.ModelViewSet):
                     'phone': client_phone,
                 }
             )
-            
-            # If client exists but name/phone changed, update them
             if not created:
                 if client.name != client_name or client.phone != client_phone:
                     client.name = client_name
                     client.phone = client_phone
                     client.save()
-            
-            # Get staff and service
-            staff = Staff.objects.get(id=staff_id, active=True)
-            service = Service.objects.get(id=service_id, active=True)
-            
-            # Parse date and time into datetime
-            from django.utils import timezone as tz
+
+            # --- Resolve service, staff, time, duration per business type ---
+            party_size = None
+
+            if business_type == 'restaurant':
+                time_str = request.data.get('start_time') or request.data.get('time')
+                party_size_raw = request.data.get('party_size', 2)
+                try:
+                    party_size = int(party_size_raw)
+                except (ValueError, TypeError):
+                    party_size = 2
+
+                if not time_str:
+                    return Response({'error': 'start_time is required for restaurant bookings'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Auto-resolve service: find a "table" / "reservation" service, or first active service
+                service = (
+                    Service.objects.filter(tenant=tenant, active=True, name__icontains='table').first()
+                    or Service.objects.filter(tenant=tenant, active=True, name__icontains='reserv').first()
+                    or Service.objects.filter(tenant=tenant, active=True).first()
+                )
+                if not service:
+                    return Response({'error': 'No active services configured for this restaurant'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Auto-resolve staff: first active staff member (host)
+                staff = Staff.objects.filter(tenant=tenant, active=True).first()
+                if not staff:
+                    return Response({'error': 'No active staff configured for this restaurant'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Use service window turn time or service duration
+                duration_minutes = service.duration_minutes
+
+            elif business_type == 'gym':
+                time_str = request.data.get('start_time') or request.data.get('time')
+                if not time_str:
+                    return Response({'error': 'start_time is required for gym bookings'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Auto-resolve service: match by class name from notes, or first active service
+                service = Service.objects.filter(tenant=tenant, active=True).first()
+                if not service:
+                    return Response({'error': 'No active services configured for this gym'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Auto-resolve staff (instructor): first active staff
+                staff = Staff.objects.filter(tenant=tenant, active=True).first()
+                if not staff:
+                    return Response({'error': 'No active staff configured for this gym'}, status=status.HTTP_400_BAD_REQUEST)
+
+                duration_minutes = service.duration_minutes
+
+            else:
+                # Salon / generic — original flow requiring service + staff + time
+                service_id = request.data.get('service') or request.data.get('service_id')
+                staff_id = request.data.get('staff') or request.data.get('staff_id')
+                time_str = request.data.get('time') or request.data.get('booking_time') or request.data.get('start_time')
+
+                if not all([service_id, staff_id, time_str]):
+                    return Response(
+                        {'error': 'Missing required fields: service, staff, time'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                staff = Staff.objects.get(id=staff_id, active=True)
+                service = Service.objects.get(id=service_id, active=True)
+                duration_minutes = service.duration_minutes
+
+            # --- Parse datetime ---
             datetime_str = f"{date_str} {time_str}"
             start_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
             start_datetime = tz.make_aware(start_datetime)
-            
-            # Calculate end time based on service duration
-            from datetime import timedelta
-            end_datetime = start_datetime + timedelta(minutes=service.duration_minutes)
-            
-            # Check for overlapping bookings with this staff member
-            overlapping_bookings = Booking.objects.filter(
-                staff=staff,
-                status__in=['pending', 'confirmed'],
-                start_time__lt=end_datetime,
-                end_time__gt=start_datetime
-            )
-            
-            if overlapping_bookings.exists():
-                return Response(
-                    {'error': 'This time slot is no longer available. Please select a different time.'},
-                    status=status.HTTP_400_BAD_REQUEST
+            end_datetime = start_datetime + timedelta(minutes=duration_minutes)
+
+            # --- Overlap check (salon only — restaurant/gym handle capacity differently) ---
+            if business_type not in ('restaurant', 'gym'):
+                overlapping_bookings = Booking.objects.filter(
+                    staff=staff,
+                    status__in=['pending', 'confirmed'],
+                    start_time__lt=end_datetime,
+                    end_time__gt=start_datetime
                 )
-            
-            # Create booking
+                if overlapping_bookings.exists():
+                    return Response(
+                        {'error': 'This time slot is no longer available. Please select a different time.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # --- Create booking ---
             booking = Booking.objects.create(
                 tenant=tenant,
                 client=client,
@@ -301,7 +360,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                 start_time=start_datetime,
                 end_time=end_datetime,
                 status='confirmed',
-                notes=notes
+                notes=notes,
+                party_size=party_size,
             )
             
             # Smart Booking Engine — run full pipeline
