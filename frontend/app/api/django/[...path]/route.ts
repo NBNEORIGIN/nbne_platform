@@ -47,6 +47,7 @@ async function proxyRequest(req: NextRequest) {
       }
     }
 
+    console.log('[PROXY]', req.method, target)
     const res = await fetch(target, init)
     const body = await res.arrayBuffer()
 
@@ -54,6 +55,7 @@ async function proxyRequest(req: NextRequest) {
       status: res.status,
       headers: {
         'Content-Type': res.headers.get('content-type') || 'application/json',
+        'X-Proxy-Target': target,
       },
     })
   } catch (err: any) {
