@@ -7,12 +7,25 @@ async function proxyRequest(req: NextRequest) {
 
   // Debug: return config info when path is /_debug
   if (path === '/_debug' || path === '/_debug/') {
+    // Also test the actual branding fetch
+    const testTenant = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+    const testTarget = `${API_BASE}/api/tenant/branding/${testTenant ? '?tenant=' + testTenant : ''}`
+    let testResult = '(not tested)'
+    let testStatus = 0
+    try {
+      const testRes = await fetch(testTarget, { headers: testTenant ? { 'X-Tenant-Slug': testTenant } : {} })
+      testStatus = testRes.status
+      testResult = await testRes.text()
+    } catch (e: any) {
+      testResult = `FETCH ERROR: ${e.message}`
+    }
     return NextResponse.json({
       API_BASE,
       DJANGO_BACKEND_URL: process.env.DJANGO_BACKEND_URL || '(not set)',
-      NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '(not set)',
       NEXT_PUBLIC_TENANT_SLUG: process.env.NEXT_PUBLIC_TENANT_SLUG || '(not set)',
-      _raw_env_keys: Object.keys(process.env).filter(k => k.includes('TENANT') || k.includes('DJANGO') || k.includes('API_BASE')),
+      testTarget,
+      testStatus,
+      testResult: testResult.substring(0, 500),
     })
   }
 
