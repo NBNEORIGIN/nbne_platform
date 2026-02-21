@@ -33,7 +33,7 @@ const DEMOS = [
     subtitle: 'Gym & Fitness',
     description: 'A high-energy gym website with class timetables, membership sign-ups, trainer bios, and integrated booking for PT sessions.',
     img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format',
-    href: 'https://fithub-lake.vercel.app',
+    href: 'https://nbne-business-health-club-x.vercel.app',
     accent: '#dc2626',
     features: ['Class Timetable', 'PT Booking', 'Membership Plans', 'Trainer Profiles'],
     status: 'live',
