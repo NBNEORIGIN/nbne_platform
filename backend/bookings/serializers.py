@@ -74,7 +74,17 @@ class BookingSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source='service.name', read_only=True)
     service_price = serializers.DecimalField(source='service.price', max_digits=10, decimal_places=2, read_only=True)
     staff_name = serializers.CharField(source='staff.name', read_only=True)
-    
+    # Legacy aliases for admin panel compatibility
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    slot_date = serializers.SerializerMethodField()
+    slot_start = serializers.SerializerMethodField()
+    slot_end = serializers.SerializerMethodField()
+    price_pence = serializers.SerializerMethodField()
+    deposit_pence = serializers.SerializerMethodField()
+    assigned_staff = serializers.SerializerMethodField()
+
     class Meta:
         model = Booking
         fields = ['id', 'client', 'client_name', 'client_email', 'client_phone', 'client_notes',
@@ -88,6 +98,9 @@ class BookingSerializer(serializers.ModelSerializer):
                   'recommended_payment_type', 'recommended_deposit_percent',
                   'recommended_price_adjustment', 'recommended_incentive',
                   'recommendation_reason', 'override_applied',
+                  'customer_name', 'customer_email', 'customer_phone',
+                  'slot_date', 'slot_start', 'slot_end',
+                  'price_pence', 'deposit_pence', 'assigned_staff',
                   'created_at', 'updated_at']
         read_only_fields = ['end_time', 'created_at', 'updated_at',
                            'risk_score', 'risk_level', 'revenue_at_risk',
@@ -99,6 +112,40 @@ class BookingSerializer(serializers.ModelSerializer):
                            'client_total_bookings', 'client_completed_bookings',
                            'client_cancelled_bookings', 'client_no_show_count',
                            'client_consecutive_no_shows', 'service_price']
+
+    def get_customer_name(self, obj):
+        return obj.client.name if obj.client else ''
+
+    def get_customer_email(self, obj):
+        return obj.client.email if obj.client else ''
+
+    def get_customer_phone(self, obj):
+        return obj.client.phone if obj.client else ''
+
+    def get_slot_date(self, obj):
+        return obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
+
+    def get_slot_start(self, obj):
+        return obj.start_time.strftime('%H:%M') if obj.start_time else ''
+
+    def get_slot_end(self, obj):
+        return obj.end_time.strftime('%H:%M') if obj.end_time else ''
+
+    def get_price_pence(self, obj):
+        return obj.service.price_pence if obj.service else 0
+
+    def get_deposit_pence(self, obj):
+        return obj.service.effective_deposit_pence if obj.service else 0
+
+    def get_assigned_staff(self, obj):
+        return obj.staff.id if obj.staff else None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Uppercase status for frontend compatibility
+        if data.get('status'):
+            data['status'] = data['status'].upper()
+        return data
 
 
 class SessionSerializer(serializers.ModelSerializer):

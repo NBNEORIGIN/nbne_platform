@@ -392,31 +392,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             # Refresh from DB to get SBE-updated fields
             booking.refresh_from_db()
 
-            # Prepare response data
-            response_data = {
-                'id': booking.id,
-                'client': booking.client.id,
-                'client_name': booking.client.name,
-                'service': booking.service.id,
-                'service_name': booking.service.name,
-                'staff': booking.staff.id,
-                'staff_name': booking.staff.name,
-                'start_time': booking.start_time.isoformat(),
-                'end_time': booking.end_time.isoformat(),
-                'status': booking.status,
-                'notes': booking.notes,
-                'risk_score': booking.risk_score,
-                'risk_level': booking.risk_level,
-                'revenue_at_risk': float(booking.revenue_at_risk) if booking.revenue_at_risk else None,
-                'recommended_payment_type': booking.recommended_payment_type,
-                'recommended_deposit_percent': booking.recommended_deposit_percent,
-                'recommended_price_adjustment': float(booking.recommended_price_adjustment) if booking.recommended_price_adjustment else None,
-                'recommended_incentive': booking.recommended_incentive,
-                'recommendation_reason': booking.recommendation_reason,
-                'override_applied': booking.override_applied,
-                'created_at': booking.created_at.isoformat(),
-                'updated_at': booking.updated_at.isoformat(),
-            }
+            # Use serializer for consistent response (includes legacy admin fields)
+            response_data = BookingSerializer(booking).data
             
             # Send confirmation email asynchronously (don't block response)
             try:
@@ -532,6 +509,49 @@ Thank you,
         dates = get_available_dates(staff_id, service_id, days_ahead)
         return Response({'available_dates': dates})
 
+
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        """POST /api/bookings/<id>/confirm/ — Confirm a pending booking"""
+        booking = self.get_object()
+        old_status = booking.status
+        if booking.status not in ('pending', 'pending_payment'):
+            return Response(
+                {'error': f'Cannot confirm a {booking.status} booking'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        booking.status = 'confirmed'
+        booking.save()
+        try:
+            from .smart_engine import on_booking_status_change
+            on_booking_status_change(booking, old_status, 'confirmed')
+        except Exception:
+            pass
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='assign-staff')
+    def assign_staff(self, request, pk=None):
+        """POST /api/bookings/<id>/assign-staff/ — Assign staff to a booking"""
+        booking = self.get_object()
+        staff_id = request.data.get('staff_id')
+        if staff_id:
+            try:
+                new_staff = Staff.objects.get(id=staff_id, tenant=booking.tenant)
+                booking.staff = new_staff
+                booking.save(update_fields=['staff', 'updated_at'])
+            except Staff.DoesNotExist:
+                return Response({'error': 'Staff not found'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            booking.staff = None
+            booking.save(update_fields=['staff', 'updated_at'])
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['delete'])
+    def delete(self, request, pk=None):
+        """DELETE /api/bookings/<id>/delete/ — Permanently delete a booking"""
+        booking = self.get_object()
+        booking.delete()
+        return Response({'deleted': True})
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
