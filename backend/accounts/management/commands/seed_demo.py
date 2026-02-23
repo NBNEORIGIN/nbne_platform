@@ -645,8 +645,13 @@ class Command(BaseCommand):
         self.stdout.write(f'  Clients: {len(demo_clients)}')
 
         # --- Historic + Future Bookings (14 days back, 14 days forward) ---
-        if Booking.objects.filter(tenant=self.tenant).count() >= 20:
-            bk_count = Booking.objects.filter(tenant=self.tenant).count()
+        # Always recreate bookings to keep demo data fresh and count controlled
+        existing = Booking.objects.filter(tenant=self.tenant).count()
+        if existing > 50:
+            Booking.objects.filter(tenant=self.tenant).delete()
+            self.stdout.write(f'  Cleared {existing} old bookings (too many for demo)')
+        elif existing >= 20:
+            bk_count = existing
             self.stdout.write(f'  Bookings: {bk_count} (already seeded)')
             return
 
