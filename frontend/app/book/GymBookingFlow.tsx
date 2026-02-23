@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant'
 import { getGymTimetable, createBooking, setDemoTenant } from '@/lib/api'
@@ -13,6 +13,12 @@ const BG_CREAM = '#FAF8F5'
 const BG_WARM = '#F5F0EB'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function getTodayDayIndex(): number {
+  const d = new Date().getDay()
+  return d === 0 ? 6 : d - 1 // JS Sunday=0 → our Sunday=6
+}
 
 export default function GymBookingFlow() {
   const tenant = useTenant()
@@ -26,7 +32,7 @@ export default function GymBookingFlow() {
   const [timetable, setTimetable] = useState<any>(null)
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [weekOffset, setWeekOffset] = useState(0)
-  const [filterDay, setFilterDay] = useState<number | null>(null)
+  const [filterDay, setFilterDay] = useState<number | null>(getTodayDayIndex)
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -57,11 +63,38 @@ export default function GymBookingFlow() {
   const sessions = timetable?.sessions || []
   const categories = Array.from(new Set(sessions.map((s: any) => s.class_type?.category).filter(Boolean))) as string[]
 
-  const filtered = sessions.filter((s: any) => {
+  const filtered = useMemo(() => sessions.filter((s: any) => {
     if (filterDay !== null && s.day_of_week !== filterDay) return false
     if (filterCategory && s.class_type?.category !== filterCategory) return false
     return true
-  })
+  }), [sessions, filterDay, filterCategory])
+
+  // Group filtered sessions by day
+  const groupedByDay = useMemo(() => {
+    const groups: Record<number, any[]> = {}
+    for (const s of filtered) {
+      const day = s.day_of_week as number
+      if (!groups[day]) groups[day] = []
+      groups[day].push(s)
+    }
+    return groups
+  }, [filtered])
+
+  const sortedDayKeys = useMemo(() =>
+    Object.keys(groupedByDay).map(Number).sort((a, b) => a - b),
+    [groupedByDay]
+  )
+
+  // Count sessions per day for the badge
+  const countPerDay = useMemo(() => {
+    const counts: Record<number, number> = {}
+    for (const s of sessions) {
+      if (filterCategory && s.class_type?.category !== filterCategory) continue
+      const d = s.day_of_week as number
+      counts[d] = (counts[d] || 0) + 1
+    }
+    return counts
+  }, [sessions, filterCategory])
 
   async function handleSubmit() {
     if (!name || !email || !phone) {
@@ -93,14 +126,14 @@ export default function GymBookingFlow() {
   return (
     <div style={{ minHeight: '100vh', background: BG_CREAM, fontFamily: SANS }}>
       {/* Header */}
-      <header style={{ background: accent, color: '#fff', padding: '1.5rem 1rem', textAlign: 'center' }}>
-        <h1 style={{ fontFamily: SERIF, fontSize: '1.5rem', fontWeight: 500, margin: 0 }}>{bizName}</h1>
-        <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0.25rem 0 0' }}>Class Timetable & Booking</p>
+      <header style={{ background: accent, color: '#fff', padding: '1.25rem 1rem', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: SERIF, fontSize: '1.4rem', fontWeight: 500, margin: 0 }}>{bizName}</h1>
+        <p style={{ fontSize: '0.8rem', opacity: 0.85, margin: '0.2rem 0 0' }}>Class Timetable & Booking</p>
       </header>
 
-      <main style={{ maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem' }}>
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '1rem 0.75rem' }}>
         {error && (
-          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#dc2626', fontSize: '0.85rem' }}>
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.82rem' }}>
             {error}
           </div>
         )}
@@ -179,90 +212,146 @@ export default function GymBookingFlow() {
           /* Step 1: Browse Timetable */
           <div>
             {/* Week navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <button onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))} disabled={weekOffset === 0}
-                style={{ background: 'none', border: 'none', cursor: weekOffset === 0 ? 'default' : 'pointer', fontSize: '1.1rem', color: weekOffset === 0 ? '#d1d5db' : MUTED }}>&lsaquo; Prev</button>
-              <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: '0.9rem', color: DARK }}>
+                style={{ background: 'none', border: 'none', cursor: weekOffset === 0 ? 'default' : 'pointer', fontSize: '1.1rem', color: weekOffset === 0 ? '#d1d5db' : MUTED, padding: '0.25rem 0.5rem' }}>&lsaquo; Prev</button>
+              <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: '0.85rem', color: DARK }}>
                 {timetable ? `${timetable.week_start} — ${timetable.week_end}` : 'This Week'}
               </span>
               <button onClick={() => setWeekOffset(weekOffset + 1)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED }}>Next &rsaquo;</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED, padding: '0.25rem 0.5rem' }}>Next &rsaquo;</button>
             </div>
 
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            {/* Day tabs — horizontal strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.25rem', marginBottom: '0.6rem' }}>
               <button onClick={() => setFilterDay(null)}
-                style={{ padding: '0.4rem 0.7rem', borderRadius: 20, border: `1px solid ${filterDay === null ? accent : '#e5e7eb'}`, background: filterDay === null ? accent : '#fff', color: filterDay === null ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500 }}>
-                All Days
+                style={{
+                  padding: '0.45rem 0', borderRadius: 6, border: 'none',
+                  background: filterDay === null ? accent : '#fff',
+                  color: filterDay === null ? '#fff' : DARK,
+                  cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+                  boxShadow: filterDay === null ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                  transition: 'all 0.15s',
+                }}>
+                All
               </button>
-              {DAYS.map((d, i) => (
-                <button key={i} onClick={() => setFilterDay(filterDay === i ? null : i)}
-                  style={{ padding: '0.4rem 0.7rem', borderRadius: 20, border: `1px solid ${filterDay === i ? accent : '#e5e7eb'}`, background: filterDay === i ? accent : '#fff', color: filterDay === i ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500 }}>
-                  {d.slice(0, 3)}
-                </button>
-              ))}
+              {DAYS.map((d, i) => {
+                const count = countPerDay[i] || 0
+                const isToday = weekOffset === 0 && i === getTodayDayIndex()
+                return (
+                  <button key={i} onClick={() => setFilterDay(filterDay === i ? null : i)}
+                    style={{
+                      padding: '0.45rem 0', borderRadius: 6, border: 'none',
+                      background: filterDay === i ? accent : '#fff',
+                      color: filterDay === i ? '#fff' : count === 0 ? '#ccc' : DARK,
+                      cursor: count === 0 ? 'default' : 'pointer',
+                      fontSize: '0.72rem', fontWeight: 600,
+                      boxShadow: filterDay === i ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                      transition: 'all 0.15s',
+                      outline: isToday && filterDay !== i ? `2px solid ${accent}40` : 'none',
+                      opacity: count === 0 ? 0.5 : 1,
+                    }}>
+                    <div>{DAY_SHORT[i]}</div>
+                    {count > 0 && <div style={{ fontSize: '0.62rem', opacity: 0.7, marginTop: 1 }}>{count}</div>}
+                  </button>
+                )
+              })}
             </div>
+
+            {/* Category filter */}
             {categories.length > 1 && (
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
                 <button onClick={() => setFilterCategory('')}
-                  style={{ padding: '0.4rem 0.7rem', borderRadius: 20, border: `1px solid ${!filterCategory ? accent : '#e5e7eb'}`, background: !filterCategory ? accent : '#fff', color: !filterCategory ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500 }}>
+                  style={{ padding: '0.3rem 0.6rem', borderRadius: 20, border: `1px solid ${!filterCategory ? accent : '#e5e7eb'}`, background: !filterCategory ? accent : '#fff', color: !filterCategory ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 500 }}>
                   All
                 </button>
                 {categories.map(c => (
                   <button key={c} onClick={() => setFilterCategory(filterCategory === c ? '' : c)}
-                    style={{ padding: '0.4rem 0.7rem', borderRadius: 20, border: `1px solid ${filterCategory === c ? accent : '#e5e7eb'}`, background: filterCategory === c ? accent : '#fff', color: filterCategory === c ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500 }}>
+                    style={{ padding: '0.3rem 0.6rem', borderRadius: 20, border: `1px solid ${filterCategory === c ? accent : '#e5e7eb'}`, background: filterCategory === c ? accent : '#fff', color: filterCategory === c ? '#fff' : DARK, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 500 }}>
                     {c}
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Sessions list */}
+            {/* Sessions grouped by day */}
             {loading ? (
               <p style={{ color: MUTED, textAlign: 'center', padding: '2rem 0' }}>Loading timetable...</p>
             ) : filtered.length === 0 ? (
-              <p style={{ color: MUTED, textAlign: 'center', padding: '2rem 0' }}>No classes found</p>
+              <p style={{ color: MUTED, textAlign: 'center', padding: '2rem 0', fontSize: '0.85rem' }}>No classes found for this selection</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {filtered.map((s: any) => (
-                  <button key={s.id} onClick={() => { if (!s.is_full) { setSelectedSession(s); setStep(2) } }} disabled={s.is_full}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1rem',
-                      background: '#fff', borderRadius: 8, border: '1px solid rgba(0,0,0,0.06)',
-                      cursor: s.is_full ? 'default' : 'pointer', textAlign: 'left', width: '100%',
-                      opacity: s.is_full ? 0.5 : 1, transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {s.class_type.colour && (
-                      <div style={{ width: 4, height: 40, borderRadius: 2, background: s.class_type.colour, flexShrink: 0 }} />
+              <div>
+                {sortedDayKeys.map(dayIdx => (
+                  <div key={dayIdx} style={{ marginBottom: '0.5rem' }}>
+                    {/* Day header — only show when viewing multiple days */}
+                    {filterDay === null && (
+                      <div style={{
+                        padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontWeight: 700,
+                        color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em',
+                        borderBottom: '1px solid #e5e7eb', marginBottom: '0.25rem',
+                      }}>
+                        {DAYS[dayIdx]}
+                      </div>
                     )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: DARK }}>{s.class_type.name}</span>
-                        <span style={{ fontSize: '0.75rem', color: MUTED }}>{s.day_of_week_display}</span>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: MUTED, marginTop: '0.15rem' }}>
-                        {s.start_time} – {s.end_time}
-                        {s.room && ` · ${s.room}`}
-                        {s.instructor && ` · ${s.instructor.name}`}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '0.2rem', color: s.is_full ? '#dc2626' : s.spots_remaining <= 3 ? '#f59e0b' : '#059669', fontWeight: 600 }}>
-                        {s.is_full ? 'FULL' : `${s.spots_remaining} spots left`}
-                      </div>
+                    {/* Compact session rows */}
+                    <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      {groupedByDay[dayIdx].map((s: any, idx: number) => (
+                        <button key={s.id}
+                          onClick={() => { if (!s.is_full) { setSelectedSession(s); setStep(2) } }}
+                          disabled={s.is_full}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.55rem 0.75rem', width: '100%',
+                            background: 'transparent', border: 'none',
+                            borderTop: idx > 0 ? '1px solid #f3f4f6' : 'none',
+                            cursor: s.is_full ? 'default' : 'pointer',
+                            textAlign: 'left', opacity: s.is_full ? 0.45 : 1,
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => { if (!s.is_full) (e.currentTarget as HTMLElement).style.background = BG_WARM }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                        >
+                          {/* Colour bar */}
+                          {s.class_type.colour && (
+                            <div style={{ width: 3, height: 28, borderRadius: 2, background: s.class_type.colour, flexShrink: 0 }} />
+                          )}
+                          {/* Time */}
+                          <div style={{ width: 80, flexShrink: 0, fontSize: '0.78rem', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                            {s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}
+                          </div>
+                          {/* Class name + details */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem', color: DARK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {s.class_type.name}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {s.room || ''}{s.room && s.instructor ? ' · ' : ''}{s.instructor?.name || ''}
+                            </div>
+                          </div>
+                          {/* Spots */}
+                          <div style={{
+                            fontSize: '0.68rem', fontWeight: 600, flexShrink: 0, textAlign: 'right',
+                            color: s.is_full ? '#dc2626' : s.spots_remaining <= 3 ? '#f59e0b' : '#059669',
+                          }}>
+                            {s.is_full ? 'FULL' : `${s.spots_remaining} left`}
+                          </div>
+                          {/* Price */}
+                          {s.class_type.price_pence > 0 && (
+                            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: DARK, flexShrink: 0, width: 48, textAlign: 'right' }}>
+                              £{(s.class_type.price_pence / 100).toFixed(2)}
+                            </div>
+                          )}
+                        </button>
+                      ))}
                     </div>
-                    {s.class_type.price_pence > 0 && (
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: DARK, flexShrink: 0 }}>
-                        £{(s.class_type.price_pence / 100).toFixed(2)}
-                      </span>
-                    )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         )}
 
-        <div style={{ textAlign: 'center', padding: '2rem 0 0.5rem', fontSize: '0.72rem', color: accentLight, letterSpacing: '0.03em' }}>
+        <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem', fontSize: '0.72rem', color: accentLight, letterSpacing: '0.03em' }}>
           Powered by NBNE
         </div>
       </main>
