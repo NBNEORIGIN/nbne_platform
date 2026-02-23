@@ -22,16 +22,20 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getBookings(), getStaffList()]).then(([bRes, sRes]) => {
-      console.log('[ADMIN] getBookings response:', bRes.status, bRes.error, 'count:', bRes.data?.length ?? 'null')
-      console.log('[ADMIN] getStaffList response:', sRes.status, sRes.error, 'count:', sRes.data?.length ?? 'null')
+    console.log('[ADMIN] useEffect fired — fetching bookings + staff')
+    getBookings().then(bRes => {
+      console.log('[ADMIN] getBookings:', bRes.status, bRes.error, 'count:', bRes.data?.length ?? 'null')
+      if (bRes.data?.length) console.log('[ADMIN] first booking:', JSON.stringify(bRes.data[0]).slice(0, 200))
       setAllBookings(bRes.data || [])
-      setStaffList(sRes.data || [])
       setLoading(false)
     }).catch(err => {
-      console.error('[ADMIN] Promise.all failed:', err)
+      console.error('[ADMIN] getBookings failed:', err)
       setLoading(false)
     })
+    getStaffList().then(sRes => {
+      console.log('[ADMIN] getStaffList:', sRes.status, sRes.error, 'count:', sRes.data?.length ?? 'null')
+      setStaffList(sRes.data || [])
+    }).catch(() => {})
   }, [])
 
   if (loading) return <div className="empty-state">Loading bookings…</div>

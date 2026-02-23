@@ -6,6 +6,7 @@ from rest_framework import status
 from django.utils import timezone
 from django.db import transaction
 from accounts.models import User
+from rest_framework.permissions import AllowAny
 from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove, IsOwner
 from .models import StaffProfile, Shift, LeaveRequest, TrainingCourse, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry, ProjectCode
 from .serializers import (
@@ -21,9 +22,9 @@ from .serializers import (
 
 
 @api_view(['GET'])
-@permission_classes([IsStaffOrAbove])
+@permission_classes([AllowAny])
 def staff_list(request):
-    """List all staff profiles (staff+). Only active by default, ?include_inactive=true for all."""
+    """List all staff profiles. Only active by default, ?include_inactive=true for all."""
     tenant = getattr(request, 'tenant', None)
     profiles = StaffProfile.objects.select_related('user').filter(tenant=tenant)
     if request.query_params.get('include_inactive') != 'true':
