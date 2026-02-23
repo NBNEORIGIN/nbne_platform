@@ -195,9 +195,9 @@ function NBNELandingPage() {
             color: 'rgba(255,255,255,0.75)', fontWeight: 400,
             marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 2.5rem',
           }}>
-            One flat price. No per-seat charges. Add as many staff as you want.
-            Booking, payments, compliance, CRM &mdash; all included. We even handle the stuff
-            you keep meaning to sort out, like PAT certs and document audits.
+            From &pound;30/month + a &pound;199 one-off setup. No per-seat charges. Unlimited staff.
+            Booking, payments, staff management, compliance, CRM &mdash; all under one roof.
+            We even handle the stuff you keep meaning to sort out, like PAT certs and fire risk assessments.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="#demos" style={{
