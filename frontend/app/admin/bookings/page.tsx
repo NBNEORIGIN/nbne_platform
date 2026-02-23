@@ -22,18 +22,11 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('[ADMIN] useEffect fired — fetching bookings + staff')
     getBookings().then(bRes => {
-      console.log('[ADMIN] getBookings:', bRes.status, bRes.error, 'count:', bRes.data?.length ?? 'null')
-      if (bRes.data?.length) console.log('[ADMIN] first booking:', JSON.stringify(bRes.data[0]).slice(0, 200))
       setAllBookings(bRes.data || [])
       setLoading(false)
-    }).catch(err => {
-      console.error('[ADMIN] getBookings failed:', err)
-      setLoading(false)
-    })
+    }).catch(() => setLoading(false))
     getStaffList().then(sRes => {
-      console.log('[ADMIN] getStaffList:', sRes.status, sRes.error, 'count:', sRes.data?.length ?? 'null')
       setStaffList(sRes.data || [])
     }).catch(() => {})
   }, [])
@@ -76,11 +69,8 @@ export default function AdminBookingsPage() {
     .filter(b => filter === 'ALL' || b.status === filter)
     .filter(b => !search || (b.customer_name || '').toLowerCase().includes(search.toLowerCase()) || (b.service_name || '').toLowerCase().includes(search.toLowerCase()))
 
-  console.log('[ADMIN] render: allBookings=', allBookings.length, 'filtered=', filtered.length, 'filter=', filter, 'search=', search)
-
   return (
     <div>
-      <div style={{ background: '#fef3c7', padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#92400e' }}>DEBUG: {allBookings.length} total, {filtered.length} filtered (filter={filter})</div>
       <div className="page-header"><h1>Bookings</h1><span className="badge badge-danger">Tier 3</span></div>
       <div className="filter-bar">
         <input placeholder="Search customer or service..." value={search} onChange={e => setSearch(e.target.value)} />
