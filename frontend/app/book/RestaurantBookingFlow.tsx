@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant'
 import { getRestaurantAvailability, getRestaurantAvailableDates, createBooking, setDemoTenant } from '@/lib/api'
@@ -12,8 +12,6 @@ const MUTED = '#6b6b6b'
 const BG_CREAM = '#FAF8F5'
 const BG_WARM = '#F5F0EB'
 
-function formatTime(t: string) { return t }
-
 export default function RestaurantBookingFlow() {
   const tenant = useTenant()
   const searchParams = useSearchParams()
@@ -22,7 +20,7 @@ export default function RestaurantBookingFlow() {
   const accentLight = accent + '80'
   const bizName = tenant.business_name || 'Restaurant'
 
-  const [step, setStep] = useState(1) // 1=party, 2=date, 3=time, 4=details, 5=confirmed
+  const [step, setStep] = useState(1) // 1=party+date, 2=time, 3=details, 4=confirmed
   const [partySize, setPartySize] = useState(2)
   const [availableDates, setAvailableDates] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState('')
@@ -41,16 +39,14 @@ export default function RestaurantBookingFlow() {
     if (demoSlug) setDemoTenant(demoSlug)
   }, [demoSlug])
 
-  // Fetch available dates when party size changes
+  // Fetch available dates immediately on mount and when party size changes
   useEffect(() => {
-    if (step >= 2) {
-      setLoading(true)
-      getRestaurantAvailableDates(partySize).then(res => {
-        setAvailableDates(res.data?.dates || [])
-        setLoading(false)
-      })
-    }
-  }, [partySize, step])
+    setLoading(true)
+    getRestaurantAvailableDates(partySize).then(res => {
+      setAvailableDates(res.data?.dates || [])
+      setLoading(false)
+    })
+  }, [partySize])
 
   // Fetch time slots when date selected
   useEffect(() => {
@@ -62,6 +58,12 @@ export default function RestaurantBookingFlow() {
       })
     }
   }, [selectedDate, partySize])
+
+  // Format selected date nicely
+  const formattedDate = useMemo(() => {
+    if (!selectedDate) return ''
+    return new Date(selectedDate + 'T00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  }, [selectedDate])
 
   async function handleSubmit() {
     if (!name || !email || !phone) {
@@ -87,7 +89,7 @@ export default function RestaurantBookingFlow() {
       setError(res.error)
     } else {
       setConfirmed(res.data)
-      setStep(5)
+      setStep(4)
     }
   }
 
@@ -102,20 +104,22 @@ export default function RestaurantBookingFlow() {
     const todayStr = today.toISOString().split('T')[0]
     const availSet = new Set(availableDates)
 
+    // Start week on Monday
+    const adjustedFirst = firstDay === 0 ? 6 : firstDay - 1
     const cells: (number | null)[] = []
-    for (let i = 0; i < firstDay; i++) cells.push(null)
+    for (let i = 0; i < adjustedFirst; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
     return (
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <button onClick={() => viewMonth === 0 ? (setViewMonth(11), setViewYear(viewYear - 1)) : setViewMonth(viewMonth - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED }}>&lsaquo;</button>
-          <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: '0.95rem', color: DARK }}>{monthName}</span>
-          <button onClick={() => viewMonth === 11 ? (setViewMonth(0), setViewYear(viewYear + 1)) : setViewMonth(viewMonth + 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED }}>&rsaquo;</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <button onClick={() => viewMonth === 0 ? (setViewMonth(11), setViewYear(viewYear - 1)) : setViewMonth(viewMonth - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: MUTED, padding: '0.25rem 0.5rem' }}>&lsaquo;</button>
+          <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: '0.9rem', color: DARK }}>{monthName}</span>
+          <button onClick={() => viewMonth === 11 ? (setViewMonth(0), setViewYear(viewYear + 1)) : setViewMonth(viewMonth + 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: MUTED, padding: '0.25rem 0.5rem' }}>&rsaquo;</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} style={{ fontSize: '0.7rem', color: accentLight, fontWeight: 600, padding: '0.25rem 0', textTransform: 'uppercase' }}>{d}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', textAlign: 'center' }}>
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+            <div key={d} style={{ fontSize: '0.68rem', color: MUTED, fontWeight: 600, padding: '0.3rem 0', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{d}</div>
           ))}
           {cells.map((day, i) => {
             if (day === null) return <div key={`e${i}`} />
@@ -123,16 +127,21 @@ export default function RestaurantBookingFlow() {
             const isPast = dateStr < todayStr
             const isAvail = availSet.has(dateStr)
             const isSel = dateStr === selectedDate
+            const isToday = dateStr === todayStr
             const clickable = !isPast && isAvail
             return (
-              <button key={dateStr} onClick={() => { if (clickable) { setSelectedDate(dateStr); setSelectedSlot(null); setStep(3) } }} disabled={!clickable}
+              <button key={dateStr}
+                onClick={() => { if (clickable) { setSelectedDate(dateStr); setSelectedSlot(null); setStep(2) } }}
+                disabled={!clickable}
                 style={{
-                  width: 36, height: 36, borderRadius: '50%', border: 'none', margin: '0 auto',
+                  width: 34, height: 34, borderRadius: '50%', border: 'none', margin: '1px auto',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.82rem', fontWeight: isSel ? 700 : 400, cursor: clickable ? 'pointer' : 'default',
-                  background: isSel ? accent : 'transparent',
+                  fontSize: '0.8rem', fontWeight: isSel ? 700 : isToday ? 600 : 400,
+                  cursor: clickable ? 'pointer' : 'default',
+                  background: isSel ? accent : isToday && !isPast ? accent + '15' : 'transparent',
                   color: isSel ? '#fff' : isPast ? '#d1d5db' : isAvail ? DARK : '#d1d5db',
                   transition: 'all 0.15s ease',
+                  outline: isToday && !isSel ? `2px solid ${accent}40` : 'none',
                 }}
               >{day}</button>
             )
@@ -145,44 +154,54 @@ export default function RestaurantBookingFlow() {
   return (
     <div style={{ minHeight: '100vh', background: BG_CREAM, fontFamily: SANS }}>
       {/* Header */}
-      <header style={{ background: accent, color: '#fff', padding: '1.5rem 1rem', textAlign: 'center' }}>
-        <h1 style={{ fontFamily: SERIF, fontSize: '1.5rem', fontWeight: 500, margin: 0 }}>{bizName}</h1>
-        <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0.25rem 0 0' }}>Reserve a Table</p>
+      <header style={{ background: accent, color: '#fff', padding: '1.25rem 1rem', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: SERIF, fontSize: '1.4rem', fontWeight: 500, margin: 0 }}>{bizName}</h1>
+        <p style={{ fontSize: '0.8rem', opacity: 0.85, margin: '0.2rem 0 0' }}>Reserve a Table</p>
       </header>
 
-      <main style={{ maxWidth: 520, margin: '0 auto', padding: '1.5rem 1rem' }}>
+      <main style={{ maxWidth: 520, margin: '0 auto', padding: '1rem 0.75rem' }}>
         {error && (
-          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#dc2626', fontSize: '0.85rem' }}>
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.82rem' }}>
             {error}
           </div>
         )}
 
-        {step === 5 && confirmed ? (
-          <div style={{ background: '#fff', borderRadius: 10, padding: '2rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✓</div>
-            <h2 style={{ fontFamily: SERIF, fontSize: '1.3rem', color: DARK, marginBottom: '0.5rem' }}>Reservation Confirmed</h2>
-            <p style={{ color: MUTED, fontSize: '0.9rem' }}>
-              Party of {partySize} on {selectedDate} at {selectedSlot?.start_time}
-            </p>
-            <p style={{ color: MUTED, fontSize: '0.85rem', marginTop: '0.5rem' }}>
-              A confirmation will be sent to {email}
+        {step === 4 && confirmed ? (
+          <div style={{ background: '#fff', borderRadius: 12, padding: '2rem', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: accent + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <span style={{ fontSize: '1.5rem', color: accent }}>✓</span>
+            </div>
+            <h2 style={{ fontFamily: SERIF, fontSize: '1.3rem', color: DARK, marginBottom: '0.75rem' }}>Reservation Confirmed</h2>
+            <div style={{ background: BG_WARM, borderRadius: 8, padding: '1rem', display: 'inline-block', textAlign: 'left', fontSize: '0.85rem', color: DARK, lineHeight: 1.8 }}>
+              <div><strong>Party:</strong> {partySize} {partySize === 1 ? 'guest' : 'guests'}</div>
+              <div><strong>Date:</strong> {formattedDate}</div>
+              <div><strong>Time:</strong> {selectedSlot?.start_time}</div>
+            </div>
+            <p style={{ color: MUTED, fontSize: '0.82rem', marginTop: '1rem' }}>
+              A confirmation has been sent to <strong>{email}</strong>
             </p>
           </div>
         ) : (
-          <>
-            {/* Step 1: Party Size */}
-            <div style={{ background: '#fff', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: step >= 1 ? accent : BG_WARM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: step >= 1 ? '#fff' : accent }}>1</div>
-                <h2 style={{ fontFamily: SERIF, fontSize: '1.05rem', fontWeight: 500, color: DARK, margin: 0 }}>Party Size</h2>
+          <div style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            {/* Party size — always visible, compact inline bar */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                <span style={{ fontFamily: SERIF, fontSize: '0.95rem', fontWeight: 500, color: DARK }}>Guests</span>
+                {selectedDate && (
+                  <span style={{ fontSize: '0.75rem', color: MUTED }}>
+                    {formattedDate}
+                  </span>
+                )}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                  <button key={n} onClick={() => { setPartySize(n); setStep(2); setSelectedDate(''); setSelectedSlot(null) }}
+                  <button key={n} onClick={() => { setPartySize(n); setSelectedDate(''); setSelectedSlot(null); setStep(1) }}
                     style={{
-                      padding: '0.6rem 1rem', borderRadius: 8, border: `1px solid ${partySize === n ? accent : '#e5e7eb'}`,
-                      background: partySize === n ? accent : '#fff', color: partySize === n ? '#fff' : DARK,
-                      cursor: 'pointer', fontWeight: partySize === n ? 600 : 400, fontSize: '0.9rem',
+                      flex: 1, padding: '0.5rem 0', borderRadius: 6,
+                      border: 'none',
+                      background: partySize === n ? accent : '#f3f4f6',
+                      color: partySize === n ? '#fff' : DARK,
+                      cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem',
                       transition: 'all 0.15s ease',
                     }}
                   >{n}{n === 8 ? '+' : ''}</button>
@@ -190,102 +209,102 @@ export default function RestaurantBookingFlow() {
               </div>
             </div>
 
-            {/* Step 2: Date */}
-            {step >= 2 && (
-              <div style={{ background: '#fff', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem', border: '1px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: step >= 2 ? accent : BG_WARM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: step >= 2 ? '#fff' : accent }}>2</div>
-                  <h2 style={{ fontFamily: SERIF, fontSize: '1.05rem', fontWeight: 500, color: DARK, margin: 0 }}>Choose Date</h2>
-                </div>
-                {loading && !selectedDate ? (
-                  <p style={{ color: MUTED, fontSize: '0.85rem' }}>Loading available dates...</p>
-                ) : (
-                  <Calendar />
-                )}
-              </div>
-            )}
+            {/* Calendar — always visible */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: selectedDate ? '1px solid #f3f4f6' : 'none' }}>
+              {loading && availableDates.length === 0 ? (
+                <p style={{ color: MUTED, fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>Loading availability...</p>
+              ) : (
+                <Calendar />
+              )}
+            </div>
 
-            {/* Step 3: Time Window */}
-            {step >= 3 && selectedDate && (
-              <div style={{ background: '#fff', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem', border: '1px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: step >= 3 ? accent : BG_WARM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: step >= 3 ? '#fff' : accent }}>3</div>
-                  <h2 style={{ fontFamily: SERIF, fontSize: '1.05rem', fontWeight: 500, color: DARK, margin: 0 }}>Choose Time</h2>
+            {/* Time slots — shown after date selection */}
+            {step >= 2 && selectedDate && (
+              <div style={{ padding: '1rem 1.25rem', borderBottom: selectedSlot ? '1px solid #f3f4f6' : 'none' }}>
+                <div style={{ fontFamily: SERIF, fontSize: '0.9rem', fontWeight: 500, color: DARK, marginBottom: '0.6rem' }}>
+                  Available Times
                 </div>
                 {loading ? (
-                  <p style={{ color: MUTED, fontSize: '0.85rem' }}>Loading available times...</p>
+                  <p style={{ color: MUTED, fontSize: '0.82rem' }}>Loading times...</p>
                 ) : windows.length === 0 ? (
-                  <p style={{ color: MUTED, fontSize: '0.85rem' }}>No availability on this date</p>
+                  <p style={{ color: MUTED, fontSize: '0.82rem' }}>No availability on this date. Try another day.</p>
                 ) : (
-                  windows.map((w: any) => (
-                    <div key={w.id} style={{ marginBottom: '1rem' }}>
-                      <h3 style={{ fontFamily: SERIF, fontSize: '0.9rem', color: DARK, marginBottom: '0.5rem' }}>
-                        {w.name} ({w.open_time} – {w.close_time})
-                      </h3>
-                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        {w.slots?.filter((s: any) => s.has_capacity).map((slot: any) => (
-                          <button key={slot.start_time}
-                            onClick={() => { setSelectedSlot(slot); setStep(4) }}
-                            style={{
-                              padding: '0.5rem 0.75rem', borderRadius: 6,
-                              border: `1px solid ${selectedSlot?.start_time === slot.start_time ? accent : '#e5e7eb'}`,
-                              background: selectedSlot?.start_time === slot.start_time ? accent : '#fff',
-                              color: selectedSlot?.start_time === slot.start_time ? '#fff' : DARK,
-                              cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500,
-                              transition: 'all 0.15s ease',
-                            }}
-                          >{slot.start_time}</button>
-                        ))}
-                        {w.slots?.filter((s: any) => s.has_capacity).length === 0 && (
-                          <p style={{ color: MUTED, fontSize: '0.82rem' }}>Fully booked for {w.name}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                  <div>
+                    {windows.map((w: any) => {
+                      const availSlots = w.slots?.filter((s: any) => s.has_capacity) || []
+                      if (availSlots.length === 0) return null
+                      return (
+                        <div key={w.id} style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>
+                            {w.name}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                            {availSlots.map((slot: any) => (
+                              <button key={slot.start_time}
+                                onClick={() => { setSelectedSlot(slot); setStep(3) }}
+                                style={{
+                                  padding: '0.45rem 0.7rem', borderRadius: 6,
+                                  border: `1px solid ${selectedSlot?.start_time === slot.start_time ? accent : '#e5e7eb'}`,
+                                  background: selectedSlot?.start_time === slot.start_time ? accent : '#fff',
+                                  color: selectedSlot?.start_time === slot.start_time ? '#fff' : DARK,
+                                  cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >{slot.start_time}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Step 4: Your Details */}
-            {step >= 4 && selectedSlot && (
-              <div style={{ background: '#fff', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem', border: '1px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>4</div>
-                  <h2 style={{ fontFamily: SERIF, fontSize: '1.05rem', fontWeight: 500, color: DARK, margin: 0 }}>Your Details</h2>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <input placeholder="Full Name *" value={name} onChange={e => setName(e.target.value)}
-                    style={{ padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.9rem', fontFamily: SANS }} />
-                  <input placeholder="Email *" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    style={{ padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.9rem', fontFamily: SANS }} />
-                  <input placeholder="Phone *" type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    style={{ padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.9rem', fontFamily: SANS }} />
-                  <textarea placeholder="Special requests or dietary requirements" value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-                    style={{ padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.9rem', fontFamily: SANS, resize: 'vertical' }} />
+            {/* Details form — shown after time selection */}
+            {step >= 3 && selectedSlot && (
+              <div style={{ padding: '1rem 1.25rem' }}>
+                {/* Reservation summary bar */}
+                <div style={{ background: accent + '10', borderRadius: 8, padding: '0.65rem 0.85rem', marginBottom: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                  <span style={{ color: DARK }}>
+                    <strong>{partySize}</strong> {partySize === 1 ? 'guest' : 'guests'} · <strong>{formattedDate}</strong> · <strong>{selectedSlot.start_time}</strong>
+                  </span>
+                  <button onClick={() => { setStep(1); setSelectedDate(''); setSelectedSlot(null) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, fontSize: '0.75rem', fontWeight: 600 }}>
+                    Change
+                  </button>
                 </div>
 
-                {/* Summary */}
-                <div style={{ background: BG_WARM, borderRadius: 8, padding: '1rem', marginTop: '1rem', fontSize: '0.85rem', color: DARK }}>
-                  <strong>Reservation Summary</strong>
-                  <div style={{ marginTop: '0.5rem', lineHeight: 1.6 }}>
-                    Party of {partySize} · {new Date(selectedDate + 'T00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} · {selectedSlot.start_time}
+                <div style={{ fontFamily: SERIF, fontSize: '0.9rem', fontWeight: 500, color: DARK, marginBottom: '0.6rem' }}>
+                  Your Details
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <input placeholder="Full Name *" value={name} onChange={e => setName(e.target.value)}
+                    style={{ padding: '0.6rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: SANS }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                    <input placeholder="Email *" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                      style={{ padding: '0.6rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: SANS }} />
+                    <input placeholder="Phone *" type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                      style={{ padding: '0.6rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: SANS }} />
                   </div>
+                  <textarea placeholder="Special requests or dietary requirements" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                    style={{ padding: '0.6rem 0.85rem', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: SANS, resize: 'vertical' }} />
                 </div>
 
                 <button onClick={handleSubmit} disabled={submitting}
                   style={{
-                    width: '100%', marginTop: '1rem', padding: '0.85rem', borderRadius: 8,
+                    width: '100%', marginTop: '0.85rem', padding: '0.8rem', borderRadius: 8,
                     background: accent, color: '#fff', border: 'none', cursor: submitting ? 'wait' : 'pointer',
-                    fontWeight: 600, fontSize: '0.95rem', fontFamily: SANS, opacity: submitting ? 0.7 : 1,
+                    fontWeight: 600, fontSize: '0.9rem', fontFamily: SANS, opacity: submitting ? 0.7 : 1,
                     transition: 'opacity 0.15s ease',
                   }}
                 >{submitting ? 'Reserving...' : 'Confirm Reservation'}</button>
               </div>
             )}
-          </>
+          </div>
         )}
 
-        <div style={{ textAlign: 'center', padding: '2rem 0 0.5rem', fontSize: '0.72rem', color: accentLight, letterSpacing: '0.03em' }}>
+        <div style={{ textAlign: 'center', padding: '1.5rem 0 0.5rem', fontSize: '0.72rem', color: accentLight, letterSpacing: '0.03em' }}>
           Powered by NBNE
         </div>
       </main>
