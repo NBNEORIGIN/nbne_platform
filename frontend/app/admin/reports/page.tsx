@@ -175,8 +175,8 @@ function DailyReport({ data }: { data: any }) {
             ) : rows.map((r: any) => (
               <tr key={r.date}>
                 <td>{r.date}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue_pence)}</td>
-                <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits_pence)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue || 0)}</td>
+                <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits || 0)}</td>
                 <td style={{ textAlign: 'right' }}>{r.bookings}</td>
                 <td style={{ textAlign: 'right', color: r.no_shows > 0 ? 'var(--color-danger)' : undefined }}>{r.no_shows}</td>
               </tr>
@@ -187,7 +187,7 @@ function DailyReport({ data }: { data: any }) {
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                 <td>Total</td>
                 <td style={{ textAlign: 'right' }}>{formatPrice(totalRevenue)}</td>
-                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits_pence || 0), 0))}</td>
+                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits || 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{totalBookings}</td>
                 <td style={{ textAlign: 'right', color: totalNoShows > 0 ? 'var(--color-danger)' : undefined }}>{totalNoShows}</td>
               </tr>
