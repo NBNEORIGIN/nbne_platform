@@ -76,8 +76,11 @@ export default function AdminBookingsPage() {
     .filter(b => filter === 'ALL' || b.status === filter)
     .filter(b => !search || (b.customer_name || '').toLowerCase().includes(search.toLowerCase()) || (b.service_name || '').toLowerCase().includes(search.toLowerCase()))
 
+  console.log('[ADMIN] render: allBookings=', allBookings.length, 'filtered=', filtered.length, 'filter=', filter, 'search=', search)
+
   return (
     <div>
+      <div style={{ background: '#fef3c7', padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#92400e' }}>DEBUG: {allBookings.length} total, {filtered.length} filtered (filter={filter})</div>
       <div className="page-header"><h1>Bookings</h1><span className="badge badge-danger">Tier 3</span></div>
       <div className="filter-bar">
         <input placeholder="Search customer or service..." value={search} onChange={e => setSearch(e.target.value)} />
