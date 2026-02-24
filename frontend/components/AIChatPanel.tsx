@@ -68,25 +68,31 @@ export default function AIChatPanel({ isOpen, onToggle }: { isOpen: boolean; onT
         .map(m => ({ role: m.role, content: m.content }))
 
       const res = await aiChat(apiMessages)
-      const data = res.data
 
-      if (data?.reply) {
+      if (res.error) {
+        // apiFetch-level error (network, 401, 500, etc.)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `⚠️ ${res.error}`,
+          timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        }])
+      } else if (res.data?.reply) {
         const assistantMessage: ChatMessage = {
           role: 'assistant',
-          content: data.reply,
-          toolCalls: data.tool_calls,
+          content: res.data.reply,
+          toolCalls: res.data.tool_calls,
           timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, assistantMessage])
 
         // Handle navigation
-        if (data.navigate) {
-          setTimeout(() => router.push(data.navigate!), 500)
+        if (res.data.navigate) {
+          setTimeout(() => router.push(res.data!.navigate!), 500)
         }
-      } else if (data?.error) {
+      } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `⚠️ ${data.error}`,
+          content: '⚠️ No response from assistant. Please try again.',
           timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
         }])
       }

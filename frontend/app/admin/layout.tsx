@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useTenant, hasModule, TENANT_SLUG } from '@/lib/tenant'
-import CommandBar from '@/components/CommandBar'
 import AIChatPanel, { AIChatTrigger } from '@/components/AIChatPanel'
 import '../app/staff.css'
 
@@ -63,19 +62,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
       <header className="topbar" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <button className="btn btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ flexShrink: 0 }}>☰</button>
-        <span className="topbar-title" style={{ flexShrink: 0, marginRight: '0.5rem' }}>{tenant.business_name}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <CommandBar />
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => setChatOpen(!chatOpen)}
-            style={{ fontSize: '1.1rem', padding: '0.3rem 0.5rem' }}
-            title="AI Assistant"
-          >✨</button>
-          <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
-        </div>
+        <span className="topbar-title" style={{ flexShrink: 0 }}>{tenant.business_name}</span>
+        <div style={{ flex: 1 }} />
+        <button
+          className="btn btn-ghost"
+          onClick={() => setChatOpen(!chatOpen)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            fontSize: '0.82rem', padding: '0.35rem 0.75rem',
+            background: chatOpen ? '#2563eb' : 'transparent',
+            color: chatOpen ? '#fff' : 'inherit',
+            borderRadius: 6,
+            transition: 'all 0.15s',
+          }}
+          title="AI Assistant"
+        >
+          <span style={{ fontSize: '1rem' }}>✨</span>
+          <span>Assistant</span>
+        </button>
+        <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
       </header>
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{ background: '#1e293b' }}>

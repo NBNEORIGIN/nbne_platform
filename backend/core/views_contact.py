@@ -2,46 +2,80 @@
 Public contact form endpoint for the NBNE landing page.
 Uses IONOS SMTP → Resend fallback chain.
 No authentication required (public form).
-Rate-limited by basic throttle.
+
+Handles CORS explicitly because the landing page (business.nbne.uk)
+is a different origin from the Railway backend, and the Railway
+CORS_ALLOWED_ORIGINS env var may not include it.
 """
+import json
 import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from django.conf import settings
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_ORIGINS = [
+    'https://business.nbne.uk',
+    'https://nbne-landing.vercel.app',
+    'http://localhost:3000',
+]
 
-class ContactFormThrottle(AnonRateThrottle):
-    rate = '5/hour'
+
+def _cors_headers(request):
+    """Return CORS headers if the Origin is allowed."""
+    origin = request.META.get('HTTP_ORIGIN', '')
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers['Access-Control-Allow-Origin'] = origin
+        headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        headers['Access-Control-Max-Age'] = '86400'
+    return headers
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@throttle_classes([ContactFormThrottle])
+@csrf_exempt
 def contact_form(request):
     """
     POST { name, email, phone, message }
     Sends an email to the NBNE team with the contact form details.
     """
-    name = (request.data.get('name') or '').strip()
-    email = (request.data.get('email') or '').strip()
-    phone = (request.data.get('phone') or '').strip()
-    message = (request.data.get('message') or '').strip()
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        resp = JsonResponse({}, status=200)
+        for k, v in _cors_headers(request).items():
+            resp[k] = v
+        return resp
+
+    if request.method != 'POST':
+        resp = JsonResponse({'error': 'Method not allowed'}, status=405)
+        for k, v in _cors_headers(request).items():
+            resp[k] = v
+        return resp
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        resp = JsonResponse({'error': 'Invalid JSON'}, status=400)
+        for k, v in _cors_headers(request).items():
+            resp[k] = v
+        return resp
+
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    message = (data.get('message') or '').strip()
 
     if not name or not email or not message:
-        return Response(
-            {'error': 'Name, email, and message are required.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        resp = JsonResponse({'error': 'Name, email, and message are required.'}, status=400)
+        for k, v in _cors_headers(request).items():
+            resp[k] = v
+        return resp
 
     subject = f'[NBNE Contact Form] {name}'
     text_body = f"""New contact form submission from business.nbne.uk
@@ -108,9 +142,12 @@ Message:
 
     if not sent:
         logger.error(f'[CONTACT] Could not send contact email from {email}')
-        return Response(
-            {'error': 'Unable to send message. Please call us instead.'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        resp = JsonResponse({'error': 'Unable to send message. Please call us instead.'}, status=500)
+        for k, v in _cors_headers(request).items():
+            resp[k] = v
+        return resp
 
-    return Response({'ok': True, 'message': 'Message sent successfully.'})
+    resp = JsonResponse({'ok': True, 'message': 'Message sent successfully.'})
+    for k, v in _cors_headers(request).items():
+        resp[k] = v
+    return resp
