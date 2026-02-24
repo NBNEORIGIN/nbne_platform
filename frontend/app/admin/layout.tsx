@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useTenant, hasModule, TENANT_SLUG } from '@/lib/tenant'
 import CommandBar from '@/components/CommandBar'
+import AIChatPanel, { AIChatTrigger } from '@/components/AIChatPanel'
 import '../app/staff.css'
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const tenant = useTenant()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const visibleNav = NAV_ITEMS.filter(item => {
     if (item.module !== '_always' && !hasModule(tenant, item.module)) return false
     if ('businessType' in item && item.businessType && item.businessType !== tenant.business_type) return false
@@ -66,6 +68,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <CommandBar />
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setChatOpen(!chatOpen)}
+            style={{ fontSize: '1.1rem', padding: '0.3rem 0.5rem' }}
+            title="AI Assistant"
+          >✨</button>
           <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
         </div>
       </header>
@@ -97,7 +105,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-      <main className="main-content">{children}</main>
+      <main className="main-content" style={{ marginRight: chatOpen ? '420px' : 0, transition: 'margin-right 0.25s ease' }}>{children}</main>
+      <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(false)} />
+      {!chatOpen && <AIChatTrigger onClick={() => setChatOpen(true)} />}
     </div>
   )
 }

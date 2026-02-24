@@ -971,6 +971,16 @@ export async function getLeadRevenue(id: number) {
   return apiFetch<any>(`/crm/leads/${id}/revenue/`)
 }
 
+// --- AI Assistant Chat ---
+export async function aiChat(messages: Array<{ role: string; content: string }>) {
+  return apiFetch<{
+    reply: string
+    error?: string
+    tool_calls?: Array<{ tool: string; args: Record<string, any> }>
+    navigate?: string
+  }>('/assistant/chat/', { method: 'POST', body: JSON.stringify({ messages }) })
+}
+
 // --- Global Command Bar ---
 export async function executeCommand(text: string) {
   return apiFetch<any>('/command/', { method: 'POST', body: JSON.stringify({ text }) })

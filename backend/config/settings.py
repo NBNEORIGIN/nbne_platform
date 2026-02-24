@@ -251,6 +251,10 @@ REMINDER_EMAIL_HOST_PASSWORD = config('REMINDER_EMAIL_HOST_PASSWORD', default=''
 REMINDER_FROM_EMAIL = config('REMINDER_FROM_EMAIL', default='')
 REMINDER_INTERVAL_MINUTES = config('REMINDER_INTERVAL_MINUTES', default=10, cast=int)
 
+# OpenAI (AI Assistant chat panel)
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+
 # Stripe payments
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
