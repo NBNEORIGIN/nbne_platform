@@ -35,6 +35,7 @@ def tenant_branding_view(request):
         'documents': True,
         'comms': True,
         'crm': True,
+        'ai_assistant': False,
     }
     for mod, default in module_map.items():
         feat_key = f'features.{mod}'

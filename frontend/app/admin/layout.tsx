@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const tenant = useTenant()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const aiEnabled = hasModule(tenant, 'ai_assistant')
   const visibleNav = NAV_ITEMS.filter(item => {
     if (item.module !== '_always' && !hasModule(tenant, item.module)) return false
     if ('businessType' in item && item.businessType && item.businessType !== tenant.business_type) return false
@@ -64,22 +65,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <button className="btn btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ flexShrink: 0 }}>☰</button>
         <span className="topbar-title" style={{ flexShrink: 0 }}>{tenant.business_name}</span>
         <div style={{ flex: 1 }} />
-        <button
-          className="btn btn-ghost"
-          onClick={() => setChatOpen(!chatOpen)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            fontSize: '0.82rem', padding: '0.35rem 0.75rem',
-            background: chatOpen ? '#2563eb' : 'transparent',
-            color: chatOpen ? '#fff' : 'inherit',
-            borderRadius: 6,
-            transition: 'all 0.15s',
-          }}
-          title="AI Assistant"
-        >
-          <span style={{ fontSize: '1rem' }}>✨</span>
-          <span>Assistant</span>
-        </button>
+        {aiEnabled && (
+          <button
+            className="btn btn-ghost"
+            onClick={() => setChatOpen(!chatOpen)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              fontSize: '0.82rem', padding: '0.35rem 0.75rem',
+              background: chatOpen ? '#2563eb' : 'transparent',
+              color: chatOpen ? '#fff' : 'inherit',
+              borderRadius: 6,
+              transition: 'all 0.15s',
+            }}
+            title="AI Assistant"
+          >
+            <span style={{ fontSize: '1rem' }}>✨</span>
+            <span>Assistant</span>
+          </button>
+        )}
         <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
       </header>
 
@@ -110,9 +113,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-      <main className="main-content" style={{ marginRight: chatOpen ? '420px' : 0, transition: 'margin-right 0.25s ease' }}>{children}</main>
-      <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(false)} />
-      {!chatOpen && <AIChatTrigger onClick={() => setChatOpen(true)} />}
+      <main className="main-content" style={{ marginRight: (aiEnabled && chatOpen) ? '420px' : 0, transition: 'margin-right 0.25s ease' }}>{children}</main>
+      {aiEnabled && <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(false)} />}
+      {aiEnabled && !chatOpen && <AIChatTrigger onClick={() => setChatOpen(true)} />}
     </div>
   )
 }

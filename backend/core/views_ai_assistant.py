@@ -658,6 +658,17 @@ def ai_chat(request):
         "navigate": "/admin/staff" (optional)
     }
     """
+    tenant = getattr(request, 'tenant', None)
+
+    # Module gate — ai_assistant must be enabled for this tenant
+    if tenant:
+        enabled = tenant.enabled_modules or []
+        if enabled and 'ai_assistant' not in enabled:
+            return Response(
+                {'error': 'AI Assistant is a paid add-on. Contact support to enable it.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
     import os
     api_key = getattr(settings, 'OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
     if not api_key:
@@ -673,8 +684,6 @@ def ai_chat(request):
             {'error': 'messages array is required.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    tenant = getattr(request, 'tenant', None)
 
     # Build OpenAI messages with system prompt
     openai_messages = [{"role": "system", "content": SYSTEM_PROMPT}]

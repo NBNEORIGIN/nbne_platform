@@ -21,7 +21,7 @@ TENANTS = {
         'deposit_percentage': 30,
         'booking_staff_label': 'Stylist',
         'booking_staff_label_plural': 'Stylists',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
         'services': [
             ('Cut & Style', 'Cuts', 45, '35.00', 1000),
             ('Colour Full', 'Colour', 120, '95.00', 2500),
@@ -61,7 +61,7 @@ TENANTS = {
         'deposit_percentage': 20,
         'booking_staff_label': 'Host',
         'booking_staff_label_plural': 'Hosts',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
         'services': [
             ('Book a Table', 'Reservations', 90, '0.00', 500),
             ('Table for 4-6', 'Reservations', 120, '0.00', 1000),
@@ -131,7 +131,7 @@ TENANTS = {
         'deposit_percentage': 0,
         'booking_staff_label': 'Trainer',
         'booking_staff_label_plural': 'Trainers',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
         'services': [
             # Memberships
             ('Monthly Membership', 'Memberships', 30, '49.99', 0),
@@ -285,7 +285,7 @@ TENANTS = {
         'deposit_percentage': 25,
         'booking_staff_label': 'Consultant',
         'booking_staff_label_plural': 'Consultants',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
         'services': [
             ('Discovery Workshop', 'Consulting', 120, '500.00', 15000),
             ('Platform Setup', 'Onboarding', 240, '1500.00', 50000),

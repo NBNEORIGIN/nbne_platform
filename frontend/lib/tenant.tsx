@@ -53,7 +53,14 @@ export function useTenant() {
   return useContext(TenantContext)
 }
 
+const PAID_ADDONS = ['ai_assistant']
+
 export function hasModule(tenant: TenantConfig, mod: string): boolean {
+  // Paid add-ons must always be explicitly listed
+  if (PAID_ADDONS.includes(mod)) {
+    return tenant.enabled_modules.includes(mod)
+  }
+  // Other modules: empty list = all enabled (backwards compat)
   return tenant.enabled_modules.length === 0 || tenant.enabled_modules.includes(mod)
 }
 
