@@ -658,8 +658,10 @@ def ai_chat(request):
         "navigate": "/admin/staff" (optional)
     }
     """
-    api_key = getattr(settings, 'OPENAI_API_KEY', '')
+    import os
+    api_key = getattr(settings, 'OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
     if not api_key:
+        logger.error('[AI] OPENAI_API_KEY not found in settings or os.environ')
         return Response(
             {'error': 'AI assistant is not configured. Set OPENAI_API_KEY in environment.'},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,

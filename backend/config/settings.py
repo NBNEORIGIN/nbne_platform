@@ -257,7 +257,8 @@ REMINDER_FROM_EMAIL = config('REMINDER_FROM_EMAIL', default='')
 REMINDER_INTERVAL_MINUTES = config('REMINDER_INTERVAL_MINUTES', default=10, cast=int)
 
 # OpenAI (AI Assistant chat panel)
-OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+import os as _os
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='') or _os.environ.get('OPENAI_API_KEY', '')
 OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
 
 # Stripe payments
