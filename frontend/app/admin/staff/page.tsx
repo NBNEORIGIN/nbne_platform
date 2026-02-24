@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe, getHoursTally, getLeaveBalance, quickTimeLog } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe, getHoursTally, getLeaveBalance, quickTimeLog, getAbsences } from '@/lib/api'
 import LeaveCalendar from './LeaveCalendar'
 import TrainingTab from './TrainingTab'
 
@@ -40,6 +40,7 @@ export default function AdminStaffPage() {
   const [staff, setStaff] = useState<any[]>([])
   const [shifts, setShifts] = useState<any[]>([])
   const [leave, setLeave] = useState<any[]>([])
+  const [absences, setAbsences] = useState<any[]>([])
   const [training, setTraining] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState('staff')
@@ -113,11 +114,12 @@ export default function AdminStaffPage() {
 
   const loadData = () => {
     setLoading(true)
-    Promise.all([getStaffList(), getShifts(), getLeaveRequests(), getTrainingRecords()]).then(([s, sh, lv, tr]) => {
+    Promise.all([getStaffList(), getShifts(), getLeaveRequests(), getTrainingRecords(), getAbsences()]).then(([s, sh, lv, tr, ab]) => {
       setStaff(s.data || [])
       setShifts(sh.data || [])
       setLeave(lv.data || [])
       setTraining(tr.data || [])
+      setAbsences(ab.data || [])
       setLoading(false)
     })
   }
@@ -136,7 +138,11 @@ export default function AdminStaffPage() {
   const activeStaff = useMemo(() => staff.filter(s => s.is_active), [staff])
   const inactiveStaff = useMemo(() => staff.filter(s => !s.is_active), [staff])
   const todayStr = new Date().toISOString().split('T')[0]
-  const offToday = useMemo(() => leave.filter(l => l.status === 'APPROVED' && todayStr >= l.start_date && todayStr <= l.end_date).length, [leave, todayStr])
+  const offToday = useMemo(() => {
+    const onLeave = leave.filter(l => l.status === 'APPROVED' && todayStr >= l.start_date && todayStr <= l.end_date).length
+    const absentToday = absences.filter(a => a.date === todayStr).length
+    return onLeave + absentToday
+  }, [leave, absences, todayStr])
   const pendingLeaveCount = useMemo(() => leave.filter(l => l.status === 'PENDING').length, [leave])
 
   // --- Team handlers ---
@@ -568,7 +574,7 @@ export default function AdminStaffPage() {
       <div className="status-strip">
         <div className="status-strip-item"><span className="status-strip-num">{activeStaff.length}</span><span className="status-strip-label">Active</span></div>
         <div className="status-strip-item"><span className="status-strip-num" style={{ color: offToday > 0 ? 'var(--color-warning)' : undefined }}>{offToday}</span><span className="status-strip-label">Off today</span></div>
-        <div className="status-strip-item"><span className="status-strip-num" style={{ color: pendingLeaveCount > 0 ? 'var(--color-danger)' : undefined }}>{pendingLeaveCount}</span><span className="status-strip-label">Pending leave</span></div>
+        <div className="status-strip-item" style={{ cursor: pendingLeaveCount > 0 ? 'pointer' : undefined }} onClick={() => { if (pendingLeaveCount > 0) setTab('leave') }}><span className="status-strip-num" style={{ color: pendingLeaveCount > 0 ? 'var(--color-danger)' : undefined }}>{pendingLeaveCount}</span><span className="status-strip-label" style={{ textDecoration: pendingLeaveCount > 0 ? 'underline' : undefined }}>Pending leave</span></div>
       </div>
 
       {/* ── Tabs ── */}

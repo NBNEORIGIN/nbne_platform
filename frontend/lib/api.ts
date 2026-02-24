@@ -456,6 +456,10 @@ export async function deleteLeaveRequest(id: number) {
   return apiFetch<any>(`/staff-module/leave/${id}/delete/`, { method: 'DELETE' })
 }
 
+export async function getAbsences() {
+  return apiFetch<any[]>('/staff-module/absence/')
+}
+
 export async function getTrainingRecords() {
   return apiFetch<any[]>('/staff-module/training/')
 }

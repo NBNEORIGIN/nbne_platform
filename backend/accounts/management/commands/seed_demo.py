@@ -866,13 +866,13 @@ class Command(BaseCommand):
         # --- Working Hours (Mon-Fri 9-17 for all, Sat 10-14 for staff) ---
         for p in profiles.values():
             for day in range(5):  # Mon-Fri
-                WorkingHours.objects.get_or_create(
+                WorkingHours.objects.update_or_create(
                     staff=p, day_of_week=day,
                     defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'break_minutes': 30, 'is_active': True}
                 )
         # Staff1 also works Saturday mornings
         if staff1_key in profiles:
-            WorkingHours.objects.get_or_create(
+            WorkingHours.objects.update_or_create(
                 staff=profiles[staff1_key], day_of_week=5,
                 defaults={'start_time': time(10, 0), 'end_time': time(14, 0), 'break_minutes': 0, 'is_active': True}
             )
@@ -948,7 +948,7 @@ class Command(BaseCommand):
             if changed:
                 p.save()
             for day in range(5):
-                WorkingHours.objects.get_or_create(
+                WorkingHours.objects.update_or_create(
                     staff=p, day_of_week=day,
                     defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'is_active': True}
                 )
