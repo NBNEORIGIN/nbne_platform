@@ -213,6 +213,8 @@ _cors_defaults = ','.join([
     'https://fithub-lake.vercel.app',
     'https://tavola-gray.vercel.app',
     'https://app.nbnesigns.co.uk',
+    'https://business.nbne.uk',
+    'https://nbne-landing.vercel.app',
 ])
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default=_cors_defaults).split(',')
 

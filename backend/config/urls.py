@@ -18,6 +18,7 @@ from core.views_dashboard_v2 import dashboard_today
 from core.views_events import log_event, today_resolved, decline_cover
 from core.views_assistant import parse_command
 from core.command_router import execute_command, command_suggestions
+from core.views_contact import contact_form
 
 
 def api_index(request):
@@ -81,6 +82,8 @@ urlpatterns = [
     # Global command bar
     path('api/command/', execute_command, name='command-execute'),
     path('api/command/suggestions/', command_suggestions, name='command-suggestions'),
+    # Public contact form (no auth required)
+    path('api/contact/', contact_form, name='contact-form'),
     # Core catch-all (health check etc.)
     path('', include('core.urls')),
 ]
