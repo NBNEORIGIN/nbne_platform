@@ -32,6 +32,38 @@ const TEAM = [
 ]
 
 const MENU = [
+  { category: 'Starters', items: [
+    { name: 'Burrata, Heritage Tomatoes & Basil Oil', price: '£12' },
+    { name: 'Beef Carpaccio, Rocket & Parmesan Shavings', price: '£14' },
+    { name: 'Pan-Seared King Scallops, Cauliflower Purée', price: '£16' },
+    { name: 'Soup of the Day, Sourdough & Butter', price: '£8' },
+    { name: 'Prawn & Crab Linguine', price: '£14' },
+  ]},
+  { category: 'Mains', items: [
+    { name: '28-Day Aged Sirloin Steak, Triple-Cooked Chips', price: '£32' },
+    { name: 'Pan-Roasted Sea Bass, Saffron Risotto', price: '£26' },
+    { name: 'Slow-Braised Lamb Shank, Mash & Red Wine Jus', price: '£24' },
+    { name: 'Wild Mushroom & Truffle Ravioli', price: '£18' },
+    { name: 'Corn-Fed Chicken Supreme, Dauphinoise Potatoes', price: '£22' },
+    { name: 'Grilled Lobster Tail, Garlic Butter & Fries', price: '£38' },
+  ]},
+  { category: 'Desserts', items: [
+    { name: 'Classic Tiramisu', price: '£9' },
+    { name: 'Dark Chocolate Fondant, Salted Caramel Ice Cream', price: '£11' },
+    { name: 'Panna Cotta, Raspberry Coulis', price: '£9' },
+    { name: 'Affogato al Caffè', price: '£7' },
+    { name: 'British Cheese Board, Chutney & Crackers', price: '£14' },
+  ]},
+  { category: 'Sides', items: [
+    { name: 'Triple-Cooked Chips', price: '£5' },
+    { name: 'Truffle & Parmesan Fries', price: '£7' },
+    { name: 'Seasonal Greens, Garlic Butter', price: '£5' },
+    { name: 'Mixed Leaf Salad', price: '£4' },
+    { name: 'Dauphinoise Potatoes', price: '£6' },
+  ]},
+]
+
+const RESERVATIONS = [
   { category: 'Table Reservations', items: [{ name: 'Table for 2', price: 'Free' }, { name: 'Table for 4', price: 'Free' }, { name: 'Table for 6', price: 'Free' }, { name: 'Table for 8+', price: 'Free' }] },
   { category: 'Experiences', items: [{ name: 'Afternoon Tea for 2', price: '£55' }, { name: 'Afternoon Tea for 4', price: '£110' }, { name: "Chef's Table (6 Course)", price: '£150' }, { name: 'Sunday Roast', price: '£28pp' }] },
   { category: 'Events', items: [{ name: 'Private Dining (up to 12)', price: '£500' }, { name: 'Corporate Lunch', price: '£45pp' }, { name: 'Corporate Dinner & Drinks', price: '£85pp' }, { name: 'Wedding Reception', price: 'from £3,500' }] },
@@ -244,8 +276,56 @@ export default function TavolaPage() {
         </div>
       </section>
 
-      {/* ── Menu / Services ── */}
+      {/* ── Food Menu ── */}
       <section id="menu" style={{ padding: '5rem 2rem', background: '#fff' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+            <div style={{
+              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
+            }}>Our menu</div>
+            <h2 style={{
+              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
+              fontWeight: 500, color: DARK,
+            }}>Seasonal British-Italian</h2>
+            <p style={{
+              fontSize: '0.95rem', color: MUTED, lineHeight: 1.7, maxWidth: 520,
+              margin: '1rem auto 0',
+            }}>
+              Our menu changes with the seasons. Everything is sourced locally where possible,
+              cooked fresh, and served with pride.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
+            {MENU.map(cat => (
+              <div key={cat.category}>
+                <h3 style={{
+                  fontFamily: SERIF, fontSize: '1.35rem', fontWeight: 500,
+                  color: DARK, marginBottom: '1.5rem',
+                  paddingBottom: '0.75rem', borderBottom: `1px solid ${BG_WARM}`,
+                }}>{cat.category}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {cat.items.map(item => (
+                    <div key={item.name} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    }}>
+                      <span style={{ fontSize: '0.95rem', color: DARK }}>{item.name}</span>
+                      <span style={{
+                        fontSize: '0.95rem', fontWeight: 600, color: ACCENT,
+                        flexShrink: 0, marginLeft: '1rem',
+                      }}>{item.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Reservations & Experiences ── */}
+      <section style={{ padding: '5rem 2rem', background: BG_CREAM }}>
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <div style={{
@@ -259,7 +339,7 @@ export default function TavolaPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
-            {MENU.map(cat => (
+            {RESERVATIONS.map(cat => (
               <div key={cat.category}>
                 <h3 style={{
                   fontFamily: SERIF, fontSize: '1.35rem', fontWeight: 500,
