@@ -141,6 +141,9 @@ async function apiFetch<T = any>(
       const qs = url.slice(qIdx)
       if (!base.endsWith('/')) url = base + '/' + qs
     }
+    // Cache-bust every request so Chrome never serves stale cached API data
+    const cbSep = url.includes('?') ? '&' : '?'
+    url = `${url}${cbSep}_cb=${Date.now()}`
 
     const res = await fetch(url, {
       ...options,

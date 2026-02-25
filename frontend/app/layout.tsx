@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <script dangerouslySetInnerHTML={{ __html: `
-          // Nuke all service workers and caches on every load — fixes Chrome stale SW cache bug
+          // Nuke all service workers and caches on every load
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(regs) {
               regs.forEach(function(r) { r.unregister(); });
@@ -39,19 +39,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               names.forEach(function(n) { caches.delete(n); });
             });
           }
-          // Clear stale tokens from a different tenant to prevent cross-tenant data
+          // One-time cross-tenant purge: nuke ALL auth state and redirect to login
+          // Uses a versioned flag so we can bump it to re-trigger
+          var PURGE_VERSION = "v3";
           try {
-            var token = localStorage.getItem('nbne_access');
-            if (token) {
-              var parts = token.split('.');
-              if (parts.length === 3) {
-                var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-                var tenantSlug = "${process.env.NEXT_PUBLIC_TENANT_SLUG || ''}";
-                if (tenantSlug && payload.tenant_slug && payload.tenant_slug !== tenantSlug) {
-                  localStorage.removeItem('nbne_access');
-                  localStorage.removeItem('nbne_refresh');
-                  document.cookie = 'nbne_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
-                }
+            if (localStorage.getItem('_tenant_purge') !== PURGE_VERSION) {
+              localStorage.removeItem('nbne_access');
+              localStorage.removeItem('nbne_refresh');
+              localStorage.setItem('_tenant_purge', PURGE_VERSION);
+              document.cookie = 'nbne_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
               }
             }
           } catch(e) {}
