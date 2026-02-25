@@ -5,7 +5,9 @@ async function proxyRequest(req: NextRequest) {
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/django/, '')
   // Client header overrides env var so demo pages can switch tenant
-  const tenantSlug = req.headers.get('x-tenant-slug') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  // Also read tenant from query param (sent by TenantProvider cache-bust URL)
+  const tenantSlug = req.headers.get('x-tenant-slug') || url.searchParams.get('tenant') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  console.log('[PROXY]', req.method, path, 'tenant:', tenantSlug, 'env:', process.env.NEXT_PUBLIC_TENANT_SLUG, 'header:', req.headers.get('x-tenant-slug'), 'qp:', url.searchParams.get('tenant'))
 
   // Build target URL, injecting tenant as query param for reliable resolution
   let target = `${API_BASE}/api${path}${url.search}`
