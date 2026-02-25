@@ -26,16 +26,24 @@ function decodeJwtPayload(token: string): { sub?: string; user_id?: number; role
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Force no-cache on all page responses to prevent Chrome from serving stale tenant data
+  function withNoCacheHeaders(res: NextResponse) {
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    res.headers.set('Pragma', 'no-cache')
+    res.headers.set('Expires', '0')
+    return res
+  }
+
   // Find matching protected route
   const route = PROTECTED_ROUTES.find(r => pathname.startsWith(r.prefix))
-  if (!route) return NextResponse.next()
+  if (!route) return withNoCacheHeaders(NextResponse.next())
 
   // Check for session token
   const token = request.cookies.get(COOKIE_NAME)?.value
   if (!token) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    return withNoCacheHeaders(NextResponse.redirect(loginUrl))
   }
 
   // Decode token payload
@@ -45,7 +53,7 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set('redirect', pathname)
     const response = NextResponse.redirect(loginUrl)
     response.cookies.delete(COOKIE_NAME)
-    return response
+    return withNoCacheHeaders(response)
   }
 
   // Check expiry
@@ -54,7 +62,7 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set('redirect', pathname)
     const response = NextResponse.redirect(loginUrl)
     response.cookies.delete(COOKIE_NAME)
-    return response
+    return withNoCacheHeaders(response)
   }
 
   const role = (payload.role || 'customer') as UserRole
@@ -62,9 +70,9 @@ export async function middleware(request: NextRequest) {
   // Enforce minimum role
   if (!hasMinRole(role, route.minRole)) {
     if (route.minRole === 'manager' && hasMinRole(role, 'staff')) {
-      return NextResponse.redirect(new URL('/app', request.url))
+      return withNoCacheHeaders(NextResponse.redirect(new URL('/app', request.url)))
     }
-    return NextResponse.redirect(new URL('/', request.url))
+    return withNoCacheHeaders(NextResponse.redirect(new URL('/', request.url)))
   }
 
   // Attach user info to headers for downstream use
@@ -72,9 +80,9 @@ export async function middleware(request: NextRequest) {
   response.headers.set('x-user-id', String(payload.user_id || payload.sub || ''))
   response.headers.set('x-user-role', role)
   response.headers.set('x-user-name', payload.name || '')
-  return response
+  return withNoCacheHeaders(response)
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/app/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|sw.js).*)'],
 }

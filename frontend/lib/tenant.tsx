@@ -71,17 +71,60 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Cache-bust to prevent Chrome from serving stale tenant branding
-    const cb = `&_t=${Date.now()}`
-    const qs = TENANT_SLUG ? `?tenant=${TENANT_SLUG}${cb}` : `?${cb.slice(1)}`
-    fetch(`/api/django/tenant/branding/${qs}`, { cache: 'no-store' })
+    const cb = `_t=${Date.now()}`
+    const qs = TENANT_SLUG ? `tenant=${TENANT_SLUG}&${cb}` : cb
+    const url = `/api/django/tenant/branding/?${qs}`
+
+    function applyBranding(data: any) {
+      // Validate: reject if response slug doesn't match expected tenant
+      if (data && data.slug) {
+        if (TENANT_SLUG && data.slug !== TENANT_SLUG) {
+          console.warn(`[TenantProvider] Expected tenant "${TENANT_SLUG}" but got "${data.slug}" — rejecting stale cached data`)
+          return false
+        }
+        setConfig({ ...DEFAULT_CONFIG, ...data })
+        return true
+      }
+      return false
+    }
+
+    // Try fetch first, then XHR fallback (XHR bypasses service worker)
+    fetch(url, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
-        if (data && data.slug) {
-          setConfig({ ...DEFAULT_CONFIG, ...data })
+        if (!applyBranding(data)) {
+          // Fetch returned wrong tenant — try XHR which bypasses service workers
+          const xhr = new XMLHttpRequest()
+          xhr.open('GET', url, true)
+          xhr.setRequestHeader('Cache-Control', 'no-cache, no-store')
+          xhr.onload = () => {
+            try {
+              const xhrData = JSON.parse(xhr.responseText)
+              applyBranding(xhrData)
+            } catch { /* ignore */ }
+            setReady(true)
+          }
+          xhr.onerror = () => setReady(true)
+          xhr.send()
+        } else {
+          setReady(true)
         }
-        setReady(true)
       })
-      .catch(() => setReady(true))
+      .catch(() => {
+        // fetch failed entirely — try XHR fallback
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', url, true)
+        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store')
+        xhr.onload = () => {
+          try {
+            const xhrData = JSON.parse(xhr.responseText)
+            applyBranding(xhrData)
+          } catch { /* ignore */ }
+          setReady(true)
+        }
+        xhr.onerror = () => setReady(true)
+        xhr.send()
+      })
   }, [])
 
   useEffect(() => {
