@@ -44,6 +44,12 @@ async function proxyRequest(req: NextRequest) {
     const res = await fetch(target, init)
     const body = await res.arrayBuffer()
 
+    // Debug: log what the backend actually returned for tenant requests
+    if (isTenantEndpoint) {
+      const bodyText = new TextDecoder().decode(body)
+      console.log('[PROXY TENANT RESPONSE]', path, 'target:', target, 'status:', res.status, 'body:', bodyText.substring(0, 200))
+    }
+
     const respHeaders: Record<string, string> = {
       'Content-Type': res.headers.get('content-type') || 'application/json',
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

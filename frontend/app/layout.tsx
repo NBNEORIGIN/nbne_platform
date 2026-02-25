@@ -39,6 +39,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               names.forEach(function(n) { caches.delete(n); });
             });
           }
+          // Clear stale tokens from a different tenant to prevent cross-tenant data
+          try {
+            var token = localStorage.getItem('nbne_access');
+            if (token) {
+              var parts = token.split('.');
+              if (parts.length === 3) {
+                var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+                var tenantSlug = "${process.env.NEXT_PUBLIC_TENANT_SLUG || ''}";
+                if (tenantSlug && payload.tenant_slug && payload.tenant_slug !== tenantSlug) {
+                  localStorage.removeItem('nbne_access');
+                  localStorage.removeItem('nbne_refresh');
+                  document.cookie = 'nbne_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                }
+              }
+            }
+          } catch(e) {}
         `}} />
         <Providers>{children}</Providers>
       </body>

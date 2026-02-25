@@ -70,16 +70,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Cache-bust to prevent Chrome from serving stale tenant branding
     const cb = `_t=${Date.now()}`
     const qs = TENANT_SLUG ? `tenant=${TENANT_SLUG}&${cb}` : cb
-    const url = `/api/django/tenant/branding/?${qs}`
+    // Go directly to the Railway backend to bypass any Vercel proxy/cache issues
+    const directUrl = `https://nbneplatform-production.up.railway.app/api/tenant/branding/?${qs}`
+    const proxyUrl = `/api/django/tenant/branding/?${qs}`
 
     function applyBranding(data: any) {
-      // Validate: reject if response slug doesn't match expected tenant
       if (data && data.slug) {
         if (TENANT_SLUG && data.slug !== TENANT_SLUG) {
-          console.warn(`[TenantProvider] Expected tenant "${TENANT_SLUG}" but got "${data.slug}" — rejecting stale cached data`)
+          console.warn(`[TenantProvider] Expected "${TENANT_SLUG}" but got "${data.slug}" — skipping`)
           return false
         }
         setConfig({ ...DEFAULT_CONFIG, ...data })
@@ -88,42 +88,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    // Try fetch first, then XHR fallback (XHR bypasses service worker)
-    fetch(url, { cache: 'no-store' })
+    // Try direct backend first (avoids proxy issues), fall back to proxy
+    fetch(directUrl, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (!applyBranding(data)) {
-          // Fetch returned wrong tenant — try XHR which bypasses service workers
-          const xhr = new XMLHttpRequest()
-          xhr.open('GET', url, true)
-          xhr.setRequestHeader('Cache-Control', 'no-cache, no-store')
-          xhr.onload = () => {
-            try {
-              const xhrData = JSON.parse(xhr.responseText)
-              applyBranding(xhrData)
-            } catch { /* ignore */ }
-            setReady(true)
-          }
-          xhr.onerror = () => setReady(true)
-          xhr.send()
-        } else {
-          setReady(true)
+          // Direct fetch returned wrong tenant — try proxy
+          return fetch(proxyUrl, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => { applyBranding(d); setReady(true) })
+            .catch(() => setReady(true))
         }
+        setReady(true)
       })
       .catch(() => {
-        // fetch failed entirely — try XHR fallback
-        const xhr = new XMLHttpRequest()
-        xhr.open('GET', url, true)
-        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store')
-        xhr.onload = () => {
-          try {
-            const xhrData = JSON.parse(xhr.responseText)
-            applyBranding(xhrData)
-          } catch { /* ignore */ }
-          setReady(true)
-        }
-        xhr.onerror = () => setReady(true)
-        xhr.send()
+        // Direct fetch failed (CORS etc) — fall back to proxy
+        fetch(proxyUrl, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(data => { applyBranding(data); setReady(true) })
+          .catch(() => setReady(true))
       })
   }, [])
 
