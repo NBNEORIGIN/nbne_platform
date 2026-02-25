@@ -48,6 +48,12 @@ TENANTS = {
             ('Jack Thornton', 'jack.t@example.com', '07700 100010'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
+        'staff_users': [
+            ('salon-x-owner', 'owner@salon-x.demo', 'Sophie', 'Hartley', 'owner'),
+            ('salon-x-manager', 'manager@salon-x.demo', 'Chloe', 'Williams', 'manager'),
+            ('salon-x-staff1', 'staff1@salon-x.demo', 'Jordan', 'Taylor', 'staff'),
+            ('salon-x-staff2', 'staff2@salon-x.demo', 'Mia', 'Patel', 'staff'),
+        ],
     },
     'restaurant-x': {
         'business_type': 'restaurant',
@@ -98,6 +104,12 @@ TENANTS = {
             ('Daniel Craig', 'daniel.c@example.com', '07700 800012'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM'), ('Front of House', 'TEAM')],
+        'staff_users': [
+            ('restaurant-x-owner', 'owner@restaurant-x.demo', 'Marco', 'Rossi', 'owner'),
+            ('restaurant-x-manager', 'manager@restaurant-x.demo', 'Elena', 'Marchetti', 'manager'),
+            ('restaurant-x-staff1', 'staff1@restaurant-x.demo', 'Luca', 'De Luca', 'staff'),
+            ('restaurant-x-staff2', 'staff2@restaurant-x.demo', 'Giulia', 'Conti', 'staff'),
+        ],
         'tables': [
             # (name, min_seats, max_seats, zone, combinable)
             ('Table 1', 2, 2, 'Main', False),
@@ -190,6 +202,12 @@ TENANTS = {
             ('Oscar Lee', 'oscar.l@example.com', '07700 900315'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
+        'staff_users': [
+            ('health-club-x-owner', 'owner@health-club-x.demo', 'Jake', 'Morrison', 'owner'),
+            ('health-club-x-manager', 'manager@health-club-x.demo', 'Sarah', 'Okonkwo', 'manager'),
+            ('health-club-x-staff1', 'staff1@health-club-x.demo', 'Ryan', 'Patel', 'staff'),
+            ('health-club-x-staff2', 'staff2@health-club-x.demo', 'Lisa', 'Nguyen', 'staff'),
+        ],
         'class_types': [
             # (name, category, duration, difficulty, capacity, colour, price_pence)
             ('HIIT', 'Cardio', 45, 'intermediate', 25, '#ef4444', 1200),
@@ -527,6 +545,15 @@ class Command(BaseCommand):
                 changed = True
             if user.tenant != self.tenant:
                 user.tenant = self.tenant
+                changed = True
+            if user.first_name != first:
+                user.first_name = first
+                changed = True
+            if user.last_name != last:
+                user.last_name = last
+                changed = True
+            if user.email != email:
+                user.email = email
                 changed = True
             if changed:
                 user.save()
@@ -923,7 +950,9 @@ class Command(BaseCommand):
 
     def _seed_staff_custom(self, cfg):
         """Seed staff profiles for tenants with custom staff_users config."""
-        from staff.models import StaffProfile, WorkingHours
+        from staff.models import StaffProfile, WorkingHours, Shift, LeaveRequest, TrainingRecord, ProjectCode, TimesheetEntry
+
+        profiles = {}
         for uname, uemail, ufirst, ulast, urole in cfg['staff_users']:
             try:
                 user = User.objects.get(username=uname)
@@ -950,9 +979,80 @@ class Command(BaseCommand):
             for day in range(5):
                 WorkingHours.objects.update_or_create(
                     staff=p, day_of_week=day,
-                    defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'is_active': True}
+                    defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'break_minutes': 30, 'is_active': True}
                 )
+            profiles[uname] = p
             self.stdout.write(f'  StaffProfile: {ufirst} {ulast} ({"created" if created else "exists"})')
+
+        # --- Shifts (next 5 days for all staff) ---
+        location = cfg['business_name']
+        today = date.today()
+        for p in profiles.values():
+            for day_offset in range(5):
+                d = today + timedelta(days=day_offset)
+                Shift.objects.get_or_create(
+                    staff=p, date=d, start_time=time(9, 0),
+                    defaults={'end_time': time(17, 0), 'location': location, 'is_published': True}
+                )
+
+        # --- Leave & Training for staff1 and staff2 ---
+        staff_keys = [u for u, _, _, _, r in cfg['staff_users'] if r == 'staff']
+        manager_keys = [u for u, _, _, _, r in cfg['staff_users'] if r == 'manager']
+        if len(staff_keys) >= 1 and staff_keys[0] in profiles:
+            LeaveRequest.objects.get_or_create(
+                staff=profiles[staff_keys[0]], start_date=today + timedelta(days=10),
+                defaults={'end_date': today + timedelta(days=12), 'leave_type': 'ANNUAL', 'reason': 'Holiday', 'status': 'PENDING'}
+            )
+            TrainingRecord.objects.get_or_create(
+                staff=profiles[staff_keys[0]], title='Fire Safety',
+                defaults={'provider': 'SafetyFirst Ltd', 'completed_date': today - timedelta(days=60), 'expiry_date': today + timedelta(days=300)}
+            )
+        if len(staff_keys) >= 2 and staff_keys[1] in profiles:
+            reviewer = profiles.get(manager_keys[0]) if manager_keys else None
+            LeaveRequest.objects.get_or_create(
+                staff=profiles[staff_keys[1]], start_date=today + timedelta(days=20),
+                defaults={'end_date': today + timedelta(days=21), 'leave_type': 'SICK', 'reason': 'Medical appointment', 'status': 'APPROVED',
+                          'reviewed_by': reviewer}
+            )
+            TrainingRecord.objects.get_or_create(
+                staff=profiles[staff_keys[1]], title='COSHH Awareness',
+                defaults={'provider': 'HSE Online', 'completed_date': today - timedelta(days=400), 'expiry_date': today - timedelta(days=35)}
+            )
+
+        # --- Project Codes ---
+        pc1, _ = ProjectCode.objects.get_or_create(
+            tenant=self.tenant, code='GEN',
+            defaults={'name': 'General Operations', 'is_billable': False}
+        )
+        pc2, _ = ProjectCode.objects.get_or_create(
+            tenant=self.tenant, code='CLIENT-A',
+            defaults={'name': 'Client A Project', 'client_name': 'Client A Ltd', 'is_billable': True, 'hourly_rate': Decimal('45.00')}
+        )
+
+        # --- Timesheets (last 7 working days for all staff) ---
+        ts_count_before = TimesheetEntry.objects.filter(staff__tenant=self.tenant).count()
+        if ts_count_before == 0:
+            for p in profiles.values():
+                for day_offset in range(-7, 0):
+                    d = today + timedelta(days=day_offset)
+                    if d.weekday() >= 5:
+                        continue
+                    pc = pc2 if day_offset % 3 == 0 else pc1
+                    actual_start = time(9, 0) if day_offset % 4 != 0 else time(9, 15)
+                    actual_end = time(17, 0) if day_offset % 5 != 0 else time(16, 45)
+                    status = 'WORKED' if day_offset % 7 != -1 else 'LATE'
+                    TimesheetEntry.objects.get_or_create(
+                        staff=p, date=d,
+                        defaults={
+                            'scheduled_start': time(9, 0), 'scheduled_end': time(17, 0),
+                            'scheduled_break_minutes': 30,
+                            'actual_start': actual_start, 'actual_end': actual_end,
+                            'actual_break_minutes': 30,
+                            'status': status,
+                            'project_code': pc,
+                        }
+                    )
+
         sp_count = StaffProfile.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Custom staff profiles: {sp_count}')
 
