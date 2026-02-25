@@ -36,6 +36,21 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
+  // For API proxy requests: rewrite with cache-bust param to defeat Chrome HTTP cache
+  // Chrome cached old responses before no-cache headers were added; this forces fresh URLs
+  if (pathname.startsWith('/api/')) {
+    const url = request.nextUrl.clone()
+    if (!url.searchParams.has('_mcb')) {
+      url.searchParams.set('_mcb', Date.now().toString())
+      const res = NextResponse.rewrite(url)
+      res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+      res.headers.set('Pragma', 'no-cache')
+      res.headers.set('Expires', '0')
+      return res
+    }
+    return withNoCacheHeaders(NextResponse.next())
+  }
+
   // Find matching protected route
   const route = PROTECTED_ROUTES.find(r => pathname.startsWith(r.prefix))
   if (!route) return withNoCacheHeaders(NextResponse.next())
