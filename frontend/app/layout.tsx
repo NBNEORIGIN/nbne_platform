@@ -39,20 +39,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               names.forEach(function(n) { caches.delete(n); });
             });
           }
-          // Force bundle refresh — bump this version to force Chrome to reload JS
-          var BUNDLE_V = "b5";
-          try {
-            if (sessionStorage.getItem('_bv') !== BUNDLE_V) {
-              sessionStorage.setItem('_bv', BUNDLE_V);
-              localStorage.removeItem('nbne_access');
-              localStorage.removeItem('nbne_refresh');
-              document.cookie = 'nbne_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              // Navigate with cache-bust param to force new JS bundle download
-              var u = new URL(window.location.href);
-              u.searchParams.set('_bv', BUNDLE_V);
-              window.location.replace(u.toString());
-            }
-          } catch(e) {}
+          // Monkey-patch fetch to cache-bust ALL /api/ requests.
+          // This runs BEFORE React hydrates, so even old cached JS bundles
+          // will have their API calls cache-busted, defeating Chrome HTTP cache.
+          (function() {
+            var _origFetch = window.fetch;
+            window.fetch = function(input, init) {
+              var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+              if (url.indexOf('/api/') !== -1) {
+                var sep = url.indexOf('?') !== -1 ? '&' : '?';
+                var busted = url + sep + '_cb=' + Date.now();
+                init = Object.assign({}, init || {}, { cache: 'no-store' });
+                return _origFetch.call(this, busted, init);
+              }
+              return _origFetch.call(this, input, init);
+            };
+          })();
         `}} />
         <Providers>{children}</Providers>
       </body>
