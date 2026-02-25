@@ -21,7 +21,15 @@ TENANTS = {
         'deposit_percentage': 30,
         'booking_staff_label': 'Stylist',
         'booking_staff_label_plural': 'Stylists',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'shop_products': [
+            ('Luxury Shampoo', 'Hair Care', '18.50', 'Professional salon-grade shampoo for all hair types', 25),
+            ('Deep Conditioning Mask', 'Hair Care', '24.00', 'Intensive repair treatment for damaged hair', 15),
+            ('Heat Protection Spray', 'Styling', '14.99', 'Thermal protection up to 230°C', 30),
+            ('Texturising Sea Salt Spray', 'Styling', '12.50', 'Beach waves in a bottle', 20),
+            ('Gift Voucher — £25', 'Gift Cards', '25.00', 'Redeemable on any service or product', 0),
+            ('Gift Voucher — £50', 'Gift Cards', '50.00', 'Redeemable on any service or product', 0),
+        ],
         'services': [
             ('Cut & Style', 'Cuts', 45, '35.00', 1000),
             ('Colour Full', 'Colour', 120, '95.00', 2500),
@@ -67,7 +75,15 @@ TENANTS = {
         'deposit_percentage': 20,
         'booking_staff_label': 'Host',
         'booking_staff_label_plural': 'Hosts',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'shop_products': [
+            ('House Red Wine', 'Wine', '28.00', 'Montepulciano d\'Abruzzo, 750ml', 40),
+            ('House White Wine', 'Wine', '26.00', 'Pinot Grigio, 750ml', 40),
+            ('Olive Oil — Extra Virgin', 'Pantry', '14.50', 'Cold-pressed Tuscan olive oil, 500ml', 20),
+            ('Truffle Pasta Kit', 'Pantry', '22.00', 'Artisan pasta, truffle oil & parmesan', 12),
+            ('Gift Voucher — £50', 'Gift Cards', '50.00', 'Redeemable on dining or shop', 0),
+            ('Gift Voucher — £100', 'Gift Cards', '100.00', 'Redeemable on dining or shop', 0),
+        ],
         'services': [
             ('Book a Table', 'Reservations', 90, '0.00', 500),
             ('Table for 4-6', 'Reservations', 120, '0.00', 1000),
@@ -143,7 +159,16 @@ TENANTS = {
         'deposit_percentage': 0,
         'booking_staff_label': 'Trainer',
         'booking_staff_label_plural': 'Trainers',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'shop_products': [
+            ('Protein Shake — Chocolate', 'Supplements', '3.50', 'Whey protein, 25g per serving', 0),
+            ('Protein Shake — Vanilla', 'Supplements', '3.50', 'Whey protein, 25g per serving', 0),
+            ('Resistance Bands Set', 'Equipment', '18.99', '3 bands: light, medium, heavy', 15),
+            ('Foam Roller', 'Equipment', '22.00', 'High-density EVA foam, 45cm', 10),
+            ('FitHub Gym Towel', 'Merchandise', '8.00', 'Quick-dry microfibre with logo', 50),
+            ('FitHub Water Bottle', 'Merchandise', '12.00', 'BPA-free, 750ml, insulated', 30),
+            ('Guest Day Pass', 'Passes', '15.00', 'Single day access for non-members', 0),
+        ],
         'services': [
             # Memberships
             ('Monthly Membership', 'Memberships', 30, '49.99', 0),
@@ -422,6 +447,8 @@ class Command(BaseCommand):
                 self._seed_documents(owner, manager)
             if 'crm' in modules:
                 self._seed_crm(owner, manager)
+            if 'shop' in modules and cfg.get('shop_products'):
+                self._seed_shop(cfg)
 
         self.stdout.write(self.style.SUCCESS('\nAll demo data seeded successfully!'))
 
@@ -1288,3 +1315,27 @@ class Command(BaseCommand):
 
         lead_count = Lead.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Leads: {lead_count}')
+
+    def _seed_shop(self, cfg):
+        """Seed shop products for tenants with shop_products config."""
+        try:
+            from shop.models import Product
+        except Exception:
+            self.stdout.write('  Shop module not available — skipping')
+            return
+
+        for entry in cfg.get('shop_products', []):
+            name, category, price, description, stock = entry
+            p, created = Product.objects.get_or_create(
+                tenant=self.tenant, name=name,
+                defaults={
+                    'category': category,
+                    'price': Decimal(price),
+                    'description': description,
+                    'stock_quantity': stock,
+                    'track_stock': stock > 0,
+                    'active': True,
+                }
+            )
+        prod_count = Product.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Shop products: {prod_count}')

@@ -1062,3 +1062,38 @@ export async function getUsers(params?: { role?: string }) {
 export async function sendFeedback(data: { type: string; message: string; page: string; user_agent?: string }) {
   return apiFetch<any>('/feedback/', { method: 'POST', body: JSON.stringify(data) })
 }
+
+// --- Shop ---
+export async function getProducts(params?: { all?: boolean }) {
+  const qs = params?.all ? '?all=1' : ''
+  return apiFetch<any[]>(`/shop/products/${qs}`)
+}
+
+export async function getPublicProducts(category?: string) {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : ''
+  return apiFetch<any[]>(`/shop/public/products/${qs}`)
+}
+
+export async function createProduct(data: any) {
+  return apiFetch<any>('/shop/products/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateProduct(id: number, data: any) {
+  return apiFetch<any>(`/shop/products/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteProduct(id: number) {
+  return apiFetch<any>(`/shop/products/${id}/`, { method: 'DELETE' })
+}
+
+export async function getOrders() {
+  return apiFetch<any[]>('/shop/orders/')
+}
+
+export async function updateOrder(id: number, data: any) {
+  return apiFetch<any>(`/shop/orders/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function createShopCheckout(data: { items: { product_id: number; quantity: number }[]; customer_name: string; customer_email: string; customer_phone?: string }) {
+  return apiFetch<any>('/shop/checkout/', { method: 'POST', body: JSON.stringify(data) })
+}
