@@ -9,7 +9,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'NBNE Platform',
   description: 'Three-tier business management platform',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -28,6 +27,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Nuke all service workers and caches on every load — fixes Chrome stale SW cache bug
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              names.forEach(function(n) { caches.delete(n); });
+            });
+          }
+        `}} />
         <Providers>{children}</Providers>
       </body>
     </html>
