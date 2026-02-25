@@ -39,18 +39,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               names.forEach(function(n) { caches.delete(n); });
             });
           }
-          // One-time cross-tenant purge: nuke ALL auth state and redirect to login
-          // Uses a versioned flag so we can bump it to re-trigger
-          var PURGE_VERSION = "v3";
+          // Force bundle refresh — bump this version to force Chrome to reload JS
+          var BUNDLE_V = "b4";
           try {
-            if (localStorage.getItem('_tenant_purge') !== PURGE_VERSION) {
+            if (sessionStorage.getItem('_bv') !== BUNDLE_V) {
+              sessionStorage.setItem('_bv', BUNDLE_V);
               localStorage.removeItem('nbne_access');
               localStorage.removeItem('nbne_refresh');
-              localStorage.setItem('_tenant_purge', PURGE_VERSION);
               document.cookie = 'nbne_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
-              }
+              // Navigate with cache-bust param to force new JS bundle download
+              var u = new URL(window.location.href);
+              u.searchParams.set('_bv', BUNDLE_V);
+              window.location.replace(u.toString());
             }
           } catch(e) {}
         `}} />
