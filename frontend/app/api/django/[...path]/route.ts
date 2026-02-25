@@ -20,8 +20,11 @@ async function proxyRequest(req: NextRequest) {
     const headers: Record<string, string> = {}
     const contentType = req.headers.get('content-type')
     if (contentType) headers['Content-Type'] = contentType
+    // Don't forward auth for branding/tenant endpoints — they're public and
+    // auth can cause the backend to resolve wrong tenant from user.tenant
+    const isTenantEndpoint = path.startsWith('/tenant/')
     const auth = req.headers.get('authorization')
-    if (auth) headers['Authorization'] = auth
+    if (auth && !isTenantEndpoint) headers['Authorization'] = auth
     if (tenantSlug) headers['X-Tenant-Slug'] = tenantSlug
 
     const init: RequestInit = {
