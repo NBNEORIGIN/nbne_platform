@@ -127,8 +127,9 @@ async function apiFetch<T = any>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-  // Always send tenant slug — demo override wins, then build-time env var
-  const tenantSlug = _demoTenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  // Demo tenant override only applies on /book pages — never let it leak to admin/app
+  const isBookPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/book')
+  const tenantSlug = (isBookPage ? _demoTenantSlug : null) || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
   if (tenantSlug) {
     headers['x-tenant-slug'] = tenantSlug
   }
