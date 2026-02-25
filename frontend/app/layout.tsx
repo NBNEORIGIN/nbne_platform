@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             });
           }
           // Force bundle refresh — bump this version to force Chrome to reload JS
-          var BUNDLE_V = "b4";
+          var BUNDLE_V = "b5";
           try {
             if (sessionStorage.getItem('_bv') !== BUNDLE_V) {
               sessionStorage.setItem('_bv', BUNDLE_V);

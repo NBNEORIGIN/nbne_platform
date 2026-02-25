@@ -8,7 +8,8 @@ async function proxyRequest(req: NextRequest) {
   const API_BASE = process.env.DJANGO_BACKEND_URL || 'https://nbneplatform-production.up.railway.app'
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/v2/, '')
-  const tenantSlug = req.headers.get('x-tenant-slug') || url.searchParams.get('tenant') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  // ALWAYS use env var — Vercel injects stale x-tenant-slug header
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || url.searchParams.get('tenant') || 'nbne'
 
   let target = `${API_BASE}/api${path}${url.search}`
   if (tenantSlug) {

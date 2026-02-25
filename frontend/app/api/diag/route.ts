@@ -4,7 +4,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const API_BASE = process.env.DJANGO_BACKEND_URL || 'https://nbneplatform-production.up.railway.app'
-  const tenantSlug = req.headers.get('x-tenant-slug') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  // ALWAYS use env var — Vercel injects stale x-tenant-slug header we must ignore
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'nbne'
+  const injectedHeader = req.headers.get('x-tenant-slug')
   const auth = req.headers.get('authorization')
   const cookie = req.headers.get('cookie')
   
@@ -21,13 +23,12 @@ export async function GET(req: NextRequest) {
   
   return NextResponse.json({
     diag: {
-      tenant_slug_resolved: tenantSlug,
+      tenant_slug_used: tenantSlug,
       env_tenant: process.env.NEXT_PUBLIC_TENANT_SLUG,
+      vercel_injected_header: injectedHeader,
+      header_ignored: injectedHeader !== tenantSlug,
       auth_header_present: !!auth,
-      auth_header_preview: auth ? auth.substring(0, 30) + '...' : null,
       cookie_present: !!cookie,
-      cookie_preview: cookie ? cookie.substring(0, 50) + '...' : null,
-      x_tenant_slug_header: req.headers.get('x-tenant-slug'),
     },
     backend_target: target,
     backend_status: res.status,

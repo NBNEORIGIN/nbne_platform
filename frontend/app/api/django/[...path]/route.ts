@@ -8,10 +8,11 @@ async function proxyRequest(req: NextRequest) {
   const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/django/, '')
-  // Client header overrides env var so demo pages can switch tenant
-  // Also read tenant from query param (sent by TenantProvider cache-bust URL)
-  const tenantSlug = req.headers.get('x-tenant-slug') || url.searchParams.get('tenant') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
-  console.log('[PROXY]', req.method, path, 'tenant:', tenantSlug, 'env:', process.env.NEXT_PUBLIC_TENANT_SLUG, 'header:', req.headers.get('x-tenant-slug'), 'qp:', url.searchParams.get('tenant'))
+  // ALWAYS use env var as primary tenant. Vercel injects a stale x-tenant-slug header
+  // so we NEVER trust it. Only allow ?tenant= query param override for demo pages.
+  const envTenant = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  const qpTenant = url.searchParams.get('tenant') || ''
+  const tenantSlug = envTenant || qpTenant || 'nbne'
 
   // Build target URL, injecting tenant as query param for reliable resolution
   let target = `${API_BASE}/api${path}${url.search}`
