@@ -835,6 +835,26 @@ export async function getRams() {
   return apiFetch<any[]>('/compliance/rams/')
 }
 
+export async function createRams(data: any) {
+  return apiFetch<any>('/compliance/rams/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getRamsDetail(id: number) {
+  return apiFetch<any>(`/compliance/rams/${id}/`)
+}
+
+export async function updateRams(id: number, data: any) {
+  return apiFetch<any>(`/compliance/rams/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteRams(id: number) {
+  return apiFetch<any>(`/compliance/rams/${id}/`, { method: 'DELETE' })
+}
+
+export async function runRamsAiReview(id: number) {
+  return apiFetch<any>(`/compliance/rams/${id}/ai-review/`, { method: 'POST' })
+}
+
 export async function getAccidents() {
   return apiFetch<any[]>('/compliance/accidents/')
 }

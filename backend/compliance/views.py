@@ -921,13 +921,16 @@ def incidents_status(request, incident_id):
 
 # ========== RAMS ==========
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def rams_list(request):
-    """GET /api/compliance/rams/"""
-    tenant = getattr(request, 'tenant', None)
-    qs = RAMSDocument.objects.filter(tenant=tenant)
-    return Response([{
+RAMS_JSON_FIELDS = [
+    'applicable_sections', 'job_details', 'personnel', 'equipment',
+    'hazards', 'method_statement', 'emergency_procedures',
+    'environmental', 'permits', 'monitoring', 'ai_review',
+]
+
+
+def _serialize_rams(r, full=False):
+    """Serialize a RAMSDocument. full=True includes all structured data."""
+    data = {
         'id': r.id,
         'title': r.title,
         'reference_number': r.reference_number,
@@ -937,8 +940,224 @@ def rams_list(request):
         'issue_date': _safe_date(r.issue_date),
         'expiry_date': _safe_date(r.expiry_date),
         'is_expired': r.is_expired,
+        'completion': r.completion_status,
+        'created_by_name': r.created_by.get_full_name() if r.created_by else None,
         'created_at': r.created_at.isoformat(),
-    } for r in qs])
+        'updated_at': r.updated_at.isoformat(),
+    }
+    if full:
+        for field in RAMS_JSON_FIELDS:
+            data[field] = getattr(r, field, None)
+    return data
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def rams_list(request):
+    """GET = list all RAMS, POST = create new RAMS"""
+    tenant = getattr(request, 'tenant', None)
+
+    if request.method == 'GET':
+        qs = RAMSDocument.objects.filter(tenant=tenant)
+        return Response([_serialize_rams(r) for r in qs])
+
+    # POST — create
+    data = request.data
+    title = data.get('title', '').strip()
+    if not title:
+        return Response({'error': 'Title is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    rams = RAMSDocument.objects.create(
+        tenant=tenant,
+        title=title,
+        description=data.get('description', ''),
+        reference_number=data.get('reference_number', ''),
+        status=data.get('status', 'DRAFT'),
+        issue_date=data.get('issue_date') or None,
+        expiry_date=data.get('expiry_date') or None,
+        created_by=request.user if request.user.is_authenticated else None,
+        applicable_sections=data.get('applicable_sections', RAMSDocument.ALL_SECTIONS),
+    )
+    # Populate structured fields
+    for field in RAMS_JSON_FIELDS:
+        if field in data and field != 'ai_review':
+            setattr(rams, field, data[field])
+    rams.save()
+    return Response(_serialize_rams(rams, full=True), status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([AllowAny])
+def rams_detail(request, rams_id):
+    """GET/PATCH/DELETE a single RAMS document"""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        rams = RAMSDocument.objects.get(id=rams_id, tenant=tenant)
+    except RAMSDocument.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(_serialize_rams(rams, full=True))
+
+    if request.method == 'DELETE':
+        rams.delete()
+        return Response({'deleted': True})
+
+    # PATCH — update
+    data = request.data
+    for simple in ('title', 'description', 'reference_number', 'status'):
+        if simple in data:
+            setattr(rams, simple, data[simple])
+    for date_field in ('issue_date', 'expiry_date'):
+        if date_field in data:
+            setattr(rams, date_field, data[date_field] or None)
+    for field in RAMS_JSON_FIELDS:
+        if field in data and field != 'ai_review':
+            setattr(rams, field, data[field])
+    rams.save()
+    return Response(_serialize_rams(rams, full=True))
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def rams_ai_review(request, rams_id):
+    """POST /api/compliance/rams/<id>/ai-review/ — run AI safety review"""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        rams = RAMSDocument.objects.get(id=rams_id, tenant=tenant)
+    except RAMSDocument.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Build a text summary of the RAMS for AI review
+    sections_text = []
+    if rams.job_details:
+        sections_text.append(f"JOB DETAILS: {_json_to_text(rams.job_details)}")
+    if rams.personnel:
+        sections_text.append(f"PERSONNEL: {_json_to_text(rams.personnel)}")
+    if rams.equipment:
+        sections_text.append(f"EQUIPMENT: {_json_to_text(rams.equipment)}")
+    if rams.hazards:
+        for i, h in enumerate(rams.hazards, 1):
+            sections_text.append(
+                f"HAZARD #{i}: {h.get('description', '')} | "
+                f"Controls: {h.get('controls', '')} | "
+                f"Initial risk: L{h.get('initial_likelihood', '?')}×S{h.get('initial_severity', '?')} | "
+                f"Residual risk: L{h.get('residual_likelihood', '?')}×S{h.get('residual_severity', '?')}"
+            )
+    if rams.method_statement:
+        for step in rams.method_statement:
+            sections_text.append(f"METHOD STEP {step.get('step_number', '?')}: {step.get('description', '')}")
+    if rams.emergency_procedures:
+        sections_text.append(f"EMERGENCY PROCEDURES: {_json_to_text(rams.emergency_procedures)}")
+    if rams.environmental:
+        sections_text.append(f"ENVIRONMENTAL: {_json_to_text(rams.environmental)}")
+    if rams.permits:
+        sections_text.append(f"PERMITS: {_json_to_text(rams.permits)}")
+    if rams.monitoring:
+        sections_text.append(f"MONITORING: {_json_to_text(rams.monitoring)}")
+
+    full_text = '\n'.join(sections_text)
+    applicable = rams.applicable_sections or RAMSDocument.ALL_SECTIONS
+
+    # Try OpenAI review
+    try:
+        import openai
+        from django.conf import settings as django_settings
+        client = openai.OpenAI(api_key=getattr(django_settings, 'OPENAI_API_KEY', ''))
+
+        prompt = (
+            "You are a UK health & safety consultant reviewing a Risk Assessment & Method Statement (RAMS). "
+            "Review the following RAMS document and provide a structured safety review.\n\n"
+            f"APPLICABLE SECTIONS: {', '.join(applicable)}\n"
+            f"(Sections not listed are intentionally marked as N/A and should NOT be flagged as missing.)\n\n"
+            f"RAMS CONTENT:\n{full_text}\n\n"
+            "Respond in JSON format with:\n"
+            '{"summary": "brief overall assessment",'
+            ' "score": <1-10 safety rating>,'
+            ' "findings": [{"severity": "high|medium|low", "section": "section_name", "issue": "description", "recommendation": "what to do"}],'
+            ' "missing_controls": ["any hazards that should have additional controls"],'
+            ' "positive_points": ["things done well"]}'
+        )
+
+        response = client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': prompt}],
+            response_format={'type': 'json_object'},
+            temperature=0.3,
+        )
+
+        import json
+        review_data = json.loads(response.choices[0].message.content)
+        review_data['reviewed_at'] = timezone.now().isoformat()
+        rams.ai_review = review_data
+        rams.save()
+        return Response(review_data)
+
+    except Exception as e:
+        # Fallback: basic rule-based review
+        findings = []
+        if not rams.hazards or len(rams.hazards) == 0:
+            findings.append({
+                'severity': 'high', 'section': 'hazards',
+                'issue': 'No hazards identified',
+                'recommendation': 'All work activities have associated hazards. Identify and assess each one.',
+            })
+        elif rams.hazards:
+            for i, h in enumerate(rams.hazards, 1):
+                il = h.get('initial_likelihood', 0)
+                is_ = h.get('initial_severity', 0)
+                rl = h.get('residual_likelihood', 0)
+                rs = h.get('residual_severity', 0)
+                if rl * rs >= il * is_ and il > 0:
+                    findings.append({
+                        'severity': 'medium', 'section': 'hazards',
+                        'issue': f'Hazard #{i}: residual risk is not lower than initial risk',
+                        'recommendation': 'Controls should reduce either likelihood or severity.',
+                    })
+                if rl * rs > 12:
+                    findings.append({
+                        'severity': 'high', 'section': 'hazards',
+                        'issue': f'Hazard #{i}: residual risk score ({rl * rs}) is high',
+                        'recommendation': 'Consider additional controls or alternative methods to reduce risk below 12.',
+                    })
+
+        if 'emergency_procedures' in applicable and not rams.emergency_procedures:
+            findings.append({
+                'severity': 'medium', 'section': 'emergency_procedures',
+                'issue': 'No emergency procedures documented',
+                'recommendation': 'Include emergency contacts, first aider details, and nearest hospital.',
+            })
+
+        if not rams.method_statement or len(rams.method_statement) == 0:
+            if 'method_statement' in applicable:
+                findings.append({
+                    'severity': 'medium', 'section': 'method_statement',
+                    'issue': 'No method statement steps defined',
+                    'recommendation': 'Describe the step-by-step work process.',
+                })
+
+        review_data = {
+            'summary': f'Rule-based review completed. {len(findings)} finding(s) identified.',
+            'score': max(1, 10 - len(findings)),
+            'findings': findings,
+            'missing_controls': [],
+            'positive_points': [],
+            'reviewed_at': timezone.now().isoformat(),
+            'ai_powered': False,
+            'fallback_reason': str(e) if str(e) else 'AI service unavailable',
+        }
+        rams.ai_review = review_data
+        rams.save()
+        return Response(review_data)
+
+
+def _json_to_text(obj):
+    """Flatten a JSON object/list into a readable text string."""
+    if isinstance(obj, list):
+        return '; '.join(str(item) for item in obj)
+    if isinstance(obj, dict):
+        return ', '.join(f"{k}: {v}" for k, v in obj.items() if v)
+    return str(obj)
 
 
 # ========== COMPLIANCE DOCUMENTS ==========

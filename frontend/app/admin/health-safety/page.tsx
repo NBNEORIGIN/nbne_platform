@@ -692,6 +692,10 @@ export default function HealthSafetyPage() {
       {/* ═══════ DOCUMENTS ═══════ */}
       {tab === 'documents' && (
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Policies, certificates, insurance and RAMS</div>
+            <a href="/admin/health-safety/rams" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>📋 RAMS Generator</a>
+          </div>
           {allDocs.length === 0 ? (
             <div className="empty-cta"><div className="empty-cta-title">No documents</div><div className="empty-cta-desc">Policies, certificates, insurance documents and RAMS will appear here.</div></div>
           ) : (

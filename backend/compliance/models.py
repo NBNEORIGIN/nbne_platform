@@ -602,15 +602,73 @@ class ScoreAuditLog(models.Model):
 class RAMSDocument(models.Model):
     STATUS_CHOICES = [('DRAFT', 'Draft'), ('ACTIVE', 'Active'), ('EXPIRED', 'Expired'), ('ARCHIVED', 'Archived')]
 
+    # All sections that CAN appear in a RAMS — each can be toggled applicable/N-A
+    ALL_SECTIONS = [
+        'job_details', 'personnel', 'equipment', 'hazards',
+        'method_statement', 'emergency_procedures', 'environmental',
+        'permits', 'monitoring',
+    ]
+
     tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='rams_documents')
     title = models.CharField(max_length=255)
     reference_number = models.CharField(max_length=100, blank=True, default='', db_index=True)
     description = models.TextField(blank=True, default='')
-    document = models.FileField(upload_to='compliance/rams/%Y/%m/')
+    document = models.FileField(upload_to='compliance/rams/%Y/%m/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT', db_index=True)
     issue_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_rams')
+
+    # ── Structured RAMS data ──
+    # Which sections are applicable for THIS document (fixes disclaimer bug)
+    applicable_sections = models.JSONField(
+        default=list, blank=True,
+        help_text='List of section keys that apply to this RAMS. Sections not listed are N/A.',
+    )
+    # Section data stored as JSON blobs
+    job_details = models.JSONField(
+        null=True, blank=True,
+        help_text='Client name, site address, job description, dates, scope of work',
+    )
+    personnel = models.JSONField(
+        null=True, blank=True,
+        help_text='List of personnel: [{name, role, qualifications, responsibilities}]',
+    )
+    equipment = models.JSONField(
+        null=True, blank=True,
+        help_text='List of equipment: [{name, inspection_date, cert_ref, notes}]',
+    )
+    hazards = models.JSONField(
+        null=True, blank=True,
+        help_text='List of hazards: [{description, controls, initial_likelihood, initial_severity, residual_likelihood, residual_severity}]',
+    )
+    method_statement = models.JSONField(
+        null=True, blank=True,
+        help_text='Ordered steps: [{step_number, description, responsible, hazard_refs}]',
+    )
+    emergency_procedures = models.JSONField(
+        null=True, blank=True,
+        help_text='Emergency contacts, first aiders, evacuation procedures, nearest hospital',
+    )
+    environmental = models.JSONField(
+        null=True, blank=True,
+        help_text='Environmental considerations: waste disposal, noise, protected areas',
+    )
+    permits = models.JSONField(
+        null=True, blank=True,
+        help_text='Required permits: [{type, reference, issued_by, expiry}]',
+    )
+    monitoring = models.JSONField(
+        null=True, blank=True,
+        help_text='Review schedule, sign-off requirements, toolbox talk records',
+    )
+
+    # AI review
+    ai_review = models.JSONField(
+        null=True, blank=True,
+        help_text='AI safety review output: {summary, findings: [{severity, section, issue, recommendation}], reviewed_at}',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -628,3 +686,24 @@ class RAMSDocument(models.Model):
             return False
         from django.utils import timezone
         return self.expiry_date < timezone.now().date()
+
+    @property
+    def completion_status(self):
+        """Return completion info, respecting applicable_sections.
+        Only sections in applicable_sections are checked — N/A sections are ignored."""
+        sections = self.applicable_sections or self.ALL_SECTIONS
+        filled = []
+        missing = []
+        for s in sections:
+            val = getattr(self, s, None)
+            if val:
+                filled.append(s)
+            else:
+                missing.append(s)
+        return {
+            'total': len(sections),
+            'filled': len(filled),
+            'missing': missing,
+            'complete': len(missing) == 0,
+            'percentage': round(len(filled) / len(sections) * 100) if sections else 100,
+        }
