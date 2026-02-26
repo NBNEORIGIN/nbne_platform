@@ -967,10 +967,11 @@ def rams_list(request):
     if not title:
         return Response({'error': 'Title is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+    desc = data.get('description', '')
     rams = RAMSDocument.objects.create(
         tenant=tenant,
         title=title,
-        description=data.get('description', ''),
+        description=desc,
         reference_number=data.get('reference_number', ''),
         status=data.get('status', 'DRAFT'),
         issue_date=data.get('issue_date') or None,
@@ -978,6 +979,9 @@ def rams_list(request):
         created_by=request.user if request.user.is_authenticated else None,
         applicable_sections=data.get('applicable_sections', RAMSDocument.ALL_SECTIONS),
     )
+    # Copy description into job_details so it appears in the editor
+    if desc and not data.get('job_details'):
+        rams.job_details = {'job_description': desc}
     # Populate structured fields
     for field in RAMS_JSON_FIELDS:
         if field in data and field != 'ai_review':

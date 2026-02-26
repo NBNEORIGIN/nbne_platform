@@ -6,12 +6,12 @@ import {
   completeComplianceItemWithEvidence, createComplianceItem, parseComplianceCommand,
   getIncidents, createIncident, updateIncidentStatus,
   getAccidents, createAccident, updateAccident,
-  getComplianceDocuments, getRams,
+  getComplianceDocuments, getRams, createRams, deleteRams,
   getComplianceCalendar, getComplianceAuditLog,
 } from '@/lib/api'
 
 type View = 'active' | 'sorted'
-type Tab = 'today' | 'register' | 'calendar' | 'incidents' | 'accidents' | 'documents' | 'audit'
+type Tab = 'today' | 'register' | 'calendar' | 'incidents' | 'accidents' | 'documents' | 'rams' | 'audit'
 
 const BANNER: Record<string, { bg: string; border: string; color: string; icon: string }> = {
   green: { bg: '#f0fdf4', border: '#22c55e', color: '#15803d', icon: '✓' },
@@ -78,6 +78,12 @@ export default function HealthSafetyPage() {
   const [calMonth, setCalMonth] = useState(now.getMonth() + 1)
   const [calData, setCalData] = useState<any>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  // RAMS inline create
+  const [showCreateRams, setShowCreateRams] = useState(false)
+  const [ramsTitle, setRamsTitle] = useState('')
+  const [ramsDesc, setRamsDesc] = useState('')
+  const [creatingRams, setCreatingRams] = useState(false)
 
   // Audit
   const [auditLog, setAuditLog] = useState<any[]>([])
@@ -210,11 +216,7 @@ export default function HealthSafetyPage() {
   if (accSevFilter) accFiltered = accFiltered.filter(a => a.severity === accSevFilter)
   if (accRiddorFilter) accFiltered = accFiltered.filter(a => a.riddor_reportable)
 
-  // Documents
-  const allDocs = [
-    ...docs.map(d => ({ ...d, source: 'vault' })),
-    ...rams.map(r => ({ id: `rams-${r.id}`, title: r.title, document_type: 'rams', is_current: r.status === 'ACTIVE', is_expired: r.status === 'EXPIRED', expiry_date: r.expiry_date, source: 'rams' })),
-  ]
+  // Documents (RAMS now has its own tab)
 
   // Calendar grid
   function buildCalGrid(year: number, month: number) {
@@ -237,6 +239,7 @@ export default function HealthSafetyPage() {
     { key: 'incidents', label: 'Incidents', badge: openInc.length },
     { key: 'accidents', label: 'Accidents', badge: openAcc.length },
     { key: 'documents', label: 'Documents' },
+    { key: 'rams', label: 'RAMS', badge: rams.length },
     { key: 'audit', label: 'Audit' },
   ]
 
@@ -693,14 +696,13 @@ export default function HealthSafetyPage() {
       {tab === 'documents' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Policies, certificates, insurance and RAMS</div>
-            <a href="/admin/health-safety/rams" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>📋 RAMS Generator</a>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Policies, certificates and insurance documents</div>
           </div>
-          {allDocs.length === 0 ? (
-            <div className="empty-cta"><div className="empty-cta-title">No documents</div><div className="empty-cta-desc">Policies, certificates, insurance documents and RAMS will appear here.</div></div>
+          {docs.length === 0 ? (
+            <div className="empty-cta"><div className="empty-cta-title">No documents</div><div className="empty-cta-desc">Policies, certificates and insurance documents will appear here.</div></div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-              {allDocs.map(doc => (
+              {docs.map(doc => (
                 <div key={doc.id} style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem' }}>
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>{doc.title}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -710,6 +712,97 @@ export default function HealthSafetyPage() {
                   {doc.expiry_date && <div style={{ fontSize: '0.8rem', color: doc.is_expired ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>{doc.is_expired ? 'Expired' : 'Expires'}: {doc.expiry_date}</div>}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ RAMS ═══════ */}
+      {tab === 'rams' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Risk Assessments &amp; Method Statements</div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateRams(true)}>+ New RAMS</button>
+          </div>
+
+          {showCreateRams && (
+            <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+              <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>Create New RAMS</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <input
+                  placeholder="RAMS title (e.g. Roof Access Works — 12 High St)"
+                  value={ramsTitle}
+                  onChange={e => setRamsTitle(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                  autoFocus
+                />
+                <textarea
+                  placeholder="Brief description of the work (this will pre-fill the Job Description)"
+                  value={ramsDesc}
+                  onChange={e => setRamsDesc(e.target.value)}
+                  rows={2}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.88rem', fontFamily: 'inherit', resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary btn-sm" disabled={creatingRams || !ramsTitle.trim()} onClick={async () => {
+                    setCreatingRams(true)
+                    const res = await createRams({ title: ramsTitle.trim(), description: ramsDesc.trim() })
+                    if (res.data?.id) {
+                      window.location.href = `/admin/health-safety/rams/${res.data.id}`
+                    } else {
+                      setCreatingRams(false)
+                    }
+                  }}>
+                    {creatingRams ? 'Creating…' : 'Create & Edit'}
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => { setShowCreateRams(false); setRamsTitle(''); setRamsDesc('') }}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {rams.length === 0 ? (
+            <div className="empty-cta">
+              <div className="empty-cta-title">No RAMS documents yet</div>
+              <div className="empty-cta-desc">Click <strong>+ New RAMS</strong> to create a Risk Assessment &amp; Method Statement. The AI-powered editor will help you build a complete document.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {rams.map((r: any) => {
+                const score = r.ai_review?.score
+                return (
+                  <div key={r.id} className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <a href={`/admin/health-safety/rams/${r.id}`} style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)', textDecoration: 'none' }}>
+                        {r.title}
+                      </a>
+                      {r.reference_number && <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>Ref: {r.reference_number}</span>}
+                      {r.description && <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{r.description}</div>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <span className={`badge ${r.status === 'ACTIVE' ? 'badge-success' : r.status === 'EXPIRED' ? 'badge-danger' : 'badge-warning'}`}>
+                        {r.status}
+                      </span>
+                      {score != null && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: score >= 7 ? '#15803d' : score >= 4 ? '#92400e' : '#991b1b' }}>
+                          {score}/10
+                        </span>
+                      )}
+                      {r.completion && (
+                        <span style={{ fontSize: '0.75rem', color: r.completion.complete ? '#16a34a' : '#f59e0b', fontWeight: 600 }}>
+                          {r.completion.percentage}%
+                        </span>
+                      )}
+                      {r.expiry_date && <span style={{ fontSize: '0.75rem', color: r.is_expired ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>{r.is_expired ? 'Expired' : 'Expires'}: {new Date(r.expiry_date + 'T00:00:00').toLocaleDateString('en-GB')}</span>}
+                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', opacity: 0.7 }} onClick={async () => {
+                        if (!confirm('Delete this RAMS document permanently?')) return
+                        await deleteRams(r.id)
+                        setRams((prev: any[]) => prev.filter((x: any) => x.id !== r.id))
+                      }} title="Delete">🗑</button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

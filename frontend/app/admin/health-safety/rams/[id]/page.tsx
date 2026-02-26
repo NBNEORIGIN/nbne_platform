@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { getRamsDetail, updateRams, runRamsAiReview } from '@/lib/api'
 
@@ -44,6 +44,9 @@ const emptyEquipment = () => ({ name: '', inspection_date: '', cert_ref: '', not
 const emptyStep = (n: number) => ({ step_number: n, description: '', responsible: '', hazard_refs: '' })
 const emptyPermit = () => ({ type: '', reference: '', issued_by: '', expiry: '' })
 
+// Track which sections are expanded in the editor
+type ExpandedSections = Record<string, boolean>
+
 export default function RamsEditorPage() {
   const params = useParams()
   const ramsId = Number(params.id)
@@ -52,8 +55,15 @@ export default function RamsEditorPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [rams, setRams] = useState<any>(null)
-  const [activeSection, setActiveSection] = useState('job_details')
   const [aiLoading, setAiLoading] = useState(false)
+
+  // Expanded accordion sections
+  const [expanded, setExpanded] = useState<ExpandedSections>({ job_details: true })
+  const toggleExpand = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
+  const scrollToSection = (key: string) => {
+    setExpanded(prev => ({ ...prev, [key]: true }))
+    setTimeout(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
 
   // Form data
   const [applicableSections, setApplicableSections] = useState<string[]>([])
@@ -70,6 +80,8 @@ export default function RamsEditorPage() {
   const [title, setTitle] = useState('')
   const [refNumber, setRefNumber] = useState('')
   const [ramsStatus, setRamsStatus] = useState('DRAFT')
+  const [showPreview, setShowPreview] = useState(true)
+  const [reviewHistory, setReviewHistory] = useState<any[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -115,12 +127,28 @@ export default function RamsEditorPage() {
   }
 
   async function handleAiReview() {
-    await handleSave()
+    setSaving(true)
+    await updateRams(ramsId, {
+      title, reference_number: refNumber, status: ramsStatus,
+      applicable_sections: applicableSections,
+      job_details: jobDetails,
+      personnel, equipment, hazards,
+      method_statement: methodStatement,
+      emergency_procedures: emergencyProcedures,
+      environmental, permits, monitoring,
+    })
+    setSaving(false)
     setAiLoading(true)
     const res = await runRamsAiReview(ramsId)
-    if (res.data) setAiReview(res.data)
+    if (res.data) {
+      // Keep review history for comparison
+      if (aiReview) setReviewHistory(prev => [...prev, { score: aiReview.score, at: aiReview.reviewed_at }])
+      setAiReview(res.data)
+    }
     setAiLoading(false)
-    setActiveSection('ai_review')
+    // Reload full document to capture any server-side changes
+    const fresh = await getRamsDetail(ramsId)
+    if (fresh.data) setRams(fresh.data)
   }
 
   function toggleSection(key: string) {
@@ -175,77 +203,74 @@ export default function RamsEditorPage() {
         setJobDetails((p: any) => ({ ...p, job_description: p.job_description ? `${p.job_description}\n\n${content}` : content }))
         break
       case 'personnel':
-        // Add a new person entry with the suggestion as notes
         setPersonnel(prev => {
           const first = prev[0]
-          if (first && !first.name && !first.role) {
-            return [{ ...first, responsibilities: content }, ...prev.slice(1)]
-          }
+          if (first && !first.name && !first.role) return [{ ...first, responsibilities: content }, ...prev.slice(1)]
           return [...prev, { ...emptyPerson(), responsibilities: content }]
         })
         break
       case 'equipment':
         setEquipment(prev => {
           const first = prev[0]
-          if (first && !first.name) {
-            return [{ ...first, notes: content }, ...prev.slice(1)]
-          }
+          if (first && !first.name) return [{ ...first, notes: content }, ...prev.slice(1)]
           return [...prev, { ...emptyEquipment(), notes: content }]
         })
         break
       case 'hazards':
         setHazards(prev => {
           const first = prev[0]
-          if (first && !first.description && !first.controls) {
-            return [{ ...first, description: content }, ...prev.slice(1)]
-          }
+          if (first && !first.description && !first.controls) return [{ ...first, description: content }, ...prev.slice(1)]
           return [...prev, { ...emptyHazard(), description: content }]
         })
         break
       case 'method_statement':
         setMethodStatement(prev => {
           const first = prev[0]
-          if (first && !first.description) {
-            return [{ ...first, description: content }, ...prev.slice(1)]
-          }
+          if (first && !first.description) return [{ ...first, description: content }, ...prev.slice(1)]
           return [...prev, { ...emptyStep(prev.length + 1), description: content }]
         })
         break
       case 'emergency_procedures':
-        setEmergencyProcedures((p: any) => ({
-          ...p,
-          evacuation_procedure: p.evacuation_procedure ? `${p.evacuation_procedure}\n\n${content}` : content,
-        }))
+        setEmergencyProcedures((p: any) => ({ ...p, evacuation_procedure: p.evacuation_procedure ? `${p.evacuation_procedure}\n\n${content}` : content }))
         break
       case 'environmental':
-        setEnvironmental((p: any) => ({
-          ...p,
-          waste_disposal: p.waste_disposal ? `${p.waste_disposal}\n\n${content}` : content,
-        }))
+        setEnvironmental((p: any) => ({ ...p, waste_disposal: p.waste_disposal ? `${p.waste_disposal}\n\n${content}` : content }))
         break
       case 'permits':
         setPermits(prev => {
           const first = prev[0]
-          if (first && !first.type) {
-            return [{ ...first, type: content }, ...prev.slice(1)]
-          }
+          if (first && !first.type) return [{ ...first, type: content }, ...prev.slice(1)]
           return [...prev, { ...emptyPermit(), type: content }]
         })
         break
       case 'monitoring':
-        setMonitoring((p: any) => ({
-          ...p,
-          review_schedule: p.review_schedule ? `${p.review_schedule}\n\n${content}` : content,
-        }))
+        setMonitoring((p: any) => ({ ...p, review_schedule: p.review_schedule ? `${p.review_schedule}\n\n${content}` : content }))
         break
     }
-    setActiveSection(section)
+    scrollToSection(section)
+  }
+
+  // Section completion check
+  function sectionHasContent(key: string): boolean {
+    switch (key) {
+      case 'job_details': return !!(jobDetails.client_name || jobDetails.site_address || jobDetails.job_description)
+      case 'personnel': return personnel.some(p => p.name || p.role)
+      case 'equipment': return equipment.some(e => e.name)
+      case 'hazards': return hazards.some(h => h.description || h.controls)
+      case 'method_statement': return methodStatement.some(s => s.description)
+      case 'emergency_procedures': return !!(emergencyProcedures.emergency_contact || emergencyProcedures.evacuation_procedure)
+      case 'environmental': return !!(environmental.waste_disposal || environmental.noise)
+      case 'permits': return permits.some(p => p.type)
+      case 'monitoring': return !!(monitoring.review_schedule || monitoring.signoff)
+      default: return false
+    }
   }
 
   if (loading) return <div className="empty-state">Loading RAMS…</div>
   if (!rams) return <div className="empty-state">RAMS document not found</div>
 
-  const navSections = ALL_SECTIONS.filter(s => isApplicable(s.key))
+  const completedCount = ALL_SECTIONS.filter(s => isApplicable(s.key) && sectionHasContent(s.key)).length
+  const totalApplicable = ALL_SECTIONS.filter(s => isApplicable(s.key)).length
 
   return (
     <div>
@@ -254,13 +279,21 @@ export default function RamsEditorPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <a href="/admin/health-safety/rams" style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textDecoration: 'none' }}>← RAMS</a>
           <span style={{ color: 'var(--color-text-muted)' }}>/</span>
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{title || 'Untitled'}</h2>
-          <span className={`badge ${ramsStatus === 'ACTIVE' ? 'badge-success' : ramsStatus === 'EXPIRED' ? 'badge-danger' : 'badge-warning'}`}>
-            {ramsStatus}
-          </span>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="RAMS title" style={{ ...inputStyle, fontWeight: 700, fontSize: '1.05rem', border: 'none', borderBottom: '1px solid #e2e8f0', borderRadius: 0, padding: '0.2rem 0.4rem', maxWidth: 340 }} />
+          <select value={ramsStatus} onChange={e => setRamsStatus(e.target.value)} style={{ ...inputSm, width: 'auto' }}>
+            <option value="DRAFT">Draft</option>
+            <option value="ACTIVE">Active</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+          <input value={refNumber} onChange={e => setRefNumber(e.target.value)} placeholder="Ref #" style={{ ...inputSm, width: 100 }} />
         </div>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{completedCount}/{totalApplicable} sections</span>
           {saved && <span style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600 }}>✓ Saved</span>}
+          <button className="btn btn-outline btn-sm" onClick={() => setShowPreview(p => !p)}>
+            {showPreview ? '📝 Hide Preview' : '📄 Show Preview'}
+          </button>
           <button className="btn btn-outline btn-sm" onClick={handleAiReview} disabled={aiLoading}>
             {aiLoading ? '🤖 Reviewing…' : '🤖 AI Review'}
           </button>
@@ -270,627 +303,430 @@ export default function RamsEditorPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-        {/* Sidebar nav */}
-        <div style={{ width: 210, flexShrink: 0, position: 'sticky', top: 80 }}>
-          {/* Title & ref */}
-          <div style={{ marginBottom: '0.75rem' }}>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="RAMS title" style={inputSm} />
-            <input value={refNumber} onChange={e => setRefNumber(e.target.value)} placeholder="Ref number" style={{ ...inputSm, marginTop: 4 }} />
-            <select value={ramsStatus} onChange={e => setRamsStatus(e.target.value)} style={{ ...inputSm, marginTop: 4 }}>
-              <option value="DRAFT">Draft</option>
-              <option value="ACTIVE">Active</option>
-              <option value="EXPIRED">Expired</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </div>
-
-          {/* Section toggles */}
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-            Sections
-          </div>
-          {ALL_SECTIONS.map(s => (
-            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: 2 }}>
-              <input
-                type="checkbox"
-                checked={isApplicable(s.key)}
-                onChange={() => toggleSection(s.key)}
-                style={{ margin: 0, cursor: 'pointer' }}
-              />
-              <button
-                onClick={() => { if (isApplicable(s.key)) setActiveSection(s.key) }}
-                disabled={!isApplicable(s.key)}
-                style={{
-                  background: activeSection === s.key ? 'var(--color-primary)' : 'transparent',
-                  color: activeSection === s.key ? '#fff' : isApplicable(s.key) ? 'var(--color-text)' : 'var(--color-text-muted)',
-                  border: 'none', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem',
-                  fontWeight: activeSection === s.key ? 700 : 500,
-                  cursor: isApplicable(s.key) ? 'pointer' : 'default',
-                  textAlign: 'left', fontFamily: 'inherit', opacity: isApplicable(s.key) ? 1 : 0.5,
-                  width: '100%', textDecoration: isApplicable(s.key) ? 'none' : 'line-through',
-                }}
-              >
-                {s.icon} {s.label}
-              </button>
+      {/* ═══ AI Review Panel (always visible when available) ═══ */}
+      {aiReview && (
+        <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fafbfc' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.2rem', fontWeight: 800,
+              background: (aiReview.score || 0) >= 7 ? '#dcfce7' : (aiReview.score || 0) >= 4 ? '#fef3c7' : '#fef2f2',
+              color: (aiReview.score || 0) >= 7 ? '#15803d' : (aiReview.score || 0) >= 4 ? '#92400e' : '#991b1b',
+            }}>
+              {aiReview.score || '?'}/10
             </div>
-          ))}
-          {/* AI Review nav */}
-          {aiReview && (
-            <button
-              onClick={() => setActiveSection('ai_review')}
-              style={{
-                background: activeSection === 'ai_review' ? 'var(--color-primary)' : 'transparent',
-                color: activeSection === 'ai_review' ? '#fff' : 'var(--color-text)',
-                border: 'none', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem',
-                fontWeight: activeSection === 'ai_review' ? 700 : 500,
-                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', width: '100%', marginTop: 4,
-              }}
-            >🤖 AI Review</button>
-          )}
-
-          {/* Completion */}
-          <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: '#f8fafc', borderRadius: 6, fontSize: '0.78rem' }}>
-            <div style={{ fontWeight: 700, marginBottom: 2 }}>Completion</div>
-            {navSections.map(s => {
-              const val = s.key === 'job_details' ? jobDetails :
-                s.key === 'personnel' ? personnel :
-                s.key === 'equipment' ? equipment :
-                s.key === 'hazards' ? hazards :
-                s.key === 'method_statement' ? methodStatement :
-                s.key === 'emergency_procedures' ? emergencyProcedures :
-                s.key === 'environmental' ? environmental :
-                s.key === 'permits' ? permits :
-                s.key === 'monitoring' ? monitoring : null
-              const filled = val && (Array.isArray(val) ? val.length > 0 : Object.keys(val).length > 0)
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.3 }}>{aiReview.summary}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 3, flexWrap: 'wrap' }}>
+                {aiReview.reviewed_at && <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Reviewed: {new Date(aiReview.reviewed_at).toLocaleString()}</span>}
+                {aiReview.ai_powered === false && <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>Rule-based</span>}
+                {reviewHistory.length > 0 && (
+                  <span style={{ fontSize: '0.72rem', color: '#6366f1', fontWeight: 600 }}>
+                    History: {reviewHistory.map((h, i) => `${h.score}/10`).join(' → ')} → {aiReview.score}/10
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Mini risk matrix */}
+            {(aiReview.overall_likelihood || aiReview.overall_severity) && (() => {
+              const oL = aiReview.overall_likelihood || 3
+              const oS = aiReview.overall_severity || 3
+              const sc = oL * oS
               return (
-                <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: 1 }}>
-                  <span style={{ color: filled ? '#22c55e' : '#f59e0b' }}>{filled ? '✓' : '○'}</span>
-                  <span style={{ color: filled ? 'var(--color-text)' : 'var(--color-text-muted)' }}>{s.label}</span>
+                <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                  <div style={{ display: 'inline-block', padding: '0.3rem 0.75rem', borderRadius: 6, background: riskColour(sc), color: '#fff', fontWeight: 800, fontSize: '1rem' }}>
+                    {sc}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: riskColour(sc), textTransform: 'uppercase', marginTop: 2 }}>{riskLevel(sc)} risk</div>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)' }}>L{oL} × S{oS}</div>
                 </div>
               )
-            })}
+            })()}
+            <button className="btn btn-outline btn-sm" style={{ flexShrink: 0 }} onClick={handleAiReview} disabled={aiLoading}>
+              {aiLoading ? '🤖 …' : '🔄 Re-run'}
+            </button>
           </div>
-        </div>
-
-        {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* ── Job Details ── */}
-          {activeSection === 'job_details' && isApplicable('job_details') && (
-            <SectionCard title="Job Details" icon="📋">
-              <FormRow label="Client / Company Name">
-                <input value={jobDetails.client_name || ''} onChange={e => setJobDetails((p: any) => ({ ...p, client_name: e.target.value }))} style={inputStyle} placeholder="e.g. Acme Construction Ltd" />
-              </FormRow>
-              <FormRow label="Site Address">
-                <textarea value={jobDetails.site_address || ''} onChange={e => setJobDetails((p: any) => ({ ...p, site_address: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Full site address" />
-              </FormRow>
-              <FormRow label="Job Description">
-                <textarea value={jobDetails.job_description || ''} onChange={e => setJobDetails((p: any) => ({ ...p, job_description: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={3} placeholder="Describe the scope of work" />
-              </FormRow>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <FormRow label="Start Date">
-                  <input type="date" value={jobDetails.start_date || ''} onChange={e => setJobDetails((p: any) => ({ ...p, start_date: e.target.value }))} style={inputStyle} />
-                </FormRow>
-                <FormRow label="End Date">
-                  <input type="date" value={jobDetails.end_date || ''} onChange={e => setJobDetails((p: any) => ({ ...p, end_date: e.target.value }))} style={inputStyle} />
-                </FormRow>
-              </div>
-              <FormRow label="Principal Contractor">
-                <input value={jobDetails.principal_contractor || ''} onChange={e => setJobDetails((p: any) => ({ ...p, principal_contractor: e.target.value }))} style={inputStyle} placeholder="If applicable" />
-              </FormRow>
-              <FormRow label="Additional Notes">
-                <textarea value={jobDetails.notes || ''} onChange={e => setJobDetails((p: any) => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} />
-              </FormRow>
-            </SectionCard>
-          )}
-
-          {/* ── Personnel ── */}
-          {activeSection === 'personnel' && isApplicable('personnel') && (
-            <SectionCard title="Personnel" icon="👷">
-              {personnel.map((p, idx) => (
-                <div key={idx} className="card" style={{ padding: '0.75rem', marginBottom: '0.5rem', background: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Person {idx + 1}</span>
-                    {personnel.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => removePerson(idx)}>Remove</button>}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <input placeholder="Name" value={p.name} onChange={e => updatePerson(idx, 'name', e.target.value)} style={inputStyle} />
-                    <input placeholder="Role / Trade" value={p.role} onChange={e => updatePerson(idx, 'role', e.target.value)} style={inputStyle} />
-                    <input placeholder="Qualifications / Cards" value={p.qualifications} onChange={e => updatePerson(idx, 'qualifications', e.target.value)} style={inputStyle} />
-                    <input placeholder="Responsibilities" value={p.responsibilities} onChange={e => updatePerson(idx, 'responsibilities', e.target.value)} style={inputStyle} />
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-outline btn-sm" onClick={addPerson}>+ Add Person</button>
-            </SectionCard>
-          )}
-
-          {/* ── Equipment ── */}
-          {activeSection === 'equipment' && isApplicable('equipment') && (
-            <SectionCard title="Equipment" icon="🔧">
-              {equipment.map((eq, idx) => (
-                <div key={idx} className="card" style={{ padding: '0.75rem', marginBottom: '0.5rem', background: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Item {idx + 1}</span>
-                    {equipment.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => removeEquip(idx)}>Remove</button>}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <input placeholder="Equipment name" value={eq.name} onChange={e => updateEquip(idx, 'name', e.target.value)} style={inputStyle} />
-                    <input placeholder="Inspection date" type="date" value={eq.inspection_date} onChange={e => updateEquip(idx, 'inspection_date', e.target.value)} style={inputStyle} />
-                    <input placeholder="Certificate ref" value={eq.cert_ref} onChange={e => updateEquip(idx, 'cert_ref', e.target.value)} style={inputStyle} />
-                    <input placeholder="Notes" value={eq.notes} onChange={e => updateEquip(idx, 'notes', e.target.value)} style={inputStyle} />
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-outline btn-sm" onClick={addEquip}>+ Add Equipment</button>
-            </SectionCard>
-          )}
-
-          {/* ── Hazards & Controls ── */}
-          {activeSection === 'hazards' && isApplicable('hazards') && (
-            <SectionCard title="Hazards & Controls" icon="⚠️">
-              <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-                Identify each hazard, describe controls, and rate the initial and residual risk using the 5×5 matrix (Likelihood × Severity).
-              </p>
-              {hazards.map((h, idx) => {
-                const initScore = riskScore(h.initial_likelihood, h.initial_severity)
-                const resScore = riskScore(h.residual_likelihood, h.residual_severity)
+          {/* Compact findings */}
+          {aiReview.findings?.filter((f: any) => !f._dismissed).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {aiReview.findings.map((f: any, i: number) => {
+                if (f._dismissed) return null
+                const sm = ALL_SECTIONS.find(s => s.key === f.section)
                 return (
-                  <div key={idx} className="card" style={{ padding: '0.85rem', marginBottom: '0.75rem', borderLeft: `4px solid ${riskColour(resScore)}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Hazard #{idx + 1}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: 4, background: riskColour(initScore), color: '#fff', fontWeight: 700 }}>
-                          Initial: {initScore}
-                        </span>
-                        <span style={{ fontSize: '0.75rem' }}>→</span>
-                        <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: 4, background: riskColour(resScore), color: '#fff', fontWeight: 700 }}>
-                          Residual: {resScore}
-                        </span>
-                        {hazards.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => removeHazard(idx)}>✕</button>}
-                      </div>
-                    </div>
-                    <textarea
-                      placeholder="Describe the hazard…"
-                      value={h.description}
-                      onChange={e => updateHazard(idx, 'description', e.target.value)}
-                      style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.5rem' }}
-                      rows={2}
-                    />
-                    <textarea
-                      placeholder="Controls in place / additional controls required…"
-                      value={h.controls}
-                      onChange={e => updateHazard(idx, 'controls', e.target.value)}
-                      style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.5rem' }}
-                      rows={2}
-                    />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Initial Risk (Before Controls)</div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <RiskSelect label="Likelihood" value={h.initial_likelihood} onChange={v => updateHazard(idx, 'initial_likelihood', v)} />
-                          <RiskSelect label="Severity" value={h.initial_severity} onChange={v => updateHazard(idx, 'initial_severity', v)} />
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Residual Risk (After Controls)</div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <RiskSelect label="Likelihood" value={h.residual_likelihood} onChange={v => updateHazard(idx, 'residual_likelihood', v)} />
-                          <RiskSelect label="Severity" value={h.residual_severity} onChange={v => updateHazard(idx, 'residual_severity', v)} />
-                        </div>
-                      </div>
-                    </div>
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.5rem', borderRadius: 6, fontSize: '0.75rem',
+                    background: f.severity === 'high' ? '#fef2f2' : f.severity === 'medium' ? '#fffbeb' : '#f8fafc',
+                    border: `1px solid ${f.severity === 'high' ? '#fecaca' : f.severity === 'medium' ? '#fed7aa' : '#e2e8f0'}`,
+                    cursor: 'pointer',
+                  }} onClick={() => scrollToSection(f.section)} title={f.issue}>
+                    <span style={{ fontWeight: 700, fontSize: '0.65rem', color: f.severity === 'high' ? '#991b1b' : f.severity === 'medium' ? '#92400e' : '#475569' }}>
+                      {f.severity.toUpperCase()}
+                    </span>
+                    <span>{sm?.icon} {sm?.label || f.section}</span>
+                    {f.suggested_content && (
+                      <button className="btn btn-primary btn-sm" style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem', marginLeft: 2 }}
+                        onClick={(e) => { e.stopPropagation(); applySuggestion(f.section, f.suggested_content) }}>
+                        Apply
+                      </button>
+                    )}
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--color-text-muted)', padding: 0 }}
+                      onClick={(e) => { e.stopPropagation(); setAiReview({ ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, _dismissed: true } : ff) }) }}>✕</button>
                   </div>
                 )
               })}
-              <button className="btn btn-outline btn-sm" onClick={addHazard}>+ Add Hazard</button>
+            </div>
+          )}
+        </div>
+      )}
 
-              {/* 5×5 Risk Matrix legend */}
-              <div style={{ marginTop: '1.25rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>5×5 Risk Matrix</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>
-                  Risk Rating = Likelihood × Severity
-                </div>
-                <table style={{ borderCollapse: 'collapse', fontSize: '0.72rem', width: '100%', maxWidth: 360 }}>
-                  <thead>
-                    <tr>
-                      <th style={matrixCell}></th>
-                      {[1,2,3,4,5].map(s => <th key={s} style={matrixCell}>S{s}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[5,4,3,2,1].map(l => (
-                      <tr key={l}>
-                        <td style={{ ...matrixCell, fontWeight: 700 }}>L{l}</td>
-                        {[1,2,3,4,5].map(s => {
-                          const sc = l * s
-                          return <td key={s} style={{ ...matrixCell, background: riskColour(sc), color: '#fff', fontWeight: 700, textAlign: 'center' }}>{sc}</td>
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem', fontSize: '0.72rem' }}>
-                  <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#22c55e', marginRight: 4 }} />Low (1-4)</span>
-                  <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#f59e0b', marginRight: 4 }} />Medium (5-9)</span>
-                  <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#ef4444', marginRight: 4 }} />High (10-16)</span>
-                  <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#991b1b', marginRight: 4 }} />Very High (17-25)</span>
-                </div>
-              </div>
-            </SectionCard>
+      {/* ═══ SPLIT PANE: Editor + Preview ═══ */}
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+        {/* ── LEFT: Editor (accordion sections) ── */}
+        <div style={{ flex: showPreview ? '0 0 55%' : 1, minWidth: 0 }}>
+
+          {!aiReview && !aiLoading && (
+            <div style={{ padding: '1rem', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe', marginBottom: '1rem', fontSize: '0.85rem', color: '#1e40af' }}>
+              <strong>💡 Getting started:</strong> Fill in the Job Details below with a description of the work. Then click <strong>🤖 AI Review</strong> — the AI will analyse what you&apos;ve written and suggest content for every section. You can apply suggestions with one click and keep iterating until the risk is acceptable.
+            </div>
           )}
 
-          {/* ── Method Statement ── */}
-          {activeSection === 'method_statement' && isApplicable('method_statement') && (
-            <SectionCard title="Method Statement" icon="📝">
-              <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-                Describe the step-by-step process. Edit as needed for your specific job.
-              </p>
-              {methodStatement.map((s, idx) => (
-                <div key={idx} className="card" style={{ padding: '0.75rem', marginBottom: '0.5rem', background: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Step {idx + 1}</span>
-                    {methodStatement.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => removeStep(idx)}>✕</button>}
-                  </div>
-                  <textarea
-                    placeholder="Describe this step…"
-                    value={s.description}
-                    onChange={e => updateStep(idx, 'description', e.target.value)}
-                    style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.4rem' }}
-                    rows={2}
-                  />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <input placeholder="Responsible person / role" value={s.responsible} onChange={e => updateStep(idx, 'responsible', e.target.value)} style={inputStyle} />
-                    <input placeholder="Related hazard #s (e.g. 1, 3)" value={s.hazard_refs} onChange={e => updateStep(idx, 'hazard_refs', e.target.value)} style={inputStyle} />
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-outline btn-sm" onClick={addStep}>+ Add Step</button>
-            </SectionCard>
-          )}
+          {ALL_SECTIONS.map(sec => {
+            if (!isApplicable(sec.key)) return null
+            const isOpen = expanded[sec.key]
+            const hasContent = sectionHasContent(sec.key)
+            const finding = aiReview?.findings?.find((f: any) => f.section === sec.key && !f._dismissed)
 
-          {/* ── Emergency Procedures ── */}
-          {activeSection === 'emergency_procedures' && isApplicable('emergency_procedures') && (
-            <SectionCard title="Emergency Procedures" icon="🚑">
-              <FormRow label="Emergency Contact">
-                <input value={emergencyProcedures.emergency_contact || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, emergency_contact: e.target.value }))} style={inputStyle} placeholder="Name and phone number" />
-              </FormRow>
-              <FormRow label="First Aider(s)">
-                <input value={emergencyProcedures.first_aiders || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, first_aiders: e.target.value }))} style={inputStyle} placeholder="Names of qualified first aiders on site" />
-              </FormRow>
-              <FormRow label="Nearest Hospital / A&E">
-                <input value={emergencyProcedures.nearest_hospital || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, nearest_hospital: e.target.value }))} style={inputStyle} placeholder="Name and address" />
-              </FormRow>
-              <FormRow label="Evacuation Procedure">
-                <textarea value={emergencyProcedures.evacuation_procedure || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, evacuation_procedure: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={3} placeholder="Describe the evacuation procedure" />
-              </FormRow>
-              <FormRow label="Fire Assembly Point">
-                <input value={emergencyProcedures.assembly_point || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, assembly_point: e.target.value }))} style={inputStyle} />
-              </FormRow>
-            </SectionCard>
-          )}
-
-          {/* ── Environmental ── */}
-          {activeSection === 'environmental' && isApplicable('environmental') && (
-            <SectionCard title="Environmental Considerations" icon="🌿">
-              <FormRow label="Waste Disposal">
-                <textarea value={environmental.waste_disposal || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, waste_disposal: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="How waste will be managed and disposed of" />
-              </FormRow>
-              <FormRow label="Noise / Vibration">
-                <textarea value={environmental.noise || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, noise: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Noise or vibration considerations and mitigations" />
-              </FormRow>
-              <FormRow label="Protected Areas / Wildlife">
-                <textarea value={environmental.protected_areas || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, protected_areas: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Nearby protected areas, watercourses, etc." />
-              </FormRow>
-              <FormRow label="Dust / Emissions">
-                <textarea value={environmental.dust || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, dust: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Dust suppression measures" />
-              </FormRow>
-            </SectionCard>
-          )}
-
-          {/* ── Permits ── */}
-          {activeSection === 'permits' && isApplicable('permits') && (
-            <SectionCard title="Permits to Work" icon="📄">
-              {permits.map((p, idx) => (
-                <div key={idx} className="card" style={{ padding: '0.75rem', marginBottom: '0.5rem', background: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Permit {idx + 1}</span>
-                    {permits.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => removePermit(idx)}>Remove</button>}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <input placeholder="Permit type" value={p.type} onChange={e => updatePermit(idx, 'type', e.target.value)} style={inputStyle} />
-                    <input placeholder="Reference" value={p.reference} onChange={e => updatePermit(idx, 'reference', e.target.value)} style={inputStyle} />
-                    <input placeholder="Issued by" value={p.issued_by} onChange={e => updatePermit(idx, 'issued_by', e.target.value)} style={inputStyle} />
-                    <input placeholder="Expiry" type="date" value={p.expiry} onChange={e => updatePermit(idx, 'expiry', e.target.value)} style={inputStyle} />
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-outline btn-sm" onClick={addPermit}>+ Add Permit</button>
-            </SectionCard>
-          )}
-
-          {/* ── Monitoring ── */}
-          {activeSection === 'monitoring' && isApplicable('monitoring') && (
-            <SectionCard title="Monitoring & Review" icon="🔍">
-              <FormRow label="Review Schedule">
-                <textarea value={monitoring.review_schedule || ''} onChange={e => setMonitoring((p: any) => ({ ...p, review_schedule: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="How often will this RAMS be reviewed?" />
-              </FormRow>
-              <FormRow label="Sign-off Requirements">
-                <textarea value={monitoring.signoff || ''} onChange={e => setMonitoring((p: any) => ({ ...p, signoff: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Who needs to sign off before work starts?" />
-              </FormRow>
-              <FormRow label="Toolbox Talk Records">
-                <textarea value={monitoring.toolbox_talks || ''} onChange={e => setMonitoring((p: any) => ({ ...p, toolbox_talks: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Record of toolbox talks delivered" />
-              </FormRow>
-            </SectionCard>
-          )}
-
-          {/* ── AI Review ── */}
-          {activeSection === 'ai_review' && aiReview && (
-            <SectionCard title="AI Safety Review" icon="🤖">
-              {/* Score + Summary header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: 60, height: 60, borderRadius: '50%', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem', fontWeight: 800,
-                  background: (aiReview.score || 0) >= 7 ? '#dcfce7' : (aiReview.score || 0) >= 4 ? '#fef3c7' : '#fef2f2',
-                  color: (aiReview.score || 0) >= 7 ? '#15803d' : (aiReview.score || 0) >= 4 ? '#92400e' : '#991b1b',
+            return (
+              <div key={sec.key} id={`section-${sec.key}`} style={{ marginBottom: '0.5rem' }}>
+                {/* Accordion header */}
+                <button onClick={() => toggleExpand(sec.key)} style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '0.6rem 0.85rem', background: isOpen ? '#fff' : '#f8fafc',
+                  border: `1px solid ${finding ? (finding.severity === 'high' ? '#fecaca' : '#fed7aa') : '#e2e8f0'}`,
+                  borderRadius: isOpen ? '8px 8px 0 0' : 8, cursor: 'pointer', fontFamily: 'inherit',
+                  borderLeft: finding ? `4px solid ${finding.severity === 'high' ? '#ef4444' : '#f59e0b'}` : '4px solid transparent',
                 }}>
-                  {aiReview.score || '?'}/10
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3 }}>{aiReview.summary}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 4, flexWrap: 'wrap' }}>
-                    {aiReview.reviewed_at && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Reviewed: {new Date(aiReview.reviewed_at).toLocaleString()}</span>}
-                    {aiReview.ai_powered === false && <span className="badge badge-warning" style={{ fontSize: '0.68rem' }}>Rule-based (AI unavailable)</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ color: hasContent ? '#22c55e' : '#cbd5e1', fontSize: '0.85rem' }}>{hasContent ? '✓' : '○'}</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{sec.icon} {sec.label}</span>
+                    {finding && <span className="badge badge-danger" style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem' }}>!</span>}
                   </div>
-                </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+                </button>
+                {/* Accordion body */}
+                {isOpen && (
+                  <div style={{ border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '0.85rem', background: '#fff' }}>
+                    {/* Finding banner if exists */}
+                    {finding && (
+                      <div style={{ padding: '0.5rem 0.65rem', marginBottom: '0.65rem', borderRadius: 6, fontSize: '0.8rem',
+                        background: finding.severity === 'high' ? '#fef2f2' : '#fffbeb',
+                        border: `1px solid ${finding.severity === 'high' ? '#fecaca' : '#fed7aa'}`,
+                      }}>
+                        <div style={{ fontWeight: 600, marginBottom: 2 }}>{finding.issue}</div>
+                        <div style={{ color: '#475569', fontSize: '0.78rem' }}>💡 {finding.recommendation}</div>
+                        {finding.suggested_content && (
+                          <button className="btn btn-primary btn-sm" style={{ marginTop: '0.4rem', fontSize: '0.72rem' }}
+                            onClick={() => applySuggestion(sec.key, finding.suggested_content)}>
+                            ✨ Apply AI suggestion
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Section fields */}
+                    {sec.key === 'job_details' && (
+                      <>
+                        <FormRow label="Client / Company Name"><input value={jobDetails.client_name || ''} onChange={e => setJobDetails((p: any) => ({ ...p, client_name: e.target.value }))} style={inputStyle} placeholder="e.g. Acme Construction Ltd" /></FormRow>
+                        <FormRow label="Site Address"><textarea value={jobDetails.site_address || ''} onChange={e => setJobDetails((p: any) => ({ ...p, site_address: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Full site address" /></FormRow>
+                        <FormRow label="Job Description"><textarea value={jobDetails.job_description || ''} onChange={e => setJobDetails((p: any) => ({ ...p, job_description: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={3} placeholder="Describe the scope of work — be as specific as possible for a better AI review" /></FormRow>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <FormRow label="Start Date"><input type="date" value={jobDetails.start_date || ''} onChange={e => setJobDetails((p: any) => ({ ...p, start_date: e.target.value }))} style={inputStyle} /></FormRow>
+                          <FormRow label="End Date"><input type="date" value={jobDetails.end_date || ''} onChange={e => setJobDetails((p: any) => ({ ...p, end_date: e.target.value }))} style={inputStyle} /></FormRow>
+                        </div>
+                        <FormRow label="Principal Contractor"><input value={jobDetails.principal_contractor || ''} onChange={e => setJobDetails((p: any) => ({ ...p, principal_contractor: e.target.value }))} style={inputStyle} placeholder="If applicable" /></FormRow>
+                      </>
+                    )}
+                    {sec.key === 'personnel' && (
+                      <>
+                        {personnel.map((p, idx) => (
+                          <div key={idx} style={{ padding: '0.5rem', marginBottom: '0.4rem', background: '#f8fafc', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Person {idx + 1}</span>
+                              {personnel.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', fontSize: '0.72rem' }} onClick={() => removePerson(idx)}>✕</button>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                              <input placeholder="Name" value={p.name} onChange={e => updatePerson(idx, 'name', e.target.value)} style={inputStyle} />
+                              <input placeholder="Role / Trade" value={p.role} onChange={e => updatePerson(idx, 'role', e.target.value)} style={inputStyle} />
+                              <input placeholder="Qualifications" value={p.qualifications} onChange={e => updatePerson(idx, 'qualifications', e.target.value)} style={inputStyle} />
+                              <input placeholder="Responsibilities" value={p.responsibilities} onChange={e => updatePerson(idx, 'responsibilities', e.target.value)} style={inputStyle} />
+                            </div>
+                          </div>
+                        ))}
+                        <button className="btn btn-outline btn-sm" onClick={addPerson}>+ Add Person</button>
+                      </>
+                    )}
+                    {sec.key === 'equipment' && (
+                      <>
+                        {equipment.map((eq, idx) => (
+                          <div key={idx} style={{ padding: '0.5rem', marginBottom: '0.4rem', background: '#f8fafc', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Item {idx + 1}</span>
+                              {equipment.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', fontSize: '0.72rem' }} onClick={() => removeEquip(idx)}>✕</button>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                              <input placeholder="Equipment name" value={eq.name} onChange={e => updateEquip(idx, 'name', e.target.value)} style={inputStyle} />
+                              <input placeholder="Inspection date" type="date" value={eq.inspection_date} onChange={e => updateEquip(idx, 'inspection_date', e.target.value)} style={inputStyle} />
+                              <input placeholder="Certificate ref" value={eq.cert_ref} onChange={e => updateEquip(idx, 'cert_ref', e.target.value)} style={inputStyle} />
+                              <input placeholder="Notes" value={eq.notes} onChange={e => updateEquip(idx, 'notes', e.target.value)} style={inputStyle} />
+                            </div>
+                          </div>
+                        ))}
+                        <button className="btn btn-outline btn-sm" onClick={addEquip}>+ Add Equipment</button>
+                      </>
+                    )}
+                    {sec.key === 'hazards' && (
+                      <>
+                        {hazards.map((h, idx) => {
+                          const initSc = riskScore(h.initial_likelihood, h.initial_severity)
+                          const resSc = riskScore(h.residual_likelihood, h.residual_severity)
+                          return (
+                            <div key={idx} style={{ padding: '0.65rem', marginBottom: '0.5rem', borderRadius: 6, borderLeft: `4px solid ${riskColour(resSc)}`, background: '#f8fafc' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Hazard #{idx + 1}</span>
+                                <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: 3, background: riskColour(initSc), color: '#fff', fontWeight: 600 }}>Init: {initSc}</span>
+                                  <span style={{ fontSize: '0.7rem' }}>→</span>
+                                  <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: 3, background: riskColour(resSc), color: '#fff', fontWeight: 600 }}>Res: {resSc}</span>
+                                  {hazards.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', fontSize: '0.72rem' }} onClick={() => removeHazard(idx)}>✕</button>}
+                                </div>
+                              </div>
+                              <textarea placeholder="Describe the hazard…" value={h.description} onChange={e => updateHazard(idx, 'description', e.target.value)} style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.3rem' }} rows={2} />
+                              <textarea placeholder="Controls in place…" value={h.controls} onChange={e => updateHazard(idx, 'controls', e.target.value)} style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.3rem' }} rows={2} />
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 2 }}>Initial Risk</div>
+                                  <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                    <RiskSelect label="L" value={h.initial_likelihood} onChange={v => updateHazard(idx, 'initial_likelihood', v)} />
+                                    <RiskSelect label="S" value={h.initial_severity} onChange={v => updateHazard(idx, 'initial_severity', v)} />
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 2 }}>Residual Risk</div>
+                                  <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                    <RiskSelect label="L" value={h.residual_likelihood} onChange={v => updateHazard(idx, 'residual_likelihood', v)} />
+                                    <RiskSelect label="S" value={h.residual_severity} onChange={v => updateHazard(idx, 'residual_severity', v)} />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <button className="btn btn-outline btn-sm" onClick={addHazard}>+ Add Hazard</button>
+                      </>
+                    )}
+                    {sec.key === 'method_statement' && (
+                      <>
+                        {methodStatement.map((s, idx) => (
+                          <div key={idx} style={{ padding: '0.5rem', marginBottom: '0.4rem', background: '#f8fafc', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Step {idx + 1}</span>
+                              {methodStatement.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', fontSize: '0.72rem' }} onClick={() => removeStep(idx)}>✕</button>}
+                            </div>
+                            <textarea placeholder="Describe this step…" value={s.description} onChange={e => updateStep(idx, 'description', e.target.value)} style={{ ...inputStyle, resize: 'vertical', marginBottom: '0.3rem' }} rows={2} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                              <input placeholder="Responsible" value={s.responsible} onChange={e => updateStep(idx, 'responsible', e.target.value)} style={inputStyle} />
+                              <input placeholder="Hazard #s" value={s.hazard_refs} onChange={e => updateStep(idx, 'hazard_refs', e.target.value)} style={inputStyle} />
+                            </div>
+                          </div>
+                        ))}
+                        <button className="btn btn-outline btn-sm" onClick={addStep}>+ Add Step</button>
+                      </>
+                    )}
+                    {sec.key === 'emergency_procedures' && (
+                      <>
+                        <FormRow label="Emergency Contact"><input value={emergencyProcedures.emergency_contact || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, emergency_contact: e.target.value }))} style={inputStyle} placeholder="Name and phone number" /></FormRow>
+                        <FormRow label="First Aider(s)"><input value={emergencyProcedures.first_aiders || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, first_aiders: e.target.value }))} style={inputStyle} placeholder="Qualified first aiders on site" /></FormRow>
+                        <FormRow label="Nearest Hospital / A&E"><input value={emergencyProcedures.nearest_hospital || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, nearest_hospital: e.target.value }))} style={inputStyle} placeholder="Name and address" /></FormRow>
+                        <FormRow label="Evacuation Procedure"><textarea value={emergencyProcedures.evacuation_procedure || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, evacuation_procedure: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Describe the evacuation procedure" /></FormRow>
+                        <FormRow label="Assembly Point"><input value={emergencyProcedures.assembly_point || ''} onChange={e => setEmergencyProcedures((p: any) => ({ ...p, assembly_point: e.target.value }))} style={inputStyle} /></FormRow>
+                      </>
+                    )}
+                    {sec.key === 'environmental' && (
+                      <>
+                        <FormRow label="Waste Disposal"><textarea value={environmental.waste_disposal || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, waste_disposal: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="How waste will be managed" /></FormRow>
+                        <FormRow label="Noise / Vibration"><textarea value={environmental.noise || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, noise: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Noise/vibration mitigations" /></FormRow>
+                        <FormRow label="Protected Areas"><textarea value={environmental.protected_areas || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, protected_areas: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Watercourses, wildlife, etc." /></FormRow>
+                        <FormRow label="Dust / Emissions"><textarea value={environmental.dust || ''} onChange={e => setEnvironmental((p: any) => ({ ...p, dust: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Dust suppression" /></FormRow>
+                      </>
+                    )}
+                    {sec.key === 'permits' && (
+                      <>
+                        {permits.map((p, idx) => (
+                          <div key={idx} style={{ padding: '0.5rem', marginBottom: '0.4rem', background: '#f8fafc', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Permit {idx + 1}</span>
+                              {permits.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', fontSize: '0.72rem' }} onClick={() => removePermit(idx)}>✕</button>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                              <input placeholder="Permit type" value={p.type} onChange={e => updatePermit(idx, 'type', e.target.value)} style={inputStyle} />
+                              <input placeholder="Reference" value={p.reference} onChange={e => updatePermit(idx, 'reference', e.target.value)} style={inputStyle} />
+                              <input placeholder="Issued by" value={p.issued_by} onChange={e => updatePermit(idx, 'issued_by', e.target.value)} style={inputStyle} />
+                              <input placeholder="Expiry" type="date" value={p.expiry} onChange={e => updatePermit(idx, 'expiry', e.target.value)} style={inputStyle} />
+                            </div>
+                          </div>
+                        ))}
+                        <button className="btn btn-outline btn-sm" onClick={addPermit}>+ Add Permit</button>
+                      </>
+                    )}
+                    {sec.key === 'monitoring' && (
+                      <>
+                        <FormRow label="Review Schedule"><textarea value={monitoring.review_schedule || ''} onChange={e => setMonitoring((p: any) => ({ ...p, review_schedule: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="How often will this RAMS be reviewed?" /></FormRow>
+                        <FormRow label="Sign-off Requirements"><textarea value={monitoring.signoff || ''} onChange={e => setMonitoring((p: any) => ({ ...p, signoff: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Who needs to sign off?" /></FormRow>
+                        <FormRow label="Toolbox Talk Records"><textarea value={monitoring.toolbox_talks || ''} onChange={e => setMonitoring((p: any) => ({ ...p, toolbox_talks: e.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="Record of toolbox talks" /></FormRow>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Disclaimer */}
+          <div style={{ marginTop: '1rem', padding: '0.65rem', borderRadius: 6, background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '0.78rem', color: '#92400e' }}>
+            <strong>⚠️ Important:</strong> This tool generates RAMS documents based on your input. All documents must be reviewed by a competent H&amp;S professional before use.
+          </div>
+        </div>
+
+        {/* ── RIGHT: Live Document Preview ── */}
+        {showPreview && (
+          <div style={{ flex: '0 0 43%', position: 'sticky', top: 80, maxHeight: 'calc(100vh - 100px)', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <div style={{ padding: '1.25rem', fontFamily: 'Georgia, serif' }}>
+              {/* Document header */}
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <h1 style={{ fontSize: '1.1rem', margin: '0 0 0.2rem', fontFamily: 'inherit' }}>Risk Assessment &amp; Method Statement</h1>
+                <h2 style={{ fontSize: '0.95rem', margin: 0, color: '#475569', fontFamily: 'inherit', fontWeight: 400 }}>{title || 'Untitled Document'}</h2>
+                {refNumber && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4 }}>Reference: {refNumber}</div>}
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>Status: {ramsStatus} | Generated: {new Date().toLocaleDateString('en-GB')}</div>
               </div>
 
-              {/* ── Overall Risk Matrix ── */}
-              {(aiReview.overall_likelihood || aiReview.overall_severity) && (() => {
+              {/* AI Risk Rating */}
+              {aiReview && (aiReview.overall_likelihood || aiReview.overall_severity) && (() => {
                 const oL = aiReview.overall_likelihood || 3
                 const oS = aiReview.overall_severity || 3
-                const overallScore = oL * oS
-                const level = riskLevel(overallScore)
+                const sc = oL * oS
                 return (
-                  <div style={{ marginBottom: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Overall Assessed Risk</div>
-                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                      {/* 5×5 Matrix with highlight */}
-                      <div>
-                        <table style={{ borderCollapse: 'collapse', fontSize: '0.72rem' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ ...matrixCell, background: 'transparent', border: 'none', width: 28 }}></th>
-                              {[1,2,3,4,5].map(s => <th key={s} style={{ ...matrixCell, fontWeight: 600, background: '#f1f5f9' }}>S{s}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[5,4,3,2,1].map(l => (
-                              <tr key={l}>
-                                <td style={{ ...matrixCell, fontWeight: 600, background: '#f1f5f9', textAlign: 'center' }}>L{l}</td>
-                                {[1,2,3,4,5].map(s => {
-                                  const sc = l * s
-                                  const isHighlighted = l === oL && s === oS
-                                  return (
-                                    <td key={s} style={{
-                                      ...matrixCell,
-                                      background: riskColour(sc),
-                                      color: '#fff',
-                                      fontWeight: 700,
-                                      textAlign: 'center',
-                                      width: 36, height: 32,
-                                      position: 'relative',
-                                      outline: isHighlighted ? '3px solid #1e293b' : 'none',
-                                      outlineOffset: isHighlighted ? -1 : 0,
-                                      boxShadow: isHighlighted ? '0 0 0 1px #fff, 0 0 8px rgba(0,0,0,0.3)' : 'none',
-                                      fontSize: isHighlighted ? '0.85rem' : '0.72rem',
-                                    }}>
-                                      {sc}
-                                      {isHighlighted && <span style={{ position: 'absolute', top: -4, right: -4, width: 10, height: 10, borderRadius: '50%', background: '#1e293b', border: '2px solid #fff' }} />}
-                                    </td>
-                                  )
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem', fontSize: '0.68rem' }}>
-                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#22c55e', marginRight: 3 }} />Low</span>
-                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#f59e0b', marginRight: 3 }} />Med</span>
-                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#ef4444', marginRight: 3 }} />High</span>
-                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#991b1b', marginRight: 3 }} />V.High</span>
-                        </div>
-                      </div>
-                      {/* Risk summary */}
-                      <div style={{ flex: 1, minWidth: 180 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <span style={{
-                            display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: 6,
-                            background: riskColour(overallScore), color: '#fff', fontWeight: 800, fontSize: '1.1rem',
-                          }}>
-                            {overallScore}
-                          </span>
-                          <span style={{ fontWeight: 700, fontSize: '0.95rem', textTransform: 'uppercase', color: riskColour(overallScore) }}>
-                            {level} risk
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-                          <div><strong>Likelihood:</strong> {oL}/5 — {RISK_LABELS[oL]}</div>
-                          <div><strong>Severity:</strong> {oS}/5 — {RISK_LABELS[oS]}</div>
-                        </div>
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#475569', padding: '0.4rem 0.6rem', background: '#fff', borderRadius: 4, border: '1px solid #e2e8f0' }}>
-                          {overallScore <= 4 ? 'Risk is acceptable. Standard controls are sufficient.' :
-                           overallScore <= 9 ? 'Risk is moderate. Ensure all controls are in place and monitored.' :
-                           overallScore <= 16 ? 'Risk is high. Additional controls required before work proceeds.' :
-                           'Risk is very high. Work should not proceed until risk is significantly reduced.'}
-                        </div>
-                      </div>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.5rem', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.78rem' }}>Overall Risk:</span>
+                    <span style={{ padding: '0.15rem 0.5rem', borderRadius: 4, background: riskColour(sc), color: '#fff', fontWeight: 700, fontSize: '0.8rem' }}>{sc}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: riskColour(sc), textTransform: 'uppercase' }}>{riskLevel(sc)}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Score: {aiReview.score}/10</span>
                   </div>
                 )
               })()}
 
-              {/* ── Editable Findings ── */}
-              {aiReview.findings?.length > 0 && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>
-                      Findings ({aiReview.findings.filter((f: any) => !f._dismissed).length} active)
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                      Address findings → re-run AI Review to reduce risk iteratively
-                    </div>
-                  </div>
-                  {aiReview.findings.map((f: any, i: number) => {
-                    if (f._dismissed) return null
-                    const sectionMeta = ALL_SECTIONS.find(s => s.key === f.section)
-                    return (
-                      <div key={i} style={{
-                        padding: '0.75rem', borderRadius: 8, marginBottom: '0.6rem',
-                        border: `1px solid ${f.severity === 'high' ? '#fecaca' : f.severity === 'medium' ? '#fed7aa' : '#e2e8f0'}`,
-                        background: f.severity === 'high' ? '#fef2f2' : f.severity === 'medium' ? '#fffbeb' : '#f8fafc',
-                      }}>
-                        {/* Finding header */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.3rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <span className={`badge ${f.severity === 'high' ? 'badge-danger' : f.severity === 'medium' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.68rem' }}>
-                              {f.severity.toUpperCase()}
-                            </span>
-                            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                              {sectionMeta ? `${sectionMeta.icon} ${sectionMeta.label}` : f.section}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.3rem' }}>
-                            {sectionMeta && isApplicable(f.section) && (
-                              <button
-                                className="btn btn-outline btn-sm"
-                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                                onClick={() => setActiveSection(f.section)}
-                              >
-                                → Go to {sectionMeta.label}
-                              </button>
-                            )}
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              style={{ fontSize: '0.72rem', padding: '0.2rem 0.4rem', color: 'var(--color-text-muted)' }}
-                              onClick={() => {
-                                const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, _dismissed: true } : ff) }
-                                setAiReview(updated)
-                              }}
-                              title="Dismiss finding"
-                            >✕</button>
-                          </div>
-                        </div>
+              {/* Section previews */}
+              {isApplicable('job_details') && (jobDetails.client_name || jobDetails.job_description) && (
+                <PreviewSection title="1. Job Details">
+                  {jobDetails.client_name && <PreviewField label="Client" value={jobDetails.client_name} />}
+                  {jobDetails.site_address && <PreviewField label="Site" value={jobDetails.site_address} />}
+                  {jobDetails.job_description && <PreviewField label="Description" value={jobDetails.job_description} />}
+                  {(jobDetails.start_date || jobDetails.end_date) && <PreviewField label="Duration" value={`${jobDetails.start_date || '?'} to ${jobDetails.end_date || '?'}`} />}
+                  {jobDetails.principal_contractor && <PreviewField label="Principal Contractor" value={jobDetails.principal_contractor} />}
+                </PreviewSection>
+              )}
 
-                        {/* Editable issue */}
-                        <div style={{ marginBottom: '0.4rem' }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', marginBottom: 2 }}>Issue</div>
-                          <textarea
-                            value={f.issue}
-                            onChange={e => {
-                              const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, issue: e.target.value } : ff) }
-                              setAiReview(updated)
-                            }}
-                            style={{ ...inputStyle, fontSize: '0.83rem', fontWeight: 600, resize: 'vertical', minHeight: 36 }}
-                            rows={1}
-                          />
-                        </div>
+              {isApplicable('personnel') && personnel.some(p => p.name) && (
+                <PreviewSection title="2. Personnel">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                    <thead><tr style={{ borderBottom: '1px solid #e2e8f0' }}><th style={pTh}>Name</th><th style={pTh}>Role</th><th style={pTh}>Qualifications</th></tr></thead>
+                    <tbody>{personnel.filter(p => p.name).map((p, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={pTd}>{p.name}</td><td style={pTd}>{p.role}</td><td style={pTd}>{p.qualifications}</td></tr>
+                    ))}</tbody>
+                  </table>
+                </PreviewSection>
+              )}
 
-                        {/* Editable recommendation */}
-                        <div style={{ marginBottom: '0.4rem' }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', marginBottom: 2 }}>💡 Recommendation</div>
-                          <textarea
-                            value={f.recommendation}
-                            onChange={e => {
-                              const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, recommendation: e.target.value } : ff) }
-                              setAiReview(updated)
-                            }}
-                            style={{ ...inputStyle, fontSize: '0.82rem', resize: 'vertical', color: '#475569', minHeight: 36 }}
-                            rows={1}
-                          />
-                        </div>
+              {isApplicable('equipment') && equipment.some(e => e.name) && (
+                <PreviewSection title="3. Equipment">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                    <thead><tr style={{ borderBottom: '1px solid #e2e8f0' }}><th style={pTh}>Equipment</th><th style={pTh}>Cert Ref</th><th style={pTh}>Inspection</th></tr></thead>
+                    <tbody>{equipment.filter(e => e.name).map((e, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={pTd}>{e.name}</td><td style={pTd}>{e.cert_ref}</td><td style={pTd}>{e.inspection_date}</td></tr>
+                    ))}</tbody>
+                  </table>
+                </PreviewSection>
+              )}
 
-                        {/* Suggested content with Apply button */}
-                        {f.suggested_content && (
-                          <div style={{ marginTop: '0.4rem', padding: '0.6rem', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#15803d' }}>✨ Suggested Content</div>
-                              {sectionMeta && isApplicable(f.section) && (
-                                <button
-                                  className="btn btn-primary btn-sm"
-                                  style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem' }}
-                                  onClick={() => applySuggestion(f.section, f.suggested_content)}
-                                >
-                                  Apply to {sectionMeta.label}
-                                </button>
-                              )}
-                            </div>
-                            <textarea
-                              value={f.suggested_content}
-                              onChange={e => {
-                                const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, suggested_content: e.target.value } : ff) }
-                                setAiReview(updated)
-                              }}
-                              style={{ ...inputStyle, fontSize: '0.82rem', resize: 'vertical', background: 'transparent', border: '1px solid #bbf7d0', color: '#166534' }}
-                              rows={3}
-                            />
-                          </div>
-                        )}
+              {isApplicable('hazards') && hazards.some(h => h.description) && (
+                <PreviewSection title="4. Hazards & Controls">
+                  {hazards.filter(h => h.description).map((h, i) => (
+                    <div key={i} style={{ marginBottom: '0.5rem', paddingLeft: '0.5rem', borderLeft: `3px solid ${riskColour(riskScore(h.residual_likelihood, h.residual_severity))}` }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Hazard {i + 1}: {h.description}</div>
+                      {h.controls && <div style={{ fontSize: '0.75rem', color: '#475569' }}>Controls: {h.controls}</div>}
+                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                        Risk: {h.initial_likelihood}×{h.initial_severity}={riskScore(h.initial_likelihood, h.initial_severity)} → {h.residual_likelihood}×{h.residual_severity}={riskScore(h.residual_likelihood, h.residual_severity)}
                       </div>
-                    )
-                  })}
-                </>
+                    </div>
+                  ))}
+                </PreviewSection>
               )}
 
-              {/* Positive Points */}
-              {aiReview.positive_points?.length > 0 && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.4rem' }}>Positive Points</div>
-                  {aiReview.positive_points.map((p: string, i: number) => (
-                    <div key={i} style={{ fontSize: '0.85rem', marginBottom: 2 }}>✅ {p}</div>
+              {isApplicable('method_statement') && methodStatement.some(s => s.description) && (
+                <PreviewSection title="5. Method Statement">
+                  {methodStatement.filter(s => s.description).map((s, i) => (
+                    <div key={i} style={{ fontSize: '0.78rem', marginBottom: '0.3rem' }}>
+                      <strong>Step {i + 1}:</strong> {s.description}
+                      {s.responsible && <span style={{ color: '#64748b' }}> ({s.responsible})</span>}
+                    </div>
                   ))}
+                </PreviewSection>
+              )}
+
+              {isApplicable('emergency_procedures') && (emergencyProcedures.emergency_contact || emergencyProcedures.evacuation_procedure) && (
+                <PreviewSection title="6. Emergency Procedures">
+                  {emergencyProcedures.emergency_contact && <PreviewField label="Contact" value={emergencyProcedures.emergency_contact} />}
+                  {emergencyProcedures.first_aiders && <PreviewField label="First Aiders" value={emergencyProcedures.first_aiders} />}
+                  {emergencyProcedures.nearest_hospital && <PreviewField label="Nearest A&E" value={emergencyProcedures.nearest_hospital} />}
+                  {emergencyProcedures.evacuation_procedure && <PreviewField label="Evacuation" value={emergencyProcedures.evacuation_procedure} />}
+                  {emergencyProcedures.assembly_point && <PreviewField label="Assembly Point" value={emergencyProcedures.assembly_point} />}
+                </PreviewSection>
+              )}
+
+              {isApplicable('environmental') && (environmental.waste_disposal || environmental.noise) && (
+                <PreviewSection title="7. Environmental">
+                  {environmental.waste_disposal && <PreviewField label="Waste" value={environmental.waste_disposal} />}
+                  {environmental.noise && <PreviewField label="Noise" value={environmental.noise} />}
+                  {environmental.protected_areas && <PreviewField label="Protected Areas" value={environmental.protected_areas} />}
+                  {environmental.dust && <PreviewField label="Dust" value={environmental.dust} />}
+                </PreviewSection>
+              )}
+
+              {isApplicable('permits') && permits.some(p => p.type) && (
+                <PreviewSection title="8. Permits to Work">
+                  {permits.filter(p => p.type).map((p, i) => (
+                    <div key={i} style={{ fontSize: '0.78rem', marginBottom: 2 }}>{p.type} — Ref: {p.reference || '—'} (Expires: {p.expiry || '—'})</div>
+                  ))}
+                </PreviewSection>
+              )}
+
+              {isApplicable('monitoring') && (monitoring.review_schedule || monitoring.signoff) && (
+                <PreviewSection title="9. Monitoring & Review">
+                  {monitoring.review_schedule && <PreviewField label="Review" value={monitoring.review_schedule} />}
+                  {monitoring.signoff && <PreviewField label="Sign-off" value={monitoring.signoff} />}
+                  {monitoring.toolbox_talks && <PreviewField label="Toolbox Talks" value={monitoring.toolbox_talks} />}
+                </PreviewSection>
+              )}
+
+              {/* Empty state */}
+              {!sectionHasContent('job_details') && !sectionHasContent('hazards') && (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  Start filling in sections on the left — the document preview will appear here as you type.
                 </div>
               )}
-
-              {/* Missing Controls */}
-              {aiReview.missing_controls?.length > 0 && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.4rem' }}>Missing Controls</div>
-                  {aiReview.missing_controls.map((c: string, i: number) => (
-                    <div key={i} style={{ fontSize: '0.85rem', marginBottom: 2 }}>⚠️ {c}</div>
-                  ))}
-                </div>
-              )}
-
-              {/* Iterative workflow hint + re-run */}
-              <div style={{
-                marginTop: '1.25rem', padding: '0.75rem', borderRadius: 8,
-                background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: '0.82rem', color: '#1e40af',
-              }}>
-                <strong>💡 Iterative Risk Reduction</strong><br />
-                Apply suggested content to each section, then re-run the AI Review. The score and risk matrix will update as you improve the document. Keep iterating until all findings are addressed and the overall risk is acceptable.
-              </div>
-              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button className="btn btn-primary btn-sm" onClick={handleAiReview} disabled={aiLoading}>
-                  {aiLoading ? '🤖 Re-analysing…' : '🔄 Re-run AI Review'}
-                </button>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  Saves document, then re-analyses
-                </span>
-              </div>
-            </SectionCard>
-          )}
-
-          {/* Disclaimer */}
-          <div style={{
-            marginTop: '1.5rem', padding: '0.85rem', borderRadius: 8,
-            background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '0.82rem', color: '#92400e',
-          }}>
-            <strong>⚠️ Important Notice</strong><br />
-            This tool generates RAMS documents based on the information you provide. All documents must be reviewed and approved by a competent health &amp; safety professional before use. This tool does not replace professional health &amp; safety advice or legal compliance requirements.
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -898,21 +734,27 @@ export default function RamsEditorPage() {
 
 // ── Sub-components ──
 
-function SectionCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function PreviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding: '1.15rem', marginBottom: '1rem' }}>
-      <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span>{icon}</span> {title}
-      </h3>
+    <div style={{ marginBottom: '0.85rem' }}>
+      <h3 style={{ fontSize: '0.82rem', fontWeight: 700, margin: '0 0 0.35rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.2rem', fontFamily: 'Georgia, serif' }}>{title}</h3>
       {children}
+    </div>
+  )
+}
+
+function PreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>
+      <strong>{label}:</strong> <span style={{ color: '#475569', whiteSpace: 'pre-wrap' }}>{value}</span>
     </div>
   )
 }
 
 function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '0.65rem' }}>
-      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '0.25rem' }}>{label}</label>
+    <div style={{ marginBottom: '0.55rem' }}>
+      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: '0.2rem' }}>{label}</label>
       {children}
     </div>
   )
@@ -921,11 +763,11 @@ function FormRow({ label, children }: { label: string; children: React.ReactNode
 function RiskSelect({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginBottom: 1 }}>{label}</div>
       <select
         value={value}
         onChange={e => onChange(Number(e.target.value))}
-        style={{ ...inputStyle, fontSize: '0.82rem' }}
+        style={{ ...inputStyle, fontSize: '0.78rem', padding: '0.3rem 0.4rem' }}
       >
         {[1,2,3,4,5].map(n => (
           <option key={n} value={n}>{n} — {RISK_LABELS[n]}</option>
@@ -937,15 +779,18 @@ function RiskSelect({ label, value, onChange }: { label: string; value: number; 
 
 // ── Styles ──
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '0.45rem 0.65rem', borderRadius: 6,
-  border: '1px solid #e2e8f0', fontSize: '0.85rem', fontFamily: 'inherit',
+  width: '100%', padding: '0.4rem 0.6rem', borderRadius: 6,
+  border: '1px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit',
   outline: 'none', boxSizing: 'border-box',
 }
 
 const inputSm: React.CSSProperties = {
-  ...inputStyle, fontSize: '0.8rem', padding: '0.35rem 0.55rem',
+  ...inputStyle, fontSize: '0.78rem', padding: '0.3rem 0.5rem',
 }
 
 const matrixCell: React.CSSProperties = {
   padding: '0.25rem 0.4rem', border: '1px solid #e2e8f0', fontSize: '0.72rem',
 }
+
+const pTh: React.CSSProperties = { textAlign: 'left', padding: '0.25rem 0.3rem', fontSize: '0.72rem', fontWeight: 600 }
+const pTd: React.CSSProperties = { padding: '0.2rem 0.3rem', fontSize: '0.72rem' }
