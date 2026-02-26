@@ -320,6 +320,7 @@ TENANTS = {
         'business_type': 'generic',
         'business_name': 'NBNE',
         'tagline': 'Business Technology & Consulting',
+        'skip_demo_bookings': True,  # Live site — no pre-populated bookings
         'colour_primary': '#0f172a',
         'colour_secondary': '#1e293b',
         'email': 'hello@nbne.co.uk',
@@ -699,6 +700,17 @@ class Command(BaseCommand):
         self.stdout.write(f'  Clients: {len(demo_clients)}')
 
         # --- Historic + Future Bookings (14 days back, 14 days forward) ---
+        # Live tenants: skip booking generation entirely and clean up any previously seeded ones
+        if cfg.get('skip_demo_bookings'):
+            existing = Booking.objects.filter(tenant=self.tenant).count()
+            if existing:
+                Booking.objects.filter(tenant=self.tenant, notes='').delete()  # only delete seed bookings (no notes)
+                remaining = Booking.objects.filter(tenant=self.tenant).count()
+                self.stdout.write(f'  Bookings: skipped (live site) — cleaned {existing - remaining} seeded, {remaining} real kept')
+            else:
+                self.stdout.write(f'  Bookings: skipped (live site)')
+            return
+
         # Always recreate bookings to keep demo data fresh and count controlled
         existing = Booking.objects.filter(tenant=self.tenant).count()
         if existing > 50:
