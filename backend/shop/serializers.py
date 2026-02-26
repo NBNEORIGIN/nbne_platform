@@ -1,16 +1,37 @@
 from rest_framework import serializers
-from .models import Product, Order, OrderItem
+from .models import Product, ProductImage, Order, OrderItem
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'url', 'alt_text', 'sort_order', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return ''
 
 
 class ProductSerializer(serializers.ModelSerializer):
     price_pence = serializers.IntegerField(read_only=True)
     in_stock = serializers.BooleanField(read_only=True)
+    primary_image_url = serializers.CharField(read_only=True)
+    images = ProductImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'category', 'price', 'price_pence',
-            'image_url', 'stock_quantity', 'track_stock', 'in_stock',
+            'id', 'name', 'subtitle', 'description', 'category',
+            'price', 'compare_at_price', 'price_pence',
+            'image_url', 'primary_image_url', 'images',
+            'stock_quantity', 'track_stock', 'in_stock',
             'sort_order', 'active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

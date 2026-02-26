@@ -1063,6 +1063,36 @@ export async function sendFeedback(data: { type: string; message: string; page: 
   return apiFetch<any>('/feedback/', { method: 'POST', body: JSON.stringify(data) })
 }
 
+// --- Multipart upload helper (no Content-Type — browser sets multipart boundary) ---
+async function apiUpload<T = any>(
+  path: string,
+  formData: FormData,
+  method: 'POST' | 'PUT' | 'PATCH' = 'POST',
+): Promise<{ data: T | null; error: string | null; status: number }> {
+  const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  if (tenantSlug) headers['x-tenant-slug'] = tenantSlug
+
+  let url = `${API_BASE}${path}`
+  if (!url.includes('?') && !url.endsWith('/')) url += '/'
+  const cbSep = url.includes('?') ? '&' : '?'
+  url = `${url}${cbSep}_cb=${Date.now()}`
+
+  try {
+    const res = await fetch(url, { method, headers, body: formData, cache: 'no-store' })
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      return { data: null, error: errData.detail || errData.error || `Error ${res.status}`, status: res.status }
+    }
+    const data = res.status === 204 ? null : await res.json()
+    return { data, error: null, status: res.status }
+  } catch (err: any) {
+    return { data: null, error: err.message || 'Network error', status: 0 }
+  }
+}
+
 // --- Shop ---
 export async function getProducts(params?: { all?: boolean }) {
   const qs = params?.all ? '?all=1' : ''
@@ -1084,6 +1114,20 @@ export async function updateProduct(id: number, data: any) {
 
 export async function deleteProduct(id: number) {
   return apiFetch<any>(`/shop/products/${id}/`, { method: 'DELETE' })
+}
+
+export async function uploadProductImages(productId: number, files: File[]) {
+  const fd = new FormData()
+  files.forEach(f => fd.append('images', f))
+  return apiUpload<any[]>(`/shop/products/${productId}/images/`, fd)
+}
+
+export async function deleteProductImage(productId: number, imageId: number) {
+  return apiFetch<any>(`/shop/products/${productId}/images/${imageId}/`, { method: 'DELETE' })
+}
+
+export async function reorderProductImages(productId: number, imageIds: number[]) {
+  return apiFetch<any>(`/shop/products/${productId}/images/reorder/`, { method: 'POST', body: JSON.stringify({ order: imageIds }) })
 }
 
 export async function getOrders() {

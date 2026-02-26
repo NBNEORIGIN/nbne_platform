@@ -1,18 +1,23 @@
+import logging
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes, action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import Product, Order, OrderItem
-from .serializers import ProductSerializer, OrderSerializer
+from .models import Product, ProductImage, Order, OrderItem
+from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
     """CRUD for products. Admin-only for write ops, public for read."""
     serializer_class = ProductSerializer
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
-        qs = Product.objects.filter(tenant=tenant)
+        qs = Product.objects.filter(tenant=tenant).prefetch_related('images')
         if self.request.method == 'GET' and not self.request.user.is_authenticated:
             qs = qs.filter(active=True)
         return qs
@@ -22,9 +27,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [IsAuthenticated()]
 
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['request'] = self.request
+        return ctx
+
     def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)
         serializer.save(tenant=tenant)
+
+    def perform_update(self, serializer):
+        serializer.save()
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -35,6 +48,66 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
         return Order.objects.filter(tenant=tenant).prefetch_related('items')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_product_images(request, product_id):
+    """Upload one or more images to a product. Accepts multipart form with 'images' field."""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        product = Product.objects.get(id=product_id, tenant=tenant)
+    except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=404)
+
+    files = request.FILES.getlist('images')
+    if not files:
+        return Response({'error': 'No images provided'}, status=400)
+
+    max_order = ProductImage.objects.filter(product=product).count()
+    created = []
+    for i, f in enumerate(files):
+        img = ProductImage.objects.create(
+            product=product,
+            image=f,
+            alt_text=f.name,
+            sort_order=max_order + i,
+        )
+        created.append(img)
+
+    serializer = ProductImageSerializer(created, many=True, context={'request': request})
+    return Response(serializer.data, status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_product_image(request, product_id, image_id):
+    """Delete a single image from a product."""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        img = ProductImage.objects.get(id=image_id, product_id=product_id, product__tenant=tenant)
+    except ProductImage.DoesNotExist:
+        return Response({'error': 'Image not found'}, status=404)
+    img.image.delete(save=False)
+    img.delete()
+    return Response(status=204)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reorder_product_images(request, product_id):
+    """Reorder images for a product. Expects JSON: { "order": [image_id, image_id, ...] }"""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        Product.objects.get(id=product_id, tenant=tenant)
+    except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=404)
+
+    order = request.data.get('order', [])
+    for idx, img_id in enumerate(order):
+        ProductImage.objects.filter(id=img_id, product_id=product_id).update(sort_order=idx)
+    return Response({'status': 'ok'})
 
 
 @api_view(['POST'])
@@ -56,7 +129,6 @@ def create_shop_checkout(request):
     if not items or not customer_email:
         return Response({'error': 'Items and customer_email are required'}, status=400)
 
-    # Validate products and build line items
     line_items = []
     order_items = []
     total_pence = 0
@@ -89,7 +161,6 @@ def create_shop_checkout(request):
         })
         total_pence += product.price_pence * quantity
 
-    # Create order record
     order = Order.objects.create(
         tenant=tenant,
         customer_name=customer_name,
@@ -101,10 +172,15 @@ def create_shop_checkout(request):
     for oi in order_items:
         OrderItem.objects.create(order=order, **oi)
 
-    # Create Stripe session
+    # Deduct stock
+    for item in items:
+        product = Product.objects.get(id=item['product_id'])
+        if product.track_stock:
+            product.stock_quantity = max(0, product.stock_quantity - int(item.get('quantity', 1)))
+            product.save(update_fields=['stock_quantity'])
+
     stripe_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
     if not stripe_key:
-        # No Stripe — mark as paid directly (for demo/testing)
         order.status = 'paid'
         order.save(update_fields=['status'])
         return Response({
@@ -130,6 +206,7 @@ def create_shop_checkout(request):
         order.save(update_fields=['stripe_session_id'])
         return Response({'checkout_url': session.url, 'order_id': order.id})
     except Exception as e:
+        logger.exception('Stripe checkout error')
         return Response({'error': str(e)}, status=500)
 
 
@@ -138,9 +215,9 @@ def create_shop_checkout(request):
 def public_products(request):
     """Public endpoint — list active products for the shop page."""
     tenant = getattr(request, 'tenant', None)
-    products = Product.objects.filter(tenant=tenant, active=True)
+    products = Product.objects.filter(tenant=tenant, active=True).prefetch_related('images')
     category = request.query_params.get('category')
     if category:
         products = products.filter(category__iexact=category)
-    serializer = ProductSerializer(products, many=True)
+    serializer = ProductSerializer(products, many=True, context={'request': request})
     return Response(serializer.data)

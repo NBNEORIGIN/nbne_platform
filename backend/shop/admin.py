@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Product, Order, OrderItem
+from .models import Product, ProductImage, Order, OrderItem
+
+
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+    extra = 1
+    fields = ['image', 'alt_text', 'sort_order']
 
 
 class OrderItemInline(admin.TabularInline):
@@ -10,10 +16,11 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'price', 'stock_quantity', 'track_stock', 'active', 'created_at']
+    list_display = ['name', 'subtitle', 'category', 'price', 'stock_quantity', 'track_stock', 'active', 'created_at']
     list_filter = ['active', 'category', 'track_stock']
-    search_fields = ['name', 'description', 'category']
-    list_editable = ['active', 'sort_order'] if False else ['active']
+    search_fields = ['name', 'subtitle', 'description', 'category']
+    list_editable = ['active']
+    inlines = [ProductImageInline]
 
 
 @admin.register(Order)

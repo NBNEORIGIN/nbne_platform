@@ -8,11 +8,13 @@ class Product(models.Model):
         'tenants.TenantSettings', on_delete=models.CASCADE, related_name='products'
     )
     name = models.CharField(max_length=255)
+    subtitle = models.CharField(max_length=255, blank=True, default='', help_text='Short tagline shown below the title')
     description = models.TextField(blank=True, default='')
     category = models.CharField(max_length=100, blank=True, default='', help_text='e.g. First Aid Kits, Fire Safety, PPE')
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    image_url = models.URLField(blank=True, default='', help_text='Product image URL')
-    stock_quantity = models.IntegerField(default=0, help_text='0 = unlimited / not tracked')
+    compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text='Original price for showing discounts')
+    image_url = models.URLField(blank=True, default='', help_text='Legacy single image URL')
+    stock_quantity = models.IntegerField(default=0, help_text='Current stock level')
     track_stock = models.BooleanField(default=False, help_text='Enable stock tracking')
     sort_order = models.IntegerField(default=0)
     active = models.BooleanField(default=True, db_index=True)
@@ -35,6 +37,30 @@ class Product(models.Model):
         if not self.track_stock:
             return True
         return self.stock_quantity > 0
+
+    @property
+    def primary_image_url(self):
+        """Return the first uploaded image URL, or legacy image_url fallback."""
+        first = self.images.order_by('sort_order', 'id').first()
+        if first and first.image:
+            return first.image.url
+        return self.image_url or ''
+
+
+class ProductImage(models.Model):
+    """An image attached to a product. Supports multiple images per product."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='shop/products/%Y/%m/')
+    alt_text = models.CharField(max_length=255, blank=True, default='')
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'shop_product_image'
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f"Image for {self.product.name} (#{self.sort_order})"
 
 
 class Order(models.Model):
