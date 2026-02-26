@@ -12,6 +12,7 @@ venv/
 .venv/
 staticfiles/
 media/
+!frontend/app/api/media/
 node_modules/
 .next/
 *.log
