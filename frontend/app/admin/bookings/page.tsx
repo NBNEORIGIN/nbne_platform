@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getBookings, getBookableStaff, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
+import { getBookings, getBookableStaff, getServices, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
 import BookingsCalendar from '@/components/BookingsCalendar'
+import NewBookingModal from '@/components/NewBookingModal'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 
@@ -18,18 +19,27 @@ function statusBadge(s: string) {
 export default function AdminBookingsPage() {
   const [allBookings, setAllBookings] = useState<any[]>([])
   const [staffList, setStaffList] = useState<any[]>([])
+  const [servicesList, setServicesList] = useState<any[]>([])
   const [filter, setFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
+  const [newBookingSlot, setNewBookingSlot] = useState<{ date: string; time: string } | null>(null)
 
-  useEffect(() => {
+  function loadBookings() {
     getBookings().then(bRes => {
       setAllBookings(bRes.data || [])
       setLoading(false)
     }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadBookings()
     getBookableStaff().then(sRes => {
       setStaffList(sRes.data || [])
+    }).catch(() => {})
+    getServices({ all: true }).then(sRes => {
+      setServicesList(sRes.data || [])
     }).catch(() => {})
   }, [])
 
@@ -79,25 +89,37 @@ export default function AdminBookingsPage() {
           <h1 style={{ margin: 0 }}>Bookings</h1>
           <span className="badge badge-danger">Tier 3</span>
         </div>
-        <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
-            onClick={() => setViewMode('calendar')}
-            style={{
-              padding: '0.4rem 0.85rem', border: 'none', fontSize: '0.8rem', fontWeight: 600,
-              fontFamily: 'inherit', cursor: 'pointer',
-              background: viewMode === 'calendar' ? '#2563eb' : '#fff',
-              color: viewMode === 'calendar' ? '#fff' : '#334155',
+            onClick={() => {
+              const today = new Date().toISOString().slice(0, 10)
+              setNewBookingSlot({ date: today, time: '09:00' })
             }}
-          >📅 Calendar</button>
-          <button
-            onClick={() => setViewMode('list')}
             style={{
-              padding: '0.4rem 0.85rem', border: 'none', borderLeft: '1px solid #e2e8f0', fontSize: '0.8rem', fontWeight: 600,
-              fontFamily: 'inherit', cursor: 'pointer',
-              background: viewMode === 'list' ? '#2563eb' : '#fff',
-              color: viewMode === 'list' ? '#fff' : '#334155',
+              padding: '0.4rem 0.85rem', borderRadius: 6, border: 'none', fontSize: '0.8rem', fontWeight: 700,
+              fontFamily: 'inherit', cursor: 'pointer', background: '#22c55e', color: '#fff',
             }}
-          >☰ List</button>
+          >+ New Booking</button>
+          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                padding: '0.4rem 0.85rem', border: 'none', fontSize: '0.8rem', fontWeight: 600,
+                fontFamily: 'inherit', cursor: 'pointer',
+                background: viewMode === 'calendar' ? '#2563eb' : '#fff',
+                color: viewMode === 'calendar' ? '#fff' : '#334155',
+              }}
+            >📅 Calendar</button>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '0.4rem 0.85rem', border: 'none', borderLeft: '1px solid #e2e8f0', fontSize: '0.8rem', fontWeight: 600,
+                fontFamily: 'inherit', cursor: 'pointer',
+                background: viewMode === 'list' ? '#2563eb' : '#fff',
+                color: viewMode === 'list' ? '#fff' : '#334155',
+              }}
+            >☰ List</button>
+          </div>
         </div>
       </div>
 
@@ -110,6 +132,7 @@ export default function AdminBookingsPage() {
           onNoShow={handleNoShow}
           onDelete={handleDelete}
           onAssignStaff={handleAssignStaff}
+          onSlotClick={(date, time) => setNewBookingSlot({ date, time })}
         />
       ) : null}
 
@@ -163,6 +186,19 @@ export default function AdminBookingsPage() {
           </tbody>
         </table>
       </div>}
+      {newBookingSlot && (
+        <NewBookingModal
+          date={newBookingSlot.date}
+          time={newBookingSlot.time}
+          services={servicesList}
+          staffList={staffList}
+          onClose={() => setNewBookingSlot(null)}
+          onCreated={(booking) => {
+            setAllBookings(prev => [booking, ...prev])
+            setNewBookingSlot(null)
+          }}
+        />
+      )}
     </div>
   )
 }

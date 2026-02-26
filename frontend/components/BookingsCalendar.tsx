@@ -24,6 +24,7 @@ interface Props {
   onNoShow: (id: number) => void
   onDelete: (id: number) => void
   onAssignStaff: (bookingId: number, staffId: number | null) => void
+  onSlotClick?: (date: string, time: string) => void
 }
 
 // Staff colour palette — cycles through for each unique staff member
@@ -81,7 +82,7 @@ function timeToMinutes(time: string): number {
   return h * 60 + m
 }
 
-export default function BookingsCalendar({ bookings, staffList, onConfirm, onComplete, onNoShow, onDelete, onAssignStaff }: Props) {
+export default function BookingsCalendar({ bookings, staffList, onConfirm, onComplete, onNoShow, onDelete, onAssignStaff, onSlotClick }: Props) {
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
 
@@ -209,17 +210,37 @@ export default function BookingsCalendar({ bookings, staffList, onConfirm, onCom
                   <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>{formatShortDate(date)}</div>
                 </div>
                 <div style={{ position: 'relative', height: gridHeight }}>
-                  {/* Hour grid lines */}
+                  {/* Hour grid lines — clickable for new bookings */}
                   {hours.map(h => (
-                    <div key={h} style={{
-                      position: 'absolute',
-                      top: (h - HOUR_START) * CELL_HEIGHT,
-                      left: 0,
-                      right: 0,
-                      height: CELL_HEIGHT,
-                      borderBottom: '1px solid #f1f5f9',
-                      borderRight: dayIdx < 6 ? '1px solid #f1f5f9' : 'none',
-                    }} />
+                    <div
+                      key={h}
+                      style={{
+                        position: 'absolute',
+                        top: (h - HOUR_START) * CELL_HEIGHT,
+                        left: 0,
+                        right: 0,
+                        height: CELL_HEIGHT,
+                        borderBottom: '1px solid #f1f5f9',
+                        borderRight: dayIdx < 6 ? '1px solid #f1f5f9' : 'none',
+                        cursor: onSlotClick ? 'pointer' : 'default',
+                      }}
+                      onClick={(e) => {
+                        if (!onSlotClick) return
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const yOffset = e.clientY - rect.top
+                        const minuteOffset = Math.floor((yOffset / CELL_HEIGHT) * 60 / 15) * 15
+                        const totalMinutes = h * 60 + minuteOffset
+                        const hh = Math.floor(totalMinutes / 60).toString().padStart(2, '0')
+                        const mm = (totalMinutes % 60).toString().padStart(2, '0')
+                        onSlotClick(dateStr, `${hh}:${mm}`)
+                      }}
+                      onMouseEnter={e => {
+                        if (onSlotClick) (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,235,0.04)'
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = 'transparent'
+                      }}
+                    />
                   ))}
                   {/* Booking blocks */}
                   {dayBookings.map(b => (
