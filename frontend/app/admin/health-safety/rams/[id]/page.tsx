@@ -168,6 +168,80 @@ export default function RamsEditorPage() {
   function addPermit() { setPermits(prev => [...prev, emptyPermit()]) }
   function removePermit(idx: number) { setPermits(prev => prev.filter((_, i) => i !== idx)) }
 
+  // Apply AI suggested content to a section
+  function applySuggestion(section: string, content: string) {
+    switch (section) {
+      case 'job_details':
+        setJobDetails((p: any) => ({ ...p, job_description: p.job_description ? `${p.job_description}\n\n${content}` : content }))
+        break
+      case 'personnel':
+        // Add a new person entry with the suggestion as notes
+        setPersonnel(prev => {
+          const first = prev[0]
+          if (first && !first.name && !first.role) {
+            return [{ ...first, responsibilities: content }, ...prev.slice(1)]
+          }
+          return [...prev, { ...emptyPerson(), responsibilities: content }]
+        })
+        break
+      case 'equipment':
+        setEquipment(prev => {
+          const first = prev[0]
+          if (first && !first.name) {
+            return [{ ...first, notes: content }, ...prev.slice(1)]
+          }
+          return [...prev, { ...emptyEquipment(), notes: content }]
+        })
+        break
+      case 'hazards':
+        setHazards(prev => {
+          const first = prev[0]
+          if (first && !first.description && !first.controls) {
+            return [{ ...first, description: content }, ...prev.slice(1)]
+          }
+          return [...prev, { ...emptyHazard(), description: content }]
+        })
+        break
+      case 'method_statement':
+        setMethodStatement(prev => {
+          const first = prev[0]
+          if (first && !first.description) {
+            return [{ ...first, description: content }, ...prev.slice(1)]
+          }
+          return [...prev, { ...emptyStep(prev.length + 1), description: content }]
+        })
+        break
+      case 'emergency_procedures':
+        setEmergencyProcedures((p: any) => ({
+          ...p,
+          evacuation_procedure: p.evacuation_procedure ? `${p.evacuation_procedure}\n\n${content}` : content,
+        }))
+        break
+      case 'environmental':
+        setEnvironmental((p: any) => ({
+          ...p,
+          waste_disposal: p.waste_disposal ? `${p.waste_disposal}\n\n${content}` : content,
+        }))
+        break
+      case 'permits':
+        setPermits(prev => {
+          const first = prev[0]
+          if (first && !first.type) {
+            return [{ ...first, type: content }, ...prev.slice(1)]
+          }
+          return [...prev, { ...emptyPermit(), type: content }]
+        })
+        break
+      case 'monitoring':
+        setMonitoring((p: any) => ({
+          ...p,
+          review_schedule: p.review_schedule ? `${p.review_schedule}\n\n${content}` : content,
+        }))
+        break
+    }
+    setActiveSection(section)
+  }
+
   if (loading) return <div className="empty-state">Loading RAMS…</div>
   if (!rams) return <div className="empty-state">RAMS document not found</div>
 
@@ -552,9 +626,10 @@ export default function RamsEditorPage() {
           {/* ── AI Review ── */}
           {activeSection === 'ai_review' && aiReview && (
             <SectionCard title="AI Safety Review" icon="🤖">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              {/* Score + Summary header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{
-                  width: 56, height: 56, borderRadius: '50%',
+                  width: 60, height: 60, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '1.4rem', fontWeight: 800,
                   background: (aiReview.score || 0) >= 7 ? '#dcfce7' : (aiReview.score || 0) >= 4 ? '#fef3c7' : '#fef2f2',
@@ -562,35 +637,213 @@ export default function RamsEditorPage() {
                 }}>
                   {aiReview.score || '?'}/10
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{aiReview.summary}</div>
-                  {aiReview.reviewed_at && <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Reviewed: {new Date(aiReview.reviewed_at).toLocaleString()}</div>}
-                  {aiReview.ai_powered === false && <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>Rule-based (AI unavailable)</span>}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3 }}>{aiReview.summary}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 4, flexWrap: 'wrap' }}>
+                    {aiReview.reviewed_at && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Reviewed: {new Date(aiReview.reviewed_at).toLocaleString()}</span>}
+                    {aiReview.ai_powered === false && <span className="badge badge-warning" style={{ fontSize: '0.68rem' }}>Rule-based (AI unavailable)</span>}
+                  </div>
                 </div>
               </div>
 
+              {/* ── Overall Risk Matrix ── */}
+              {(aiReview.overall_likelihood || aiReview.overall_severity) && (() => {
+                const oL = aiReview.overall_likelihood || 3
+                const oS = aiReview.overall_severity || 3
+                const overallScore = oL * oS
+                const level = riskLevel(overallScore)
+                return (
+                  <div style={{ marginBottom: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Overall Assessed Risk</div>
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      {/* 5×5 Matrix with highlight */}
+                      <div>
+                        <table style={{ borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ ...matrixCell, background: 'transparent', border: 'none', width: 28 }}></th>
+                              {[1,2,3,4,5].map(s => <th key={s} style={{ ...matrixCell, fontWeight: 600, background: '#f1f5f9' }}>S{s}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[5,4,3,2,1].map(l => (
+                              <tr key={l}>
+                                <td style={{ ...matrixCell, fontWeight: 600, background: '#f1f5f9', textAlign: 'center' }}>L{l}</td>
+                                {[1,2,3,4,5].map(s => {
+                                  const sc = l * s
+                                  const isHighlighted = l === oL && s === oS
+                                  return (
+                                    <td key={s} style={{
+                                      ...matrixCell,
+                                      background: riskColour(sc),
+                                      color: '#fff',
+                                      fontWeight: 700,
+                                      textAlign: 'center',
+                                      width: 36, height: 32,
+                                      position: 'relative',
+                                      outline: isHighlighted ? '3px solid #1e293b' : 'none',
+                                      outlineOffset: isHighlighted ? -1 : 0,
+                                      boxShadow: isHighlighted ? '0 0 0 1px #fff, 0 0 8px rgba(0,0,0,0.3)' : 'none',
+                                      fontSize: isHighlighted ? '0.85rem' : '0.72rem',
+                                    }}>
+                                      {sc}
+                                      {isHighlighted && <span style={{ position: 'absolute', top: -4, right: -4, width: 10, height: 10, borderRadius: '50%', background: '#1e293b', border: '2px solid #fff' }} />}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem', fontSize: '0.68rem' }}>
+                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#22c55e', marginRight: 3 }} />Low</span>
+                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#f59e0b', marginRight: 3 }} />Med</span>
+                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#ef4444', marginRight: 3 }} />High</span>
+                          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#991b1b', marginRight: 3 }} />V.High</span>
+                        </div>
+                      </div>
+                      {/* Risk summary */}
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <span style={{
+                            display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: 6,
+                            background: riskColour(overallScore), color: '#fff', fontWeight: 800, fontSize: '1.1rem',
+                          }}>
+                            {overallScore}
+                          </span>
+                          <span style={{ fontWeight: 700, fontSize: '0.95rem', textTransform: 'uppercase', color: riskColour(overallScore) }}>
+                            {level} risk
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                          <div><strong>Likelihood:</strong> {oL}/5 — {RISK_LABELS[oL]}</div>
+                          <div><strong>Severity:</strong> {oS}/5 — {RISK_LABELS[oS]}</div>
+                        </div>
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#475569', padding: '0.4rem 0.6rem', background: '#fff', borderRadius: 4, border: '1px solid #e2e8f0' }}>
+                          {overallScore <= 4 ? 'Risk is acceptable. Standard controls are sufficient.' :
+                           overallScore <= 9 ? 'Risk is moderate. Ensure all controls are in place and monitored.' :
+                           overallScore <= 16 ? 'Risk is high. Additional controls required before work proceeds.' :
+                           'Risk is very high. Work should not proceed until risk is significantly reduced.'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* ── Editable Findings ── */}
               {aiReview.findings?.length > 0 && (
                 <>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.4rem' }}>Findings</div>
-                  {aiReview.findings.map((f: any, i: number) => (
-                    <div key={i} style={{
-                      padding: '0.6rem 0.75rem', borderRadius: 6, marginBottom: '0.4rem',
-                      border: `1px solid ${f.severity === 'high' ? '#fecaca' : f.severity === 'medium' ? '#fed7aa' : '#e2e8f0'}`,
-                      background: f.severity === 'high' ? '#fef2f2' : f.severity === 'medium' ? '#fffbeb' : '#f8fafc',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: 2 }}>
-                        <span className={`badge ${f.severity === 'high' ? 'badge-danger' : f.severity === 'medium' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.68rem' }}>
-                          {f.severity.toUpperCase()}
-                        </span>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{f.section}</span>
-                      </div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{f.issue}</div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: 2 }}>💡 {f.recommendation}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                      Findings ({aiReview.findings.filter((f: any) => !f._dismissed).length} active)
                     </div>
-                  ))}
+                    <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                      Address findings → re-run AI Review to reduce risk iteratively
+                    </div>
+                  </div>
+                  {aiReview.findings.map((f: any, i: number) => {
+                    if (f._dismissed) return null
+                    const sectionMeta = ALL_SECTIONS.find(s => s.key === f.section)
+                    return (
+                      <div key={i} style={{
+                        padding: '0.75rem', borderRadius: 8, marginBottom: '0.6rem',
+                        border: `1px solid ${f.severity === 'high' ? '#fecaca' : f.severity === 'medium' ? '#fed7aa' : '#e2e8f0'}`,
+                        background: f.severity === 'high' ? '#fef2f2' : f.severity === 'medium' ? '#fffbeb' : '#f8fafc',
+                      }}>
+                        {/* Finding header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.3rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span className={`badge ${f.severity === 'high' ? 'badge-danger' : f.severity === 'medium' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.68rem' }}>
+                              {f.severity.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                              {sectionMeta ? `${sectionMeta.icon} ${sectionMeta.label}` : f.section}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3rem' }}>
+                            {sectionMeta && isApplicable(f.section) && (
+                              <button
+                                className="btn btn-outline btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
+                                onClick={() => setActiveSection(f.section)}
+                              >
+                                → Go to {sectionMeta.label}
+                              </button>
+                            )}
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ fontSize: '0.72rem', padding: '0.2rem 0.4rem', color: 'var(--color-text-muted)' }}
+                              onClick={() => {
+                                const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, _dismissed: true } : ff) }
+                                setAiReview(updated)
+                              }}
+                              title="Dismiss finding"
+                            >✕</button>
+                          </div>
+                        </div>
+
+                        {/* Editable issue */}
+                        <div style={{ marginBottom: '0.4rem' }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', marginBottom: 2 }}>Issue</div>
+                          <textarea
+                            value={f.issue}
+                            onChange={e => {
+                              const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, issue: e.target.value } : ff) }
+                              setAiReview(updated)
+                            }}
+                            style={{ ...inputStyle, fontSize: '0.83rem', fontWeight: 600, resize: 'vertical', minHeight: 36 }}
+                            rows={1}
+                          />
+                        </div>
+
+                        {/* Editable recommendation */}
+                        <div style={{ marginBottom: '0.4rem' }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', marginBottom: 2 }}>💡 Recommendation</div>
+                          <textarea
+                            value={f.recommendation}
+                            onChange={e => {
+                              const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, recommendation: e.target.value } : ff) }
+                              setAiReview(updated)
+                            }}
+                            style={{ ...inputStyle, fontSize: '0.82rem', resize: 'vertical', color: '#475569', minHeight: 36 }}
+                            rows={1}
+                          />
+                        </div>
+
+                        {/* Suggested content with Apply button */}
+                        {f.suggested_content && (
+                          <div style={{ marginTop: '0.4rem', padding: '0.6rem', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#15803d' }}>✨ Suggested Content</div>
+                              {sectionMeta && isApplicable(f.section) && (
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem' }}
+                                  onClick={() => applySuggestion(f.section, f.suggested_content)}
+                                >
+                                  Apply to {sectionMeta.label}
+                                </button>
+                              )}
+                            </div>
+                            <textarea
+                              value={f.suggested_content}
+                              onChange={e => {
+                                const updated = { ...aiReview, findings: aiReview.findings.map((ff: any, fi: number) => fi === i ? { ...ff, suggested_content: e.target.value } : ff) }
+                                setAiReview(updated)
+                              }}
+                              style={{ ...inputStyle, fontSize: '0.82rem', resize: 'vertical', background: 'transparent', border: '1px solid #bbf7d0', color: '#166534' }}
+                              rows={3}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </>
               )}
 
+              {/* Positive Points */}
               {aiReview.positive_points?.length > 0 && (
                 <div style={{ marginTop: '0.75rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.4rem' }}>Positive Points</div>
@@ -600,6 +853,7 @@ export default function RamsEditorPage() {
                 </div>
               )}
 
+              {/* Missing Controls */}
               {aiReview.missing_controls?.length > 0 && (
                 <div style={{ marginTop: '0.75rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.4rem' }}>Missing Controls</div>
@@ -609,10 +863,21 @@ export default function RamsEditorPage() {
                 </div>
               )}
 
-              <div style={{ marginTop: '1rem' }}>
-                <button className="btn btn-outline btn-sm" onClick={handleAiReview} disabled={aiLoading}>
-                  {aiLoading ? 'Re-running…' : '🔄 Re-run AI Review'}
+              {/* Iterative workflow hint + re-run */}
+              <div style={{
+                marginTop: '1.25rem', padding: '0.75rem', borderRadius: 8,
+                background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: '0.82rem', color: '#1e40af',
+              }}>
+                <strong>💡 Iterative Risk Reduction</strong><br />
+                Apply suggested content to each section, then re-run the AI Review. The score and risk matrix will update as you improve the document. Keep iterating until all findings are addressed and the overall risk is acceptable.
+              </div>
+              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button className="btn btn-primary btn-sm" onClick={handleAiReview} disabled={aiLoading}>
+                  {aiLoading ? '🤖 Re-analysing…' : '🔄 Re-run AI Review'}
                 </button>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  Saves document, then re-analyses
+                </span>
               </div>
             </SectionCard>
           )}

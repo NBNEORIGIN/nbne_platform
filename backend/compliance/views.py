@@ -1074,9 +1074,14 @@ def rams_ai_review(request, rams_id):
             "Respond in JSON format with:\n"
             '{"summary": "brief overall assessment",'
             ' "score": <1-10 safety rating>,'
-            ' "findings": [{"severity": "high|medium|low", "section": "section_name", "issue": "description", "recommendation": "what to do"}],'
+            ' "overall_likelihood": <1-5 overall likelihood of harm based on document quality and controls>,'
+            ' "overall_severity": <1-5 overall potential severity considering the work described>,'
+            ' "findings": [{"severity": "high|medium|low", "section": "section_name", "issue": "description", "recommendation": "what to do",'
+            ' "suggested_content": "specific text the user could add to the section to address this finding — be detailed and practical, write it as if you are filling in the section for them"}],'
             ' "missing_controls": ["any hazards that should have additional controls"],'
-            ' "positive_points": ["things done well"]}'
+            ' "positive_points": ["things done well"]}\n\n'
+            "IMPORTANT: For each finding, the suggested_content field should contain practical, ready-to-use text that the user can directly apply to improve that section. "
+            "Write suggested_content as if you are completing the section for the user based on the job description provided."
         )
 
         response = client.chat.completions.create(
@@ -1101,6 +1106,7 @@ def rams_ai_review(request, rams_id):
                 'severity': 'high', 'section': 'hazards',
                 'issue': 'No hazards identified',
                 'recommendation': 'All work activities have associated hazards. Identify and assess each one.',
+                'suggested_content': 'Identify specific hazards relevant to the work: e.g. working at height, manual handling, electrical risks, slips/trips, noise exposure. For each hazard, describe what could go wrong and who might be harmed.',
             })
         elif rams.hazards:
             for i, h in enumerate(rams.hazards, 1):
@@ -1113,19 +1119,38 @@ def rams_ai_review(request, rams_id):
                         'severity': 'medium', 'section': 'hazards',
                         'issue': f'Hazard #{i}: residual risk is not lower than initial risk',
                         'recommendation': 'Controls should reduce either likelihood or severity.',
+                        'suggested_content': f'Review controls for hazard #{i}. Ensure control measures such as PPE, barriers, safe systems of work, or supervision are in place to reduce either the likelihood or severity of harm.',
                     })
                 if rl * rs > 12:
                     findings.append({
                         'severity': 'high', 'section': 'hazards',
                         'issue': f'Hazard #{i}: residual risk score ({rl * rs}) is high',
                         'recommendation': 'Consider additional controls or alternative methods to reduce risk below 12.',
+                        'suggested_content': f'Hazard #{i} requires additional controls. Consider: elimination of the hazard, substitution with lower-risk methods, engineering controls, administrative controls, or enhanced PPE. The residual risk score must be reduced to an acceptable level (below 12).',
                     })
+
+        if 'personnel' in applicable and (not rams.personnel or all(not p.get('name') for p in (rams.personnel or []))):
+            findings.append({
+                'severity': 'high', 'section': 'personnel',
+                'issue': 'Personnel details are incomplete',
+                'recommendation': 'Complete the personnel section with specific names, roles, qualifications, and responsibilities.',
+                'suggested_content': 'List all personnel involved: Name, Role/Trade (e.g. Site Supervisor, Electrician), Qualifications (e.g. CSCS card, IPAF, PASMA), and Responsibilities (e.g. site safety, work execution, first aid).',
+            })
+
+        if 'equipment' in applicable and (not rams.equipment or all(not e.get('name') for e in (rams.equipment or []))):
+            findings.append({
+                'severity': 'high', 'section': 'equipment',
+                'issue': 'Equipment details are missing',
+                'recommendation': 'Provide a detailed list of all equipment to be used.',
+                'suggested_content': 'List all equipment: Name, Last Inspection Date, Certificate Reference, and any Notes on condition or usage restrictions. Include PPE, power tools, access equipment, and specialist items.',
+            })
 
         if 'emergency_procedures' in applicable and not rams.emergency_procedures:
             findings.append({
                 'severity': 'medium', 'section': 'emergency_procedures',
                 'issue': 'No emergency procedures documented',
                 'recommendation': 'Include emergency contacts, first aider details, and nearest hospital.',
+                'suggested_content': 'Emergency Contact: [Name, Phone]. First Aider(s): [Names with qualifications]. Nearest A&E: [Hospital name and address]. Assembly Point: [Location]. In an emergency, call 999 and notify the site supervisor immediately.',
             })
 
         if not rams.method_statement or len(rams.method_statement) == 0:
@@ -1134,11 +1159,37 @@ def rams_ai_review(request, rams_id):
                     'severity': 'medium', 'section': 'method_statement',
                     'issue': 'No method statement steps defined',
                     'recommendation': 'Describe the step-by-step work process.',
+                    'suggested_content': 'Step 1: Site arrival and induction. Step 2: Set up work area and safety barriers. Step 3: [Describe main work activity]. Step 4: Quality check and sign-off. Step 5: Clear site and dispose of waste safely.',
                 })
+
+        if 'permits' in applicable and (not rams.permits or all(not p.get('type') for p in (rams.permits or []))):
+            findings.append({
+                'severity': 'medium', 'section': 'permits',
+                'issue': 'Permit section is incomplete',
+                'recommendation': 'Specify any necessary permits required for the work.',
+                'suggested_content': 'Identify permits required: e.g. Hot Works Permit, Confined Space Entry Permit, Excavation Permit, Working at Height Permit. Include permit type, reference number, issued by, and expiry date.',
+            })
+
+        # Compute overall risk from hazard data
+        max_residual = 1
+        max_severity = 1
+        if rams.hazards:
+            for h in rams.hazards:
+                rl = h.get('residual_likelihood', 1)
+                rs = h.get('residual_severity', 1)
+                if rl * rs > max_residual:
+                    max_residual = rl * rs
+                    max_severity = rs
+        # Estimate overall likelihood/severity (higher findings = higher likelihood)
+        finding_penalty = min(len(findings), 3)
+        overall_l = min(5, max(1, (max_residual // 5) + 1 + finding_penalty))
+        overall_s = min(5, max(1, max_severity + (1 if len(findings) > 3 else 0)))
 
         review_data = {
             'summary': f'Rule-based review completed. {len(findings)} finding(s) identified.',
             'score': max(1, 10 - len(findings)),
+            'overall_likelihood': overall_l,
+            'overall_severity': overall_s,
             'findings': findings,
             'missing_controls': [],
             'positive_points': [],
