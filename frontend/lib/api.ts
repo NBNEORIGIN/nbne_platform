@@ -238,6 +238,16 @@ export async function deleteService(id: number) {
   return apiFetch<any>(`/services/${id}/`, { method: 'DELETE' })
 }
 
+export async function uploadServiceBrochure(serviceId: number, file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiUpload<any>(`/services/${serviceId}/upload-brochure/`, fd)
+}
+
+export async function deleteServiceBrochure(serviceId: number) {
+  return apiFetch<any>(`/services/${serviceId}/delete-brochure/`, { method: 'DELETE' })
+}
+
 export function getSlots(params?: { service_id?: number; date_from?: string; date_to?: string }) {
   const qs = new URLSearchParams()
   if (params?.service_id) qs.set('service_id', String(params.service_id))

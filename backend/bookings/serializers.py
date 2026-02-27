@@ -8,10 +8,12 @@ class ServiceSerializer(serializers.ModelSerializer):
     staff_ids = serializers.SerializerMethodField()
     risk_indicator = serializers.CharField(read_only=True)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    brochure_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
-        fields = ['id', 'name', 'description', 'category', 'duration_minutes', 'price',
+        fields = ['id', 'name', 'description', 'long_description', 'brochure_filename',
+                  'brochure_url', 'category', 'duration_minutes', 'price',
                   'price_pence', 'payment_type', 'deposit_pence', 'deposit_percentage',
                   'colour', 'sort_order', 'active', 'is_active', 'staff_ids',
                   'demand_index', 'peak_time_multiplier', 'off_peak_discount_allowed',
@@ -35,6 +37,14 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def get_staff_ids(self, obj):
         return list(obj.staff_members.values_list('id', flat=True))
+
+    def get_brochure_url(self, obj):
+        if obj.brochure:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.brochure.url)
+            return obj.brochure.url
+        return None
 
 
 class StaffSerializer(serializers.ModelSerializer):

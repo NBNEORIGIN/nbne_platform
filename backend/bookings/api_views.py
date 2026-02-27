@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Service, Staff, Client, Booking, Session, StaffBlock, ServiceOptimisationLog
@@ -157,6 +158,29 @@ class ServiceViewSet(viewsets.ModelViewSet):
                            l.previous_deposit, l.new_deposit, l.reason,
                            l.ai_recommended, l.owner_override, l.timestamp.isoformat()])
         return response
+
+    @action(detail=True, methods=['post'], url_path='upload-brochure',
+            parser_classes=[MultiPartParser, FormParser])
+    def upload_brochure(self, request, pk=None):
+        """POST /api/services/<id>/upload-brochure/ — upload a brochure PDF"""
+        service = self.get_object()
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        service.brochure = f
+        service.brochure_filename = f.name
+        service.save(update_fields=['brochure', 'brochure_filename'])
+        return Response(ServiceSerializer(service, context={'request': request}).data)
+
+    @action(detail=True, methods=['delete'], url_path='delete-brochure')
+    def delete_brochure(self, request, pk=None):
+        """DELETE /api/services/<id>/delete-brochure/"""
+        service = self.get_object()
+        if service.brochure:
+            service.brochure.delete(save=False)
+        service.brochure_filename = ''
+        service.save(update_fields=['brochure', 'brochure_filename'])
+        return Response(ServiceSerializer(service, context={'request': request}).data)
 
 
 class StaffViewSet(viewsets.ModelViewSet):

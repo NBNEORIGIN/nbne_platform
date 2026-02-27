@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getServices, createService, updateService, deleteService, getBookableStaff } from '@/lib/api'
+import { useEffect, useState, useRef } from 'react'
+import { getServices, createService, updateService, deleteService, uploadServiceBrochure, deleteServiceBrochure, getBookableStaff } from '@/lib/api'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 function penceToPounds(pence: number) { return (pence / 100).toFixed(2) }
@@ -14,7 +14,7 @@ function depositDisplay(s: any) {
 }
 
 const emptyService = {
-  name: '', description: '', category: '', duration_minutes: 60,
+  name: '', description: '', long_description: '', category: '', duration_minutes: 60,
   colour: '', sort_order: 0, is_active: true,
 }
 
@@ -32,6 +32,10 @@ export default function AdminServicesPage() {
   const [filter, setFilter] = useState<'active' | 'inactive' | 'all'>('active')
   const [allStaff, setAllStaff] = useState<any[]>([])
   const [selectedStaffIds, setSelectedStaffIds] = useState<number[]>([])
+  const [brochureFile, setBrochureFile] = useState<File | null>(null)
+  const [existingBrochure, setExistingBrochure] = useState<{ filename: string; url: string | null } | null>(null)
+  const [removeBrochure, setRemoveBrochure] = useState(false)
+  const brochureRef = useRef<HTMLInputElement>(null)
 
   const loadServices = () => {
     getServices({ all: true }).then(r => { setServices(r.data || []); setLoading(false) })
@@ -53,6 +57,9 @@ export default function AdminServicesPage() {
     setDepositInput('')
     setDepositMode('fixed')
     setSelectedStaffIds([])
+    setBrochureFile(null)
+    setExistingBrochure(null)
+    setRemoveBrochure(false)
     setEditingId(null)
     setError('')
     setShowModal(true)
@@ -62,12 +69,16 @@ export default function AdminServicesPage() {
     setForm({
       name: s.name || '',
       description: s.description || '',
+      long_description: s.long_description || '',
       category: s.category || '',
       duration_minutes: s.duration_minutes || 60,
       colour: s.colour || '',
       sort_order: s.sort_order || 0,
       is_active: s.is_active ?? true,
     })
+    setBrochureFile(null)
+    setRemoveBrochure(false)
+    setExistingBrochure(s.brochure_filename ? { filename: s.brochure_filename, url: s.brochure_url } : null)
     setPriceInput(penceToPounds(s.price_pence || 0))
     if (s.deposit_percentage && s.deposit_percentage > 0) {
       setDepositMode('percent')
@@ -91,6 +102,7 @@ export default function AdminServicesPage() {
     const payload: any = {
       name: form.name,
       description: form.description,
+      long_description: form.long_description,
       category: form.category,
       duration_minutes: form.duration_minutes,
       price_pence: poundsToPence(priceInput),
@@ -113,8 +125,19 @@ export default function AdminServicesPage() {
     } else {
       res = await createService(payload)
     }
+    if (res.error) { setSaving(false); setError(res.error); return }
+    const savedId = res.data?.id || editingId
+    // Handle brochure upload / removal
+    if (savedId) {
+      if (removeBrochure && !brochureFile) {
+        await deleteServiceBrochure(savedId)
+      }
+      if (brochureFile) {
+        const bRes = await uploadServiceBrochure(savedId, brochureFile)
+        if (bRes.error) { setSaving(false); setError(`Saved but brochure failed: ${bRes.error}`); loadServices(); return }
+      }
+    }
     setSaving(false)
-    if (res.error) { setError(res.error); return }
     setShowModal(false)
     loadServices()
   }
@@ -208,7 +231,7 @@ export default function AdminServicesPage() {
       {/* Add / Edit Service Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ marginBottom: 16 }}>{editingId ? 'Edit Service' : 'Add Service'}</h2>
             {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'grid', gap: 12 }}>
@@ -217,8 +240,58 @@ export default function AdminServicesPage() {
                 <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Cut & Style" />
               </div>
               <div>
-                <label className="form-label">Description</label>
-                <textarea className="form-input" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Brief description shown to customers" />
+                <label className="form-label">Short Description</label>
+                <textarea className="form-input" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Brief description shown in listings" />
+              </div>
+              <div>
+                <label className="form-label">Detailed Description <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>(optional — for course/training detail pages)</span></label>
+                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius, 8px)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 2, padding: '4px 6px', background: 'var(--color-bg-muted, #f8fafc)', borderBottom: '1px solid var(--color-border)' }}>
+                    <button type="button" className="btn btn-sm" style={{ padding: '2px 8px', fontSize: '0.78rem' }} onClick={() => {
+                      const ta = document.getElementById('long-desc-ta') as HTMLTextAreaElement
+                      if (!ta) return
+                      const start = ta.selectionStart, end = ta.selectionEnd
+                      const sel = form.long_description.substring(start, end)
+                      const wrapped = `<strong>${sel || 'bold text'}</strong>`
+                      setForm({ ...form, long_description: form.long_description.substring(0, start) + wrapped + form.long_description.substring(end) })
+                    }}><b>B</b></button>
+                    <button type="button" className="btn btn-sm" style={{ padding: '2px 8px', fontSize: '0.78rem' }} onClick={() => {
+                      const ta = document.getElementById('long-desc-ta') as HTMLTextAreaElement
+                      if (!ta) return
+                      const start = ta.selectionStart, end = ta.selectionEnd
+                      const sel = form.long_description.substring(start, end)
+                      const wrapped = `<em>${sel || 'italic text'}</em>`
+                      setForm({ ...form, long_description: form.long_description.substring(0, start) + wrapped + form.long_description.substring(end) })
+                    }}><i>I</i></button>
+                    <button type="button" className="btn btn-sm" style={{ padding: '2px 8px', fontSize: '0.78rem' }} onClick={() => {
+                      setForm({ ...form, long_description: form.long_description + '\n<ul>\n  <li>Item</li>\n</ul>' })
+                    }}>• List</button>
+                    <button type="button" className="btn btn-sm" style={{ padding: '2px 8px', fontSize: '0.78rem' }} onClick={() => {
+                      setForm({ ...form, long_description: form.long_description + '\n<h3>Heading</h3>' })
+                    }}>H</button>
+                  </div>
+                  <textarea id="long-desc-ta" className="form-input" rows={5} value={form.long_description} onChange={e => setForm({ ...form, long_description: e.target.value })} placeholder="Full course description, learning outcomes, what's included…&#10;Supports basic HTML: <strong>, <em>, <ul>, <h3>, <p>" style={{ border: 'none', borderRadius: 0, resize: 'vertical' }} />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Brochure / Course Document <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>(PDF, optional)</span></label>
+                {existingBrochure && !removeBrochure && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 10px', background: 'var(--color-bg-muted, #f8fafc)', borderRadius: 6, fontSize: '0.85rem' }}>
+                    <span>📄 {existingBrochure.filename}</span>
+                    {existingBrochure.url && <a href={existingBrochure.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>View</a>}
+                    <button type="button" className="btn btn-sm" style={{ marginLeft: 'auto', color: 'var(--color-danger)', padding: '2px 8px' }} onClick={() => setRemoveBrochure(true)}>Remove</button>
+                  </div>
+                )}
+                {removeBrochure && !brochureFile && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--color-warning)', marginBottom: 8 }}>
+                    Brochure will be removed on save. <button type="button" className="btn btn-sm" style={{ padding: '2px 8px' }} onClick={() => setRemoveBrochure(false)}>Undo</button>
+                  </div>
+                )}
+                <input ref={brochureRef} type="file" accept=".pdf,.doc,.docx" className="form-input" style={{ padding: '0.4rem' }} onChange={e => {
+                  const f = e.target.files?.[0] || null
+                  setBrochureFile(f)
+                  if (f) setRemoveBrochure(false)
+                }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>

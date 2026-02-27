@@ -37,7 +37,10 @@ class Service(models.Model):
 
     tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='services')
     name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, help_text='Short description shown in listings and cards')
+    long_description = models.TextField(blank=True, default='', help_text='Detailed description (supports HTML) for the service detail page')
+    brochure = models.FileField(upload_to='services/brochures/%Y/%m/', null=True, blank=True, help_text='Downloadable brochure or course document (PDF)')
+    brochure_filename = models.CharField(max_length=255, blank=True, default='')
     category = models.CharField(max_length=100, blank=True, default='', help_text='e.g. Mindfulness, Group, Corporate')
     duration_minutes = models.IntegerField(validators=[MinValueValidator(1)])
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
