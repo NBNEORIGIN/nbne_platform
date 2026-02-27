@@ -20,12 +20,18 @@ else
   echo "SEED_TENANT not set — skipping demo seed."
 fi
 
-# Always ensure core tenants exist (idempotent — uses get_or_create)
-echo "Ensuring core tenants are seeded..."
-for t in nbne salon-x restaurant-x health-club-x; do
+# Always ensure DEMO tenants are seeded (idempotent — uses get_or_create)
+# NEVER include live tenants (nbne, mind-department) here — they have real data
+echo "Ensuring demo tenants are seeded..."
+for t in salon-x restaurant-x health-club-x; do
   echo "  Seeding $t..."
   (python manage.py seed_demo --tenant "$t") || echo "WARNING: seed_demo ($t) failed"
 done
+
+# Ensure live tenant settings exist (tenant record only, NO demo data)
+echo "Ensuring live tenant records exist..."
+(python manage.py ensure_tenant nbne) || echo "WARNING: ensure_tenant nbne failed"
+(python manage.py ensure_tenant mind-department) || echo "WARNING: ensure_tenant mind-department failed"
 
 # TMD-origin setup commands — non-fatal
 echo "Running production setup..."

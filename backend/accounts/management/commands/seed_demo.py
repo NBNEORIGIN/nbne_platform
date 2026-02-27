@@ -389,11 +389,18 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--tenant', type=str, help='Seed only a specific tenant slug')
         parser.add_argument('--delete-demo', action='store_true', help='Delete all demo data for the specified tenant(s)')
+        parser.add_argument('--force', action='store_true', help='Force seeding even for live tenants (DANGEROUS)')
 
     def handle(self, *args, **options):
         from tenants.models import TenantSettings
         target = options.get('tenant')
         if target and target in TENANTS:
+            # Block live tenants unless --force is explicitly passed
+            if target in LIVE_TENANTS and not options.get('force'):
+                self.stdout.write(self.style.WARNING(
+                    f'SKIPPED: "{target}" is a LIVE tenant. Use --force to override (DANGEROUS).'
+                ))
+                return
             slugs = [target]
         else:
             # Exclude live client tenants from default runs
