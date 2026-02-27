@@ -321,6 +321,7 @@ TENANTS = {
         'business_name': 'NBNE',
         'tagline': 'Business Technology & Consulting',
         'skip_demo_bookings': True,  # Live site — no pre-populated bookings
+        'skip_demo_crm': True,  # Live site — never overwrite real CRM leads
         'colour_primary': '#0f172a',
         'colour_secondary': '#1e293b',
         'email': 'hello@nbne.co.uk',
@@ -379,7 +380,7 @@ TENANTS = {
 
 
 # Live client tenants — NEVER seed/delete unless explicitly targeted with --tenant
-LIVE_TENANTS = {'mind-department'}
+LIVE_TENANTS = {'mind-department', 'nbne'}
 
 
 class Command(BaseCommand):
@@ -446,7 +447,7 @@ class Command(BaseCommand):
                 self._seed_compliance(owner, staff1)
             if 'documents' in modules:
                 self._seed_documents(owner, manager)
-            if 'crm' in modules:
+            if 'crm' in modules and not cfg.get('skip_demo_crm'):
                 self._seed_crm(owner, manager)
             if 'shop' in modules and cfg.get('shop_products'):
                 self._seed_shop(cfg)
