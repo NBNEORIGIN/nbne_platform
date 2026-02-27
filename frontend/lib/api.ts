@@ -1014,6 +1014,10 @@ export async function parseEmailCreateLead(text: string) {
   return apiFetch<any>('/crm/leads/parse-email/', { method: 'POST', body: JSON.stringify({ text }) })
 }
 
+export async function extractEmailDetails(text: string) {
+  return apiFetch<any>('/crm/leads/extract-email/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export async function getRevenueStats() {
   return apiFetch<any>('/crm/revenue/')
 }

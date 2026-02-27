@@ -5,7 +5,7 @@ import {
   getLeads, createLead, updateLead, deleteLead, quickAddLead,
   actionContact, actionConvert, actionFollowupDone,
   getLeadNotes, addLeadNote, getLeadHistory,
-  getLeadMessages, addLeadMessage, parseEmailForLead, parseEmailCreateLead,
+  getLeadMessages, addLeadMessage, parseEmailForLead, parseEmailCreateLead, extractEmailDetails,
   getRevenueStats, getLeadRevenue,
 } from '@/lib/api'
 
@@ -77,6 +77,16 @@ export default function AdminClientsPage() {
 
   // Add lead form
   const [showAdd, setShowAdd] = useState(false)
+  const [addEnquiry, setAddEnquiry] = useState('')
+  const [addExtracting, setAddExtracting] = useState(false)
+  const [addName, setAddName] = useState('')
+  const [addEmail, setAddEmail] = useState('')
+  const [addPhone, setAddPhone] = useState('')
+  const [addSource, setAddSource] = useState('manual')
+  const [addValue, setAddValue] = useState('0')
+  const [addNotes, setAddNotes] = useState('')
+  const [addConsent, setAddConsent] = useState(false)
+  const [addExtracted, setAddExtracted] = useState<any>(null)
 
   // Revenue tracking
   const [revStats, setRevStats] = useState<any>(null)
@@ -211,15 +221,45 @@ export default function AdminClientsPage() {
     }
   }
 
-  async function handleAddLead(e: React.FormEvent<HTMLFormElement>) {
+  function resetAddForm() {
+    setAddEnquiry(''); setAddName(''); setAddEmail(''); setAddPhone('')
+    setAddSource('manual'); setAddValue('0'); setAddNotes(''); setAddConsent(false); setAddExtracted(null)
+  }
+
+  async function handleAiExtract() {
+    if (!addEnquiry.trim()) return
+    setAddExtracting(true)
+    try {
+      const r = await extractEmailDetails(addEnquiry)
+      if (!r.error && r.data?.parsed) {
+        const p = r.data.parsed
+        if (p.name) setAddName(p.name)
+        if (p.email) setAddEmail(p.email)
+        if (p.phone) setAddPhone(p.phone)
+        if (p.source) setAddSource(p.source)
+        if (p.summary) setAddNotes(p.summary)
+        if (p.estimated_value) {
+          try { setAddValue(String(parseFloat(String(p.estimated_value).replace(/[£,]/g, '')))) } catch {}
+        }
+        setAddExtracted(p)
+        flash('Details extracted — review and click Add Lead')
+        return
+      }
+      flash('AI extraction failed — fill in manually')
+    } finally {
+      setAddExtracting(false)
+    }
+  }
+
+  async function handleAddLead(e: React.FormEvent) {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
+    if (!addName.trim()) return
     await createLead({
-      name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'),
-      source: fd.get('source'), value_pence: Math.round(parseFloat(fd.get('value') as string || '0') * 100),
-      notes: fd.get('notes'), marketing_consent: fd.get('consent') === 'on',
+      name: addName, email: addEmail, phone: addPhone,
+      source: addSource, value_pence: Math.round(parseFloat(addValue || '0') * 100),
+      notes: addNotes, marketing_consent: addConsent,
     })
-    setShowAdd(false); flash('Lead added'); reload()
+    setShowAdd(false); resetAddForm(); flash('Lead added'); reload()
   }
 
   async function handlePipelineDrop(leadId: number, newStatus: string) {
@@ -425,23 +465,54 @@ export default function AdminClientsPage() {
         {/* Add lead form */}
         {showAdd && (
           <form onSubmit={handleAddLead} style={{ background: 'var(--color-bg-alt, #f9fafb)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
+            {/* Enquiry notes + AI extract */}
+            <div style={{ marginBottom: 10 }}>
+              <label className="form-label" style={{ fontWeight: 700 }}>Enquiry Notes (Verbal or Written)</label>
+              <textarea className="form-input" rows={3} style={{ width: '100%', resize: 'vertical' }}
+                placeholder="Paste or type the enquiry details here…"
+                value={addEnquiry} onChange={e => setAddEnquiry(e.target.value)} />
+              <button type="button" onClick={handleAiExtract} disabled={addExtracting || !addEnquiry.trim()}
+                style={{ marginTop: 6, padding: '0.4rem 0.8rem', fontSize: '0.85rem', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {addExtracting ? '⏳ Extracting…' : '✨ 🤖 AI Extract Details'}
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              <div><label className="form-label">Name *</label><input className="form-input" name="name" required /></div>
-              <div><label className="form-label">Email</label><input className="form-input" name="email" type="email" /></div>
-              <div><label className="form-label">Phone</label><input className="form-input" name="phone" /></div>
+              <div><label className="form-label">Name *</label><input className="form-input" value={addName} onChange={e => setAddName(e.target.value)} required /></div>
+              <div><label className="form-label">Email</label><input className="form-input" type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)} /></div>
+              <div><label className="form-label">Phone</label><input className="form-input" value={addPhone} onChange={e => setAddPhone(e.target.value)} /></div>
               <div><label className="form-label">Source</label>
-                <select className="form-input" name="source">
+                <select className="form-input" value={addSource} onChange={e => setAddSource(e.target.value)}>
                   <option value="manual">Manual</option><option value="website">Website</option><option value="referral">Referral</option>
                   <option value="social">Social</option><option value="booking">Booking</option><option value="other">Other</option>
                 </select>
               </div>
-              <div><label className="form-label">Value (£)</label><input className="form-input" name="value" type="number" step="0.01" defaultValue="0" /></div>
+              <div><label className="form-label">Value (£)</label><input className="form-input" type="number" step="0.01" value={addValue} onChange={e => setAddValue(e.target.value)} /></div>
               <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 4 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.85rem' }}><input type="checkbox" name="consent" /> GDPR Consent</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.85rem' }}><input type="checkbox" checked={addConsent} onChange={e => setAddConsent(e.target.checked)} /> GDPR Consent</label>
               </div>
-              <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Notes</label><input className="form-input" name="notes" /></div>
+              <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Notes</label><textarea className="form-input" rows={2} style={{ width: '100%', resize: 'vertical' }} placeholder="Additional notes about the enquiry…" value={addNotes} onChange={e => setAddNotes(e.target.value)} /></div>
             </div>
-            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}><button type="submit" className="btn btn-primary">Add Lead</button></div>
+            {addExtracted && (
+              <div style={{ marginTop: 8, padding: '0.5rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 6, fontSize: '0.78rem' }}>
+                <div style={{ fontWeight: 600, color: '#7c3aed', marginBottom: 4 }}>🤖 AI Extraction</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {addExtracted.enquiry_type && <span><span style={{ color: '#9ca3af' }}>Type:</span> <strong style={{ textTransform: 'capitalize' }}>{addExtracted.enquiry_type}</strong></span>}
+                  {addExtracted.urgency && <span><span style={{ color: '#9ca3af' }}>Urgency:</span> <strong style={{ color: addExtracted.urgency === 'high' ? '#dc2626' : addExtracted.urgency === 'medium' ? '#d97706' : '#16a34a' }}>{addExtracted.urgency}</strong></span>}
+                </div>
+                {addExtracted.summary && <div style={{ marginTop: 2 }}><span style={{ color: '#9ca3af' }}>Summary:</span> {addExtracted.summary}</div>}
+                {addExtracted.suggested_reply_points?.length > 0 && (
+                  <div style={{ marginTop: 2 }}><span style={{ color: '#9ca3af' }}>Reply points:</span>
+                    <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.72rem' }}>
+                      {addExtracted.suggested_reply_points.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button type="button" onClick={() => { setShowAdd(false); resetAddForm() }} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={!addName.trim()}>Add Lead</button>
+            </div>
           </form>
         )}
 

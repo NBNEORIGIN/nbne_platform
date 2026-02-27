@@ -666,6 +666,22 @@ def parse_email_create(request):
     }, status=status.HTTP_201_CREATED)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def parse_email_extract(request):
+    """AI-parse a pasted email and return extracted data WITHOUT creating a lead.
+    Used for the 'AI Extract Details' button in the Add Lead form."""
+    email_text = request.data.get('text', '').strip()
+    if not email_text:
+        return Response({'error': 'No email text provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    parsed = _ai_parse_email(email_text)
+    if not parsed:
+        return Response({'error': 'AI parsing failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({'parsed': parsed})
+
+
 def _ai_parse_email(email_text):
     """Call OpenAI to extract structured data from a pasted email/enquiry.
     Uses gpt-4o-mini with JSON response — typically ~300-500 tokens total."""
