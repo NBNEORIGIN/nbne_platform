@@ -15,6 +15,9 @@ urlpatterns = [
     path('leads/<int:lead_id>/notes/', views.lead_notes, name='crm-lead-notes'),
     path('leads/<int:lead_id>/history/', views.lead_history, name='crm-lead-history'),
     path('leads/<int:lead_id>/revenue/', views.lead_revenue, name='crm-lead-revenue'),
+    path('leads/<int:lead_id>/messages/', views.lead_messages, name='crm-lead-messages'),
+    path('leads/<int:lead_id>/parse-email/', views.parse_email, name='crm-lead-parse-email'),
+    path('leads/parse-email/', views.parse_email_create, name='crm-parse-email-create'),
     path('revenue/', views.revenue_stats, name='crm-revenue'),
     path('sync/', views.sync_from_bookings, name='crm-sync'),
 ]

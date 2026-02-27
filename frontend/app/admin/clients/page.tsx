@@ -5,6 +5,7 @@ import {
   getLeads, createLead, updateLead, deleteLead, quickAddLead,
   actionContact, actionConvert, actionFollowupDone,
   getLeadNotes, addLeadNote, getLeadHistory,
+  getLeadMessages, addLeadMessage, parseEmailForLead, parseEmailCreateLead,
   getRevenueStats, getLeadRevenue,
 } from '@/lib/api'
 
@@ -55,8 +56,20 @@ export default function AdminClientsPage() {
   const [selected, setSelected] = useState<any>(null)
   const [notes, setNotes] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const [messages, setMessages] = useState<any[]>([])
   const [newNote, setNewNote] = useState('')
-  const [panelTab, setPanelTab] = useState<'details' | 'notes' | 'history' | 'revenue'>('details')
+  const [panelTab, setPanelTab] = useState<'details' | 'activity' | 'history' | 'revenue'>('details')
+
+  // Activity message composer
+  const [msgType, setMsgType] = useState<string>('note')
+  const [msgBody, setMsgBody] = useState('')
+  const [msgSubject, setMsgSubject] = useState('')
+
+  // AI Email analyzer
+  const [showAnalyzer, setShowAnalyzer] = useState(false)
+  const [analyzerText, setAnalyzerText] = useState('')
+  const [analyzerLoading, setAnalyzerLoading] = useState(false)
+  const [analyzerResult, setAnalyzerResult] = useState<any>(null)
 
   // Inline editing
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null)
@@ -85,11 +98,12 @@ export default function AdminClientsPage() {
     getRevenueStats().then(r => setRevStats(r.data || null))
   }, [leads.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load notes + history + revenue when selecting a lead
+  // Load notes + history + messages + revenue when selecting a lead
   useEffect(() => {
     if (!selected) return
     getLeadNotes(selected.id).then(r => setNotes(r.data || []))
     getLeadHistory(selected.id).then(r => setHistory(r.data || []))
+    getLeadMessages(selected.id).then(r => setMessages(r.data || []))
     getLeadRevenue(selected.id).then(r => setLeadRev(r.data || null))
   }, [selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -155,6 +169,46 @@ export default function AdminClientsPage() {
     const r = await getLeadNotes(selected.id)
     setNotes(r.data || [])
     getLeadHistory(selected.id).then(r2 => setHistory(r2.data || []))
+  }
+
+  async function handleAddMessage() {
+    if (!selected || !msgBody.trim()) return
+    await addLeadMessage(selected.id, { message_type: msgType, subject: msgSubject, body: msgBody })
+    setMsgBody(''); setMsgSubject('')
+    const r = await getLeadMessages(selected.id)
+    setMessages(r.data || [])
+    getLeadHistory(selected.id).then(r2 => setHistory(r2.data || []))
+  }
+
+  async function handleAnalyzeEmail(mode: 'new' | 'existing') {
+    if (!analyzerText.trim()) return
+    setAnalyzerLoading(true)
+    try {
+      if (mode === 'new') {
+        const r = await parseEmailCreateLead(analyzerText)
+        if (!r.error) {
+          setAnalyzerResult(r.data?.parsed || null)
+          flash(`Lead created: ${r.data?.lead?.name}`)
+          reload()
+          if (r.data?.lead) { setSelected(r.data.lead); setPanelTab('activity') }
+        } else {
+          flash('AI parsing failed')
+        }
+      } else if (selected) {
+        const r = await parseEmailForLead(selected.id, analyzerText)
+        if (!r.error) {
+          setAnalyzerResult(r.data?.parsed || null)
+          flash('Email analyzed and saved')
+          if (r.data?.lead) setSelected(r.data.lead)
+          getLeadMessages(selected.id).then(r2 => setMessages(r2.data || []))
+          reload()
+        } else {
+          flash('AI parsing failed')
+        }
+      }
+    } finally {
+      setAnalyzerLoading(false)
+    }
   }
 
   async function handleAddLead(e: React.FormEvent<HTMLFormElement>) {
@@ -578,9 +632,9 @@ export default function AdminClientsPage() {
 
           {/* Panel tabs */}
           <div className="tabs" style={{ marginBottom: '0.5rem' }}>
-            {(['details', 'notes', 'history', 'revenue'] as const).map(t => (
+            {(['details', 'activity', 'history', 'revenue'] as const).map(t => (
               <button key={t} className={`tab ${panelTab === t ? 'active' : ''}`} onClick={() => setPanelTab(t)} style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
-                {t === 'details' ? 'Details' : t === 'notes' ? 'Notes' : t === 'history' ? 'History' : 'Revenue'}
+                {t === 'details' ? 'Details' : t === 'activity' ? 'Activity' : t === 'history' ? 'History' : 'Revenue'}
               </button>
             ))}
           </div>
@@ -594,25 +648,114 @@ export default function AdminClientsPage() {
             </div>
           )}
 
-          {/* Notes tab */}
-          {panelTab === 'notes' && (
+          {/* Activity tab */}
+          {panelTab === 'activity' && (
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: '0.5rem' }}>
-                <input className="form-input" style={{ flex: 1, fontSize: '0.8rem', padding: '0.3rem 0.5rem' }}
-                  placeholder="Add a note…" value={newNote} onChange={e => setNewNote(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddNote() }} />
-                <button className="btn btn-sm btn-primary" onClick={handleAddNote}>Add</button>
+              {/* Message composer */}
+              <div style={{ marginBottom: '0.6rem', padding: '0.5rem', background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 6 }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  {(['note', 'email_in', 'email_out', 'call', 'sms'] as const).map(t => (
+                    <button key={t} onClick={() => setMsgType(t)}
+                      style={{ padding: '2px 6px', fontSize: '0.65rem', borderRadius: 4, border: '1px solid', cursor: 'pointer',
+                        borderColor: msgType === t ? 'var(--color-primary)' : '#e5e7eb',
+                        background: msgType === t ? 'var(--color-primary)' : '#fff',
+                        color: msgType === t ? '#fff' : '#6b7280' }}>
+                      {t === 'note' ? '📝 Note' : t === 'email_in' ? '📨 In' : t === 'email_out' ? '📤 Out' : t === 'call' ? '📞 Call' : '💬 SMS'}
+                    </button>
+                  ))}
+                  <button onClick={() => { setShowAnalyzer(!showAnalyzer); setAnalyzerResult(null) }}
+                    style={{ marginLeft: 'auto', padding: '2px 6px', fontSize: '0.65rem', borderRadius: 4, border: '1px solid #c084fc', cursor: 'pointer',
+                      background: showAnalyzer ? '#7c3aed' : '#faf5ff', color: showAnalyzer ? '#fff' : '#7c3aed' }}>
+                    🤖 AI Analyze
+                  </button>
+                </div>
+                {(msgType === 'email_in' || msgType === 'email_out') && (
+                  <input className="form-input" style={{ fontSize: '0.75rem', padding: '0.25rem 0.4rem', marginBottom: 4, width: '100%' }}
+                    placeholder="Subject…" value={msgSubject} onChange={e => setMsgSubject(e.target.value)} />
+                )}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <textarea className="form-input" rows={2} style={{ flex: 1, fontSize: '0.75rem', padding: '0.3rem 0.4rem', resize: 'vertical' }}
+                    placeholder={msgType === 'note' ? 'Add a note…' : msgType === 'call' ? 'Call notes…' : 'Paste or type message…'}
+                    value={msgBody} onChange={e => setMsgBody(e.target.value)} />
+                  <button className="btn btn-sm btn-primary" style={{ alignSelf: 'flex-end' }} onClick={handleAddMessage} disabled={!msgBody.trim()}>Add</button>
+                </div>
               </div>
-              {notes.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem 0' }}>No notes yet</div>
+
+              {/* AI Email Analyzer */}
+              {showAnalyzer && (
+                <div style={{ marginBottom: '0.6rem', padding: '0.5rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 6 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#7c3aed', marginBottom: 4 }}>🤖 AI Email Analyzer</div>
+                  <textarea className="form-input" rows={4} style={{ width: '100%', fontSize: '0.75rem', padding: '0.3rem 0.4rem', marginBottom: 6, resize: 'vertical' }}
+                    placeholder="Paste an email enquiry here — AI will extract name, email, phone, classify the enquiry, and suggest reply points…"
+                    value={analyzerText} onChange={e => { setAnalyzerText(e.target.value); setAnalyzerResult(null) }} />
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-sm" disabled={analyzerLoading || !analyzerText.trim()}
+                      style={{ background: '#7c3aed', color: '#fff', border: 'none', fontSize: '0.72rem' }}
+                      onClick={() => handleAnalyzeEmail('existing')}>
+                      {analyzerLoading ? '⏳ Analyzing…' : '📎 Analyze & Log'}
+                    </button>
+                    <button className="btn btn-sm" disabled={analyzerLoading || !analyzerText.trim()}
+                      style={{ background: '#2563eb', color: '#fff', border: 'none', fontSize: '0.72rem' }}
+                      onClick={() => handleAnalyzeEmail('new')}>
+                      {analyzerLoading ? '⏳…' : '✨ Create New Lead'}
+                    </button>
+                  </div>
+                  {analyzerResult && (
+                    <div style={{ marginTop: 8, fontSize: '0.75rem', background: '#fff', borderRadius: 4, padding: '0.5rem', border: '1px solid #e9d5ff' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4, color: '#7c3aed' }}>AI Extraction</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                        {analyzerResult.name && <div><span style={{ color: '#9ca3af' }}>Name:</span> <strong>{analyzerResult.name}</strong></div>}
+                        {analyzerResult.email && <div><span style={{ color: '#9ca3af' }}>Email:</span> {analyzerResult.email}</div>}
+                        {analyzerResult.phone && <div><span style={{ color: '#9ca3af' }}>Phone:</span> {analyzerResult.phone}</div>}
+                        {analyzerResult.enquiry_type && <div><span style={{ color: '#9ca3af' }}>Type:</span> <span style={{ textTransform: 'capitalize' }}>{analyzerResult.enquiry_type}</span></div>}
+                        {analyzerResult.urgency && <div><span style={{ color: '#9ca3af' }}>Urgency:</span> <span style={{ fontWeight: 600, color: analyzerResult.urgency === 'high' ? '#dc2626' : analyzerResult.urgency === 'medium' ? '#d97706' : '#16a34a' }}>{analyzerResult.urgency}</span></div>}
+                        {analyzerResult.estimated_value && <div><span style={{ color: '#9ca3af' }}>Est. Value:</span> <strong>{typeof analyzerResult.estimated_value === 'number' ? `£${analyzerResult.estimated_value}` : analyzerResult.estimated_value}</strong></div>}
+                      </div>
+                      {analyzerResult.summary && <div style={{ marginTop: 4 }}><span style={{ color: '#9ca3af' }}>Summary:</span> {analyzerResult.summary}</div>}
+                      {analyzerResult.suggested_reply_points?.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <span style={{ color: '#9ca3af' }}>Reply points:</span>
+                          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.72rem' }}>
+                            {analyzerResult.suggested_reply_points.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {analyzerResult.tags?.length > 0 && (
+                        <div style={{ marginTop: 4, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {analyzerResult.tags.map((tag: string, i: number) => (
+                            <span key={i} style={{ padding: '1px 6px', background: '#ede9fe', color: '#6d28d9', borderRadius: 3, fontSize: '0.65rem' }}>{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Activity feed */}
+              {messages.length === 0 ? (
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem 0' }}>No activity yet — log an email, call, or note above</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  {notes.map((n: any) => (
-                    <div key={n.id} style={{ padding: '0.4rem 0.5rem', background: 'var(--color-bg-alt, #f9fafb)', borderRadius: 6, fontSize: '0.8rem' }}>
-                      <div>{n.text}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{new Date(n.created_at).toLocaleString('en-GB')}</div>
-                    </div>
-                  ))}
+                  {[...messages].reverse().map((m: any) => {
+                    const icons: Record<string, string> = { email_in: '📨', email_out: '📤', call: '📞', sms: '💬', note: '📝' }
+                    const colors: Record<string, string> = { email_in: '#dbeafe', email_out: '#dcfce7', call: '#fef9c3', sms: '#fce7f3', note: '#f3f4f6' }
+                    return (
+                      <div key={m.id} style={{ padding: '0.4rem 0.5rem', background: colors[m.message_type] || '#f3f4f6', borderRadius: 6, fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>{icons[m.message_type] || '📌'} {m.message_type.replace('_', ' ')}</span>
+                          <span style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)' }}>{new Date(m.created_at).toLocaleString('en-GB')}</span>
+                        </div>
+                        {m.subject && <div style={{ fontWeight: 600, fontSize: '0.75rem', marginBottom: 2 }}>{m.subject}</div>}
+                        <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{m.body.length > 300 ? m.body.slice(0, 300) + '…' : m.body}</div>
+                        {m.ai_parsed && (
+                          <div style={{ marginTop: 4, padding: '3px 6px', background: 'rgba(124,58,237,0.08)', borderRadius: 4, fontSize: '0.65rem', color: '#7c3aed' }}>
+                            🤖 AI: {m.ai_parsed.enquiry_type} · {m.ai_parsed.urgency} urgency{m.ai_parsed.estimated_value ? ` · ~£${m.ai_parsed.estimated_value}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from .models import Lead, LeadNote, LeadHistory
+from .models import Lead, LeadNote, LeadHistory, LeadMessage
 
 
 def _log_history(lead, action, detail=''):
@@ -524,3 +524,195 @@ def sync_from_bookings(request):
         return Response({'created': created_count, 'message': f'{created_count} leads synced from bookings'})
     except Exception as e:
         return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
+
+
+# --- Lead Messages (Activity Feed) ---
+
+def _serialize_message(msg):
+    return {
+        'id': msg.id,
+        'message_type': msg.message_type,
+        'subject': msg.subject,
+        'body': msg.body,
+        'created_by': msg.created_by,
+        'ai_parsed': msg.ai_parsed,
+        'created_at': msg.created_at.isoformat(),
+    }
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def lead_messages(request, lead_id):
+    tenant = getattr(request, 'tenant', None)
+    try:
+        lead = Lead.objects.get(id=lead_id, tenant=tenant)
+    except Lead.DoesNotExist:
+        return Response({'error': 'Lead not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        msgs = lead.messages.all()
+        return Response([_serialize_message(m) for m in msgs])
+
+    # POST — create a new message
+    d = request.data
+    msg = LeadMessage.objects.create(
+        lead=lead,
+        message_type=d.get('message_type', 'note'),
+        subject=d.get('subject', ''),
+        body=d.get('body', ''),
+        created_by=d.get('created_by', ''),
+    )
+    _log_history(lead, f'{msg.get_message_type_display()} logged', msg.subject or msg.body[:80])
+    return Response(_serialize_message(msg), status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def parse_email(request, lead_id):
+    """AI-parse a pasted email and save as a message on an existing lead.
+    Extracts contact info and updates the lead if fields are empty."""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        lead = Lead.objects.get(id=lead_id, tenant=tenant)
+    except Lead.DoesNotExist:
+        return Response({'error': 'Lead not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    email_text = request.data.get('text', '').strip()
+    if not email_text:
+        return Response({'error': 'No email text provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    parsed = _ai_parse_email(email_text)
+    if not parsed:
+        return Response({'error': 'AI parsing failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Update lead with any missing fields
+    changed = []
+    if parsed.get('email') and not lead.email:
+        lead.email = parsed['email']
+        changed.append('email')
+    if parsed.get('phone') and not lead.phone:
+        lead.phone = parsed['phone']
+        changed.append('phone')
+    if parsed.get('name') and not lead.name:
+        lead.name = parsed['name']
+        changed.append('name')
+    if changed:
+        lead.save()
+        _log_history(lead, 'AI updated fields', ', '.join(changed))
+
+    # Save as message
+    msg = LeadMessage.objects.create(
+        lead=lead,
+        message_type='email_in',
+        subject=parsed.get('subject', ''),
+        body=email_text,
+        ai_parsed=parsed,
+    )
+    _log_history(lead, 'Email analyzed by AI', parsed.get('summary', '')[:100])
+
+    return Response({
+        'message': _serialize_message(msg),
+        'parsed': parsed,
+        'lead': _serialize_lead(lead),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def parse_email_create(request):
+    """AI-parse a pasted email and create a NEW lead from it."""
+    tenant = getattr(request, 'tenant', None)
+    email_text = request.data.get('text', '').strip()
+    if not email_text:
+        return Response({'error': 'No email text provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    parsed = _ai_parse_email(email_text)
+    if not parsed:
+        return Response({'error': 'AI parsing failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Create lead from parsed data
+    value_pence = 0
+    if parsed.get('estimated_value'):
+        try:
+            value_pence = int(float(str(parsed['estimated_value']).replace('£', '').replace(',', '')) * 100)
+        except (ValueError, TypeError):
+            pass
+
+    lead = Lead.objects.create(
+        tenant=tenant,
+        name=parsed.get('name', 'Unknown'),
+        email=parsed.get('email', ''),
+        phone=parsed.get('phone', ''),
+        source=parsed.get('source', 'website'),
+        status='NEW',
+        value_pence=value_pence,
+        notes=parsed.get('summary', ''),
+        tags=','.join(parsed.get('tags', [])),
+    )
+    _log_history(lead, 'Created from AI email analysis', parsed.get('summary', '')[:100])
+
+    # Save original email as first message
+    LeadMessage.objects.create(
+        lead=lead,
+        message_type='email_in',
+        subject=parsed.get('subject', ''),
+        body=email_text,
+        ai_parsed=parsed,
+    )
+
+    return Response({
+        'lead': _serialize_lead(lead),
+        'parsed': parsed,
+    }, status=status.HTTP_201_CREATED)
+
+
+def _ai_parse_email(email_text):
+    """Call OpenAI to extract structured data from a pasted email/enquiry.
+    Uses gpt-4o-mini with JSON response — typically ~300-500 tokens total."""
+    import json
+    import openai
+    from django.conf import settings as django_settings
+
+    api_key = getattr(django_settings, 'OPENAI_API_KEY', '')
+    if not api_key:
+        return None
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{
+                'role': 'system',
+                'content': (
+                    'You extract structured data from business enquiry emails. '
+                    'Return JSON only. Be concise.'
+                ),
+            }, {
+                'role': 'user',
+                'content': (
+                    'Extract the following from this email/enquiry:\n\n'
+                    f'{email_text}\n\n'
+                    'Return JSON with these fields:\n'
+                    '{\n'
+                    '  "name": "full name of the person",\n'
+                    '  "email": "their email address or empty string",\n'
+                    '  "phone": "their phone number or empty string",\n'
+                    '  "subject": "brief subject line for this enquiry",\n'
+                    '  "summary": "1-2 sentence summary of what they want",\n'
+                    '  "enquiry_type": "one of: quote, booking, information, complaint, follow_up, other",\n'
+                    '  "urgency": "one of: low, medium, high",\n'
+                    '  "estimated_value": "estimated value in GBP if mentioned or inferable, or null",\n'
+                    '  "source": "one of: website, referral, social, manual, other — infer from context",\n'
+                    '  "tags": ["relevant", "tags", "as", "array"],\n'
+                    '  "suggested_reply_points": ["key points to address in reply"]\n'
+                    '}'
+                ),
+            }],
+            response_format={'type': 'json_object'},
+            temperature=0.2,
+            max_tokens=500,
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f'[CRM AI PARSE ERROR] {e}')
+        return None

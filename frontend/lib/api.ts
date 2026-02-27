@@ -998,6 +998,22 @@ export async function getLeadHistory(id: number) {
   return apiFetch<any[]>(`/crm/leads/${id}/history/`)
 }
 
+export async function getLeadMessages(id: number) {
+  return apiFetch<any[]>(`/crm/leads/${id}/messages/`)
+}
+
+export async function addLeadMessage(id: number, data: { message_type: string; subject?: string; body: string; created_by?: string }) {
+  return apiFetch<any>(`/crm/leads/${id}/messages/`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function parseEmailForLead(id: number, text: string) {
+  return apiFetch<any>(`/crm/leads/${id}/parse-email/`, { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function parseEmailCreateLead(text: string) {
+  return apiFetch<any>('/crm/leads/parse-email/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export async function getRevenueStats() {
   return apiFetch<any>('/crm/revenue/')
 }

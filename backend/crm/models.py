@@ -104,6 +104,30 @@ class LeadNote(models.Model):
         return f'Note on {self.lead.name} at {self.created_at}'
 
 
+class LeadMessage(models.Model):
+    TYPE_CHOICES = [
+        ('email_in', 'Email Received'),
+        ('email_out', 'Email Sent'),
+        ('call', 'Phone Call'),
+        ('sms', 'SMS'),
+        ('note', 'Note'),
+    ]
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages')
+    message_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='note')
+    subject = models.CharField(max_length=500, blank=True)
+    body = models.TextField()
+    created_by = models.CharField(max_length=200, blank=True)
+    # AI-parsed metadata (populated when using email analyzer)
+    ai_parsed = models.JSONField(null=True, blank=True, help_text='AI-extracted fields from email')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.get_message_type_display()} on {self.lead.name}'
+
+
 class LeadHistory(models.Model):
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='history')
     action = models.CharField(max_length=200)
