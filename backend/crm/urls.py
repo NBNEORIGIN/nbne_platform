@@ -7,6 +7,7 @@ urlpatterns = [
     path('leads/quick-add/', views.quick_add, name='crm-quick-add'),
     path('leads/export/', views.export_leads_csv, name='crm-leads-export'),
     path('leads/<int:lead_id>/update/', views.update_lead, name='crm-lead-update'),
+    path('leads/<int:lead_id>/delete/', views.delete_lead, name='crm-lead-delete'),
     path('leads/<int:lead_id>/status/', views.update_lead, name='crm-lead-status'),
     path('leads/<int:lead_id>/contact/', views.action_contact, name='crm-lead-contact'),
     path('leads/<int:lead_id>/convert/', views.action_convert, name='crm-lead-convert'),

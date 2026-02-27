@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-  getLeads, createLead, updateLead, quickAddLead,
+  getLeads, createLead, updateLead, deleteLead, quickAddLead,
   actionContact, actionConvert, actionFollowupDone,
   getLeadNotes, addLeadNote, getLeadHistory,
   getRevenueStats, getLeadRevenue,
@@ -137,6 +137,14 @@ export default function AdminClientsPage() {
     }
     await updateLead(id, payload)
     setEditingCell(null)
+    reload()
+  }
+
+  async function handleDelete(id: number, name: string) {
+    if (!confirm(`Delete lead "${name}"? This cannot be undone.`)) return
+    await deleteLead(id)
+    flash(`Deleted: ${name}`)
+    if (selected?.id === id) setSelected(null)
     reload()
   }
 
@@ -455,12 +463,20 @@ export default function AdminClientsPage() {
                             display={<span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{l.source}</span>} />
                         </td>
                         <td onClick={e => e.stopPropagation()}>
-                          {l.action_required && (
-                            <button className={`btn btn-sm ${l.action_required.includes('overdue') ? 'btn-danger' : 'btn-primary'}`}
-                              onClick={() => handleAction(l.id, l.action_required)}>
-                              {l.action_required === 'Contact' ? 'Contact now' : l.action_required === 'Convert' ? 'Convert' : 'Done'}
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
+                            {l.action_required && (
+                              <button className={`btn btn-sm ${l.action_required.includes('overdue') ? 'btn-danger' : 'btn-primary'}`}
+                                onClick={() => handleAction(l.id, l.action_required)}>
+                                {l.action_required === 'Contact' ? 'Contact now' : l.action_required === 'Convert' ? 'Convert' : 'Done'}
+                              </button>
+                            )}
+                            <button className="btn btn-sm"
+                              title="Delete lead"
+                              style={{ background: 'transparent', color: '#9ca3af', border: 'none', padding: '4px 6px', fontSize: '0.85rem' }}
+                              onClick={() => handleDelete(l.id, l.name)}>
+                              🗑
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -552,6 +568,13 @@ export default function AdminClientsPage() {
               {selected.action_required === 'Contact' ? 'Contact now' : selected.action_required === 'Convert' ? 'Convert to client' : 'Mark follow-up done'}
             </button>
           )}
+
+          {/* Delete */}
+          <button className="btn btn-sm"
+            style={{ width: '100%', marginBottom: '0.75rem', background: 'transparent', color: '#9ca3af', border: '1px solid #e5e7eb', fontSize: '0.8rem' }}
+            onClick={() => handleDelete(selected.id, selected.name)}>
+            🗑 Delete Lead
+          </button>
 
           {/* Panel tabs */}
           <div className="tabs" style={{ marginBottom: '0.5rem' }}>

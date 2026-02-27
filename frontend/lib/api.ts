@@ -962,6 +962,10 @@ export async function updateLead(id: number, data: any) {
   return apiFetch<any>(`/crm/leads/${id}/update/`, { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function deleteLead(id: number) {
+  return apiFetch<any>(`/crm/leads/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function updateLeadStatus(id: number, status: string) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
 }

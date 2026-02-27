@@ -207,6 +207,18 @@ def action_followup_done(request, lead_id):
     return Response(_serialize_lead(lead))
 
 
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_lead(request, lead_id):
+    try:
+        tenant = getattr(request, 'tenant', None)
+        lead = Lead.objects.get(id=lead_id, tenant=tenant)
+    except Lead.DoesNotExist:
+        return Response({'error': 'Lead not found'}, status=status.HTTP_404_NOT_FOUND)
+    lead.delete()
+    return Response({'deleted': True}, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def quick_add(request):
