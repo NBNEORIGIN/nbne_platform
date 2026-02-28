@@ -21,7 +21,7 @@ TENANTS = {
         'deposit_percentage': 30,
         'booking_staff_label': 'Stylist',
         'booking_staff_label_plural': 'Stylists',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop', 'cms'],
         'shop_products': [
             ('Luxury Shampoo', 'Hair Care', '18.50', 'Professional salon-grade shampoo for all hair types', 25),
             ('Deep Conditioning Mask', 'Hair Care', '24.00', 'Intensive repair treatment for damaged hair', 15),
@@ -75,7 +75,7 @@ TENANTS = {
         'deposit_percentage': 20,
         'booking_staff_label': 'Host',
         'booking_staff_label_plural': 'Hosts',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop', 'cms'],
         'shop_products': [
             ('House Red Wine', 'Wine', '28.00', 'Montepulciano d\'Abruzzo, 750ml', 40),
             ('House White Wine', 'Wine', '26.00', 'Pinot Grigio, 750ml', 40),
@@ -159,7 +159,7 @@ TENANTS = {
         'deposit_percentage': 0,
         'booking_staff_label': 'Trainer',
         'booking_staff_label_plural': 'Trainers',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant', 'shop', 'cms'],
         'shop_products': [
             ('Protein Shake — Chocolate', 'Supplements', '3.50', 'Whey protein, 25g per serving', 0),
             ('Protein Shake — Vanilla', 'Supplements', '3.50', 'Whey protein, 25g per serving', 0),
@@ -330,7 +330,7 @@ TENANTS = {
         'deposit_percentage': 25,
         'booking_staff_label': 'Consultant',
         'booking_staff_label_plural': 'Consultants',
-        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'ai_assistant'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'shop', 'cms', 'ai_assistant'],
         'services': [
             ('Discovery Workshop', 'Consulting', 120, '500.00', 15000),
             ('Platform Setup', 'Onboarding', 240, '1500.00', 50000),

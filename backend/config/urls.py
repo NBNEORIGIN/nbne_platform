@@ -214,6 +214,8 @@ if settings.CRM_MODULE_ENABLED:
     urlpatterns.append(path('api/crm/', include('crm.urls')))
 if settings.SHOP_MODULE_ENABLED:
     urlpatterns.append(path('api/shop/', include('shop.urls')))
+if settings.CMS_MODULE_ENABLED:
+    urlpatterns.append(path('api/cms/', include('cms.urls')))
 
 
 # --- Media file serving ---

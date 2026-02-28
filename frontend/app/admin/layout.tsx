@@ -22,6 +22,8 @@ const NAV_ITEMS = [
   { href: '/admin/health-safety', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
   { href: '/admin/documents', label: 'Documents', icon: '📁', module: 'documents' },
   { href: '/admin/shop', label: 'Shop', icon: '🛒', module: 'shop' },
+  { href: '/admin/cms', label: 'CMS Pages', icon: '🌐', module: 'cms' },
+  { href: '/admin/blog', label: 'Blog', icon: '✏️', module: 'cms' },
   { href: '/admin/audit', label: 'Audit Log', icon: '🔍', module: '_always' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️', module: '_always' },
 ] as const

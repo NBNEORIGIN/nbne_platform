@@ -1197,3 +1197,62 @@ export async function updateOrder(id: number, data: any) {
 export async function createShopCheckout(data: { items: { product_id: number; quantity: number }[]; customer_name: string; customer_email: string; customer_phone?: string }) {
   return apiFetch<any>('/shop/checkout/', { method: 'POST', body: JSON.stringify(data) })
 }
+
+// --- CMS Pages ---
+export async function getCmsPages() {
+  return apiFetch<any[]>('/cms/pages/')
+}
+export async function createCmsPage(data: any) {
+  return apiFetch<any>('/cms/pages/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function updateCmsPage(id: number, data: any) {
+  return apiFetch<any>(`/cms/pages/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+export async function deleteCmsPage(id: number) {
+  return apiFetch<any>(`/cms/pages/${id}/`, { method: 'DELETE' })
+}
+export async function uploadCmsHero(pageId: number, file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiUpload<any>(`/cms/pages/${pageId}/hero/`, fd)
+}
+export async function uploadCmsImage(pageId: number, file: File, altText?: string) {
+  const fd = new FormData()
+  fd.append('file', file)
+  if (altText) fd.append('alt_text', altText)
+  return apiUpload<any>(`/cms/pages/${pageId}/images/`, fd)
+}
+export async function deleteCmsImage(pageId: number, imageId: number) {
+  return apiFetch<any>(`/cms/pages/${pageId}/images/${imageId}/`, { method: 'DELETE' })
+}
+export async function getPublicPages() {
+  return apiFetch<any[]>('/cms/public/pages/')
+}
+export async function getPublicPage(slug: string) {
+  return apiFetch<any>(`/cms/public/pages/${slug}/`)
+}
+
+// --- Blog ---
+export async function getBlogPosts() {
+  return apiFetch<any[]>('/cms/blog/')
+}
+export async function createBlogPost(data: any) {
+  return apiFetch<any>('/cms/blog/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function updateBlogPost(id: number, data: any) {
+  return apiFetch<any>(`/cms/blog/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+export async function deleteBlogPost(id: number) {
+  return apiFetch<any>(`/cms/blog/${id}/`, { method: 'DELETE' })
+}
+export async function uploadBlogImage(postId: number, file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiUpload<any>(`/cms/blog/${postId}/image/`, fd)
+}
+export async function getPublicBlogPosts() {
+  return apiFetch<any[]>('/cms/public/blog/')
+}
+export async function getPublicBlogPost(slug: string) {
+  return apiFetch<any>(`/cms/public/blog/${slug}/`)
+}

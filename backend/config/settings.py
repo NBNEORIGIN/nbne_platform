@@ -40,6 +40,7 @@ COMPLIANCE_MODULE_ENABLED = config('COMPLIANCE_MODULE_ENABLED', default=True, ca
 DOCUMENTS_MODULE_ENABLED = config('DOCUMENTS_MODULE_ENABLED', default=True, cast=bool)
 CRM_MODULE_ENABLED = config('CRM_MODULE_ENABLED', default=True, cast=bool)
 SHOP_MODULE_ENABLED = config('SHOP_MODULE_ENABLED', default=True, cast=bool)
+CMS_MODULE_ENABLED = config('CMS_MODULE_ENABLED', default=True, cast=bool)
 TENANTS_MODULE_ENABLED = config('TENANTS_MODULE_ENABLED', default=True, cast=bool)
 
 # --- Dashboard feature flags ------------------------------------------------
@@ -84,6 +85,8 @@ if CRM_MODULE_ENABLED:
     INSTALLED_APPS.append('crm')
 if SHOP_MODULE_ENABLED:
     INSTALLED_APPS.append('shop')
+if CMS_MODULE_ENABLED:
+    INSTALLED_APPS.append('cms')
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
