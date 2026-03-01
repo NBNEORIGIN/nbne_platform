@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework import status, serializers
+from django.db import IntegrityError
 from django.utils import timezone
 from .models import Page, PageImage, BlogPost
 
@@ -114,7 +115,10 @@ def page_create(request):
     serializer = PageSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
-    serializer.save(tenant=tenant)
+    try:
+        serializer.save(tenant=tenant)
+    except IntegrityError:
+        return Response({'slug': ['A page with this slug already exists for this tenant.']}, status=409)
     return Response(serializer.data, status=201)
 
 
@@ -243,11 +247,15 @@ def blog_create(request):
     serializer = BlogPostSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
-    post = serializer.save(tenant=tenant)
+    try:
+        post = serializer.save(tenant=tenant)
+    except IntegrityError:
+        return Response({'slug': ['A blog post with this slug already exists for this tenant.']}, status=409)
     if post.status == 'published' and not post.published_at:
         post.published_at = timezone.now()
         post.save(update_fields=['published_at'])
     return Response(BlogPostSerializer(post, context={'request': request}).data, status=201)
+
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])

@@ -361,6 +361,13 @@ class BookingViewSet(viewsets.ModelViewSet):
             start_datetime = tz.make_aware(start_datetime)
             end_datetime = start_datetime + timedelta(minutes=duration_minutes)
 
+            # --- Reject bookings in the past ---
+            if start_datetime < tz.now():
+                return Response(
+                    {'error': 'Cannot create a booking in the past.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # --- Overlap check (salon only — restaurant/gym handle capacity differently) ---
             if business_type not in ('restaurant', 'gym'):
                 overlapping_bookings = Booking.objects.filter(

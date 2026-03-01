@@ -82,6 +82,14 @@ def create_checkout_session(request):
     
     from datetime import timedelta
     end_dt = start_dt + timedelta(minutes=service.duration_minutes)
+
+    # Reject bookings in the past
+    if start_dt < timezone.now():
+        return Response(
+            {'error': 'Cannot create a booking in the past.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     booking = Booking.objects.create(
         tenant=tenant,
         client=client,

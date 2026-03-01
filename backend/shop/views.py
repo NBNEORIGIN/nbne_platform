@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes, action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from accounts.permissions import IsManagerOrAbove
 from rest_framework.response import Response
 from .models import Product, ProductImage, Order, OrderItem
 from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
@@ -25,6 +26,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
+        if self.action == 'destroy':
+            return [IsManagerOrAbove()]
         return [IsAuthenticated()]
 
     def get_serializer_context(self):
@@ -136,6 +139,9 @@ def create_shop_checkout(request):
     for item in items:
         product_id = item.get('product_id')
         quantity = int(item.get('quantity', 1))
+
+        if quantity <= 0:
+            return Response({'error': f'Quantity must be at least 1 (got {quantity})'}, status=400)
 
         try:
             product = Product.objects.get(id=product_id, tenant=tenant, active=True)

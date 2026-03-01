@@ -6,12 +6,29 @@ Uses same IONOS SMTP → Resend fallback chain as the contact form.
 import json
 import logging
 import smtplib
+import time
+from collections import defaultdict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+
+
+# Simple in-memory rate limiter: max 5 requests per 600s per IP
+_rate_store = defaultdict(list)
+_RATE_LIMIT = 5
+_RATE_WINDOW = 600  # seconds
+
+
+def _is_rate_limited(ip):
+    now = time.time()
+    _rate_store[ip] = [t for t in _rate_store[ip] if now - t < _RATE_WINDOW]
+    if len(_rate_store[ip]) >= _RATE_LIMIT:
+        return True
+    _rate_store[ip].append(now)
+    return False
 
 
 logger = logging.getLogger(__name__)
@@ -51,6 +68,11 @@ def beta_signup(request):
 
     if request.method != 'POST':
         return _add_cors(request, JsonResponse({'error': 'Method not allowed'}, status=405))
+
+    # Rate limit by IP
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    if _is_rate_limited(ip):
+        return _add_cors(request, JsonResponse({'error': 'Too many requests. Please try again later.'}, status=429))
 
     try:
         data = json.loads(request.body)

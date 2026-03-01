@@ -22,7 +22,7 @@ from .serializers import (
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsStaffOrAbove])
 def staff_list(request):
     """List all staff profiles. Only active by default, ?include_inactive=true for all."""
     tenant = getattr(request, 'tenant', None)

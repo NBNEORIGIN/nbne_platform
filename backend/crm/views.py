@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Lead, LeadNote, LeadHistory, LeadMessage
 
@@ -38,7 +38,7 @@ def _serialize_lead(lead):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def list_leads(request):
     tenant = getattr(request, 'tenant', None)
     qs = Lead.objects.filter(tenant=tenant)
@@ -52,7 +52,7 @@ def list_leads(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def create_lead(request):
     tenant = getattr(request, 'tenant', None)
     d = request.data
@@ -73,7 +73,7 @@ def create_lead(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def update_lead(request, lead_id):
     """Inline edit — accepts any subset of fields, logs changes to history."""
     try:
@@ -135,7 +135,7 @@ def update_lead(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def action_contact(request, lead_id):
     """Owner clicks 'Contact now' — moves to CONTACTED, sets follow-up +7 days."""
     try:
@@ -154,7 +154,7 @@ def action_contact(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def action_convert(request, lead_id):
     """Convert lead to client — creates bookings.Client if not already linked."""
     try:
@@ -190,7 +190,7 @@ def action_convert(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def action_followup_done(request, lead_id):
     """Mark follow-up as done — reschedule +7 days."""
     try:
@@ -208,7 +208,7 @@ def action_followup_done(request, lead_id):
 
 
 @api_view(['DELETE'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def delete_lead(request, lead_id):
     try:
         tenant = getattr(request, 'tenant', None)
@@ -220,7 +220,7 @@ def delete_lead(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def quick_add(request):
     """Natural language quick-add: just name + optional notes."""
     tenant = getattr(request, 'tenant', None)
@@ -260,7 +260,7 @@ def quick_add(request):
 # --- Notes ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def lead_notes(request, lead_id):
     try:
         tenant = getattr(request, 'tenant', None)
@@ -293,7 +293,7 @@ def lead_notes(request, lead_id):
 # --- History ---
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def lead_history(request, lead_id):
     try:
         tenant = getattr(request, 'tenant', None)
@@ -311,7 +311,7 @@ def lead_history(request, lead_id):
 # --- CSV Export ---
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def export_leads_csv(request):
     """GET /api/crm/leads/export/ — Download all leads as CSV"""
     tenant = getattr(request, 'tenant', None)
@@ -344,7 +344,7 @@ def export_leads_csv(request):
 # --- Revenue Tracking ---
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def revenue_stats(request):
     """GET /api/crm/revenue/ — Pipeline forecast, source attribution, conversion funnel."""
     from collections import defaultdict
@@ -431,7 +431,7 @@ def revenue_stats(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def lead_revenue(request, lead_id):
     """GET /api/crm/leads/<id>/revenue/ — Per-lead revenue: client stats + booking history."""
     from bookings.models import Client, Booking
@@ -484,7 +484,7 @@ def lead_revenue(request, lead_id):
 # --- Sync from bookings ---
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def sync_from_bookings(request):
     """POST /api/crm/sync/ — Create leads from booking clients that don't already exist"""
     import traceback
@@ -541,7 +541,7 @@ def _serialize_message(msg):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def lead_messages(request, lead_id):
     tenant = getattr(request, 'tenant', None)
     try:
@@ -567,7 +567,7 @@ def lead_messages(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def parse_email(request, lead_id):
     """AI-parse a pasted email and save as a message on an existing lead.
     Extracts contact info and updates the lead if fields are empty."""
@@ -618,7 +618,7 @@ def parse_email(request, lead_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def parse_email_create(request):
     """AI-parse a pasted email and create a NEW lead from it."""
     tenant = getattr(request, 'tenant', None)
@@ -667,7 +667,7 @@ def parse_email_create(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def parse_email_extract(request):
     """AI-parse a pasted email and return extracted data WITHOUT creating a lead.
     Used for the 'AI Extract Details' button in the Add Lead form."""

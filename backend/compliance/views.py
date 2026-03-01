@@ -4,7 +4,7 @@ Provides Peace of Mind Score dashboard, compliance register CRUD,
 calendar data, accident log, and priority actions.
 """
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
@@ -86,7 +86,7 @@ def _serialize_accident(a):
 # ========== DASHBOARD ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def dashboard(request):
     """
     GET /api/compliance/dashboard/
@@ -140,7 +140,7 @@ def dashboard(request):
 # ========== COMPLIANCE REGISTER (CRUD) ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def items_list(request):
     """
     GET /api/compliance/items/
@@ -159,7 +159,7 @@ def items_list(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def items_create(request):
     """
     POST /api/compliance/items/create/
@@ -185,7 +185,7 @@ def items_create(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def items_detail(request, item_id):
     """GET /api/compliance/items/<id>/"""
     try:
@@ -197,7 +197,7 @@ def items_detail(request, item_id):
 
 
 @api_view(['DELETE'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def items_delete(request, item_id):
     """DELETE /api/compliance/items/<id>/delete/"""
     try:
@@ -210,7 +210,7 @@ def items_delete(request, item_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def mark_complete(request, item_id):
     """
     POST /api/compliance/items/<id>/complete/
@@ -267,7 +267,7 @@ def mark_complete(request, item_id):
 # ========== CALENDAR ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def calendar_data(request):
     """
     GET /api/compliance/calendar/?year=2026&month=2
@@ -314,7 +314,7 @@ def calendar_data(request):
 # ========== ACCIDENT LOG ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def accidents_list(request):
     """GET /api/compliance/accidents/"""
     tenant = getattr(request, 'tenant', None)
@@ -327,7 +327,7 @@ def accidents_list(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def accidents_create(request):
     """POST /api/compliance/accidents/create/"""
     d = request.data
@@ -359,7 +359,7 @@ def accidents_create(request):
 
 
 @api_view(['DELETE'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def accidents_delete(request, accident_id):
     """DELETE /api/compliance/accidents/<id>/delete/"""
     try:
@@ -372,7 +372,7 @@ def accidents_delete(request, accident_id):
 
 
 @api_view(['PATCH'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def accidents_update(request, accident_id):
     """PATCH /api/compliance/accidents/<id>/update/"""
     try:
@@ -396,7 +396,7 @@ def accidents_update(request, accident_id):
 # ========== EXISTING ENDPOINTS (preserved) ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def breakdown(request):
     """GET /api/compliance/breakdown/"""
     item_type_filter = request.query_params.get('type')
@@ -433,7 +433,7 @@ def breakdown(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def priority_actions(request):
     """GET /api/compliance/priorities/"""
     tenant = getattr(request, 'tenant', None)
@@ -466,7 +466,7 @@ def priority_actions(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def categories_list(request):
     """GET /api/compliance/categories/"""
     tenant = getattr(request, 'tenant', None)
@@ -478,7 +478,7 @@ def categories_list(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def audit_log(request):
     """GET /api/compliance/audit-log/"""
     limit = int(request.query_params.get('limit', 20))
@@ -502,7 +502,7 @@ def audit_log(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def recalculate(request):
     """POST /api/compliance/recalculate/"""
     tenant = getattr(request, 'tenant', None)
@@ -521,7 +521,7 @@ def recalculate(request):
 # ========== VISUAL DASHBOARD V2 ENDPOINTS ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def dashboard_v2(request):
     """
     GET /api/compliance/dashboard-v2/
@@ -660,7 +660,7 @@ def _why_label(item):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def wiggum(request):
     """
     GET /api/compliance/wiggum/
@@ -773,7 +773,7 @@ def daysUntil_py(date_val, today):
 # ========== NATURAL LANGUAGE PARSE ==========
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def parse_command(request):
     """
     POST /api/compliance/parse-command/
@@ -871,7 +871,7 @@ def _serialize_incident(inc):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def incidents_list(request):
     """GET /api/compliance/incidents/"""
     tenant = getattr(request, 'tenant', None)
@@ -882,7 +882,7 @@ def incidents_list(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def incidents_create(request):
     """POST /api/compliance/incidents/create/"""
     d = request.data
@@ -900,7 +900,7 @@ def incidents_create(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def incidents_status(request, incident_id):
     """POST /api/compliance/incidents/<id>/status/"""
     try:
@@ -952,7 +952,7 @@ def _serialize_rams(r, full=False):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def rams_list(request):
     """GET = list all RAMS, POST = create new RAMS"""
     tenant = getattr(request, 'tenant', None)
@@ -991,7 +991,7 @@ def rams_list(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def rams_detail(request, rams_id):
     """GET/PATCH/DELETE a single RAMS document"""
     tenant = getattr(request, 'tenant', None)
@@ -1023,7 +1023,7 @@ def rams_detail(request, rams_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def rams_ai_review(request, rams_id):
     """POST /api/compliance/rams/<id>/ai-review/ — run AI safety review"""
     tenant = getattr(request, 'tenant', None)
@@ -1218,7 +1218,7 @@ def _json_to_text(obj):
 # ========== COMPLIANCE DOCUMENTS ==========
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def compliance_documents_list(request):
     """GET /api/compliance/documents/"""
     tenant = getattr(request, 'tenant', None)
