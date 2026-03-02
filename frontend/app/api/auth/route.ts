@@ -4,7 +4,14 @@ import { COOKIE_NAME } from '@/lib/auth'
 const DJANGO_API = process.env.DJANGO_BACKEND_URL || 'https://nbneplatform-production.up.railway.app'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    // Fallback: parse from text if .json() fails (middleware body interference)
+    const text = await request.text()
+    body = JSON.parse(text)
+  }
   const { action } = body
 
   // Logout
