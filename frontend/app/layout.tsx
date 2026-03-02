@@ -28,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <script dangerouslySetInnerHTML={{ __html: `
-          // Nuke all service workers and caches on every load
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(regs) {
               regs.forEach(function(r) { r.unregister(); });
@@ -39,30 +38,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               names.forEach(function(n) { caches.delete(n); });
             });
           }
-          // Monkey-patch fetch to cache-bust ALL /api/ requests.
-          // This runs BEFORE React hydrates, so even old cached JS bundles
-          // will have their API calls cache-busted, defeating Chrome HTTP cache.
-          (function() {
-            var _origFetch = window.fetch;
-            window.fetch = function(input, init) {
-              var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
-              if (url.indexOf('/api/') !== -1) {
-                var sep = url.indexOf('?') !== -1 ? '&' : '?';
-                var busted = url + sep + '_cb=' + Date.now();
-                init = Object.assign({}, init || {}, { cache: 'no-store' });
-                console.log('[FETCH-PATCH]', busted.substring(0, 150));
-                return _origFetch.call(this, busted, init).then(function(resp) {
-                  if (url.indexOf('staff') !== -1) {
-                    resp.clone().text().then(function(t) {
-                      console.log('[STAFF-RESP]', t.substring(0, 200));
-                    });
-                  }
-                  return resp;
-                });
-              }
-              return _origFetch.call(this, input, init);
-            };
-          })();
         `}} />
         <Providers>{children}</Providers>
       </body>
