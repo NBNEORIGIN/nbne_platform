@@ -25,7 +25,7 @@ function LoginForm() {
   const [resetLoading, setResetLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/app'
+  const redirect = searchParams.get('redirect') || '/portal'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,7 +55,7 @@ function LoginForm() {
         if (role === 'owner' || role === 'manager') {
           router.push(redirect.startsWith('/admin') ? redirect : '/admin')
         } else if (role === 'staff') {
-          router.push(redirect.startsWith('/app') ? redirect : '/app')
+          router.push(redirect.startsWith('/portal') ? redirect : '/portal')
         } else {
           router.push('/')
         }

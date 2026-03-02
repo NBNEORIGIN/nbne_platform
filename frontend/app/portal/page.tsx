@@ -75,15 +75,15 @@ export default function StaffDashboard() {
         <div>
           <h2 style={{ marginBottom: '1rem' }}>Quick Links</h2>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
-            <a href="/app/chat" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
+            <a href="/portal/chat" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
               <span style={{ fontSize: '1.5rem' }}>💬</span>
               <div><strong>Team Chat</strong><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{channelCount} channels</div></div>
             </a>
-            <a href="/app/hse" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
+            <a href="/portal/hse" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
               <span style={{ fontSize: '1.5rem' }}>🛡️</span>
               <div><strong>Health & Safety</strong><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Compliance dashboard</div></div>
             </a>
-            <a href="/app/leave" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
+            <a href="/portal/leave" className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'var(--color-text)' }}>
               <span style={{ fontSize: '1.5rem' }}>🏖️</span>
               <div><strong>Request Leave</strong><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{pendingLeave.length} pending</div></div>
             </a>

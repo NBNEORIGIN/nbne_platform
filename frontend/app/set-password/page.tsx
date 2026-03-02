@@ -41,7 +41,7 @@ export default function SetPasswordPage() {
     if (role === 'owner' || role === 'manager') {
       router.push('/admin')
     } else if (role === 'staff') {
-      router.push('/app')
+      router.push('/portal')
     } else {
       router.push('/')
     }

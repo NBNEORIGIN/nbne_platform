@@ -7,7 +7,7 @@ import { hasMinRole } from './lib/types'
 // Route → minimum role required
 const PROTECTED_ROUTES: { prefix: string; minRole: UserRole }[] = [
   { prefix: '/admin', minRole: 'manager' },
-  { prefix: '/app', minRole: 'staff' },
+  { prefix: '/portal', minRole: 'staff' },
 ]
 
 // Decode JWT payload without verification (cookie is httpOnly, Django enforces real auth)
@@ -96,7 +96,7 @@ export async function middleware(request: NextRequest) {
   // Enforce minimum role
   if (!hasMinRole(role, route.minRole)) {
     if (route.minRole === 'manager' && hasMinRole(role, 'staff')) {
-      return withNoCacheHeaders(NextResponse.redirect(new URL('/app', request.url)))
+      return withNoCacheHeaders(NextResponse.redirect(new URL('/portal', request.url)))
     }
     return withNoCacheHeaders(NextResponse.redirect(new URL('/', request.url)))
   }

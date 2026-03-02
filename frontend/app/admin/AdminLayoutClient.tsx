@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
         <div className="sidebar-footer">
-          <a href="/app" className="nav-item" style={{ opacity: 0.6, fontSize: '0.8rem' }}>
+          <a href="/portal" className="nav-item" style={{ opacity: 0.6, fontSize: '0.8rem' }}>
             <span className="nav-icon">👤</span>
             <span>Staff Portal</span>
           </a>

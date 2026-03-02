@@ -6,13 +6,13 @@ import { useTenant, hasModule } from '@/lib/tenant'
 import './staff.css'
 
 const NAV_ITEMS = [
-  { href: '/app', label: 'Dashboard', icon: '📊', module: 'staff' },
-  { href: '/app/shifts', label: 'My Shifts', icon: '📅', module: 'staff' },
-  { href: '/app/leave', label: 'Leave', icon: '🏖️', module: 'staff' },
-  { href: '/app/training', label: 'Training', icon: '🎓', module: 'staff' },
-  { href: '/app/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
-  { href: '/app/hse', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
-  { href: '/app/documents', label: 'Documents', icon: '📁', module: 'documents' },
+  { href: '/portal', label: 'Dashboard', icon: '📊', module: 'staff' },
+  { href: '/portal/shifts', label: 'My Shifts', icon: '📅', module: 'staff' },
+  { href: '/portal/leave', label: 'Leave', icon: '🏖️', module: 'staff' },
+  { href: '/portal/training', label: 'Training', icon: '🎓', module: 'staff' },
+  { href: '/portal/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
+  { href: '/portal/hse', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
+  { href: '/portal/documents', label: 'Documents', icon: '📁', module: 'documents' },
 ]
 
 export default function StaffLayoutClient({ children }: { children: React.ReactNode }) {
