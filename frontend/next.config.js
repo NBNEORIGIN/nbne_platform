@@ -1,12 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
   async headers() {
     return [
       {
         // Prevent Chrome from caching API proxy responses
-        source: '/api/django/:path*',
+        source: '/api/:path*',
         headers: [
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0' },
           { key: 'Pragma', value: 'no-cache' },

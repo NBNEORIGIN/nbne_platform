@@ -1,0 +1,13 @@
+node_modules
+.next
+__pycache__
+*.pyc
+.git
+.env
+*.sqlite3
+media/
+staticfiles/
+RND/
+docs/
+*.md
+nbne_stress_test*.py

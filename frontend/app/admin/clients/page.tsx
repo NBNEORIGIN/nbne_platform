@@ -282,7 +282,8 @@ export default function AdminClientsPage() {
   const pipelineValue = leads.filter(l => !['CONVERTED', 'LOST'].includes(l.status)).reduce((s: number, l: any) => s + (l.value_pence || 0), 0)
 
   // CSV export URL
-  const exportUrl = `/api/django/crm/leads/export/${filter !== 'ALL' ? `?status=${filter}` : ''}`
+  const apiPrefix = process.env.NEXT_PUBLIC_API_PREFIX || '/api'
+  const exportUrl = `${apiPrefix}/crm/leads/export/${filter !== 'ALL' ? `?status=${filter}` : ''}`
 
   // --- Inline edit cell renderer ---
   function EditableCell({ lead, field, display, type = 'text' }: { lead: any; field: string; display: React.ReactNode; type?: string }) {

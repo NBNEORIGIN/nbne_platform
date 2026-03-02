@@ -72,8 +72,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const cb = `_t=${Date.now()}`
     const qs = TENANT_SLUG ? `tenant=${TENANT_SLUG}&${cb}` : cb
-    // Use Vercel proxy — direct Railway calls have CORS header issues
-    const url = `/api/django/tenant/branding/?${qs}`
+    const apiPrefix = process.env.NEXT_PUBLIC_API_PREFIX || '/api'
+    const url = `${apiPrefix}/tenant/branding/?${qs}`
 
     fetch(url, { cache: 'no-store' })
       .then(r => r.json())

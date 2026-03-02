@@ -1,0 +1,98 @@
+# Per-client Docker Compose stack
+# Usage: cd /opt/nbne/instances/<client>/ && docker compose --env-file .env -f /opt/nbne/shared/docker/docker-compose.client.yml up -d --build
+#
+# Required .env vars: CLIENT_SLUG, DOMAIN, FRONTEND_PORT, BACKEND_PORT, DB_PASSWORD, SECRET_KEY
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CLIENT_SLUG}
+      POSTGRES_USER: nbne
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nbne -d ${CLIENT_SLUG}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: /opt/nbne/shared
+      dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgres://nbne:${DB_PASSWORD}@db:5432/${CLIENT_SLUG}
+      # Django
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${DOMAIN},localhost,backend
+      CORS_ALLOWED_ORIGINS: https://${DOMAIN}
+      CSRF_TRUSTED_ORIGINS: https://${DOMAIN}
+      PORT: "8000"
+      # Tenant
+      SEED_TENANT: ${CLIENT_SLUG:-}
+      SEED_ALL_TENANTS: ${SEED_ALL_TENANTS:-false}
+      # Email (IONOS SMTP)
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.ionos.co.uk}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: "True"
+      EMAIL_HOST_USER: ${EMAIL_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${EMAIL_USER:-noreply@nbne.uk}
+      # Reminder email (IONOS, separate credentials)
+      REMINDER_EMAIL_HOST: ${REMINDER_EMAIL_HOST:-smtp.ionos.co.uk}
+      REMINDER_EMAIL_PORT: ${REMINDER_EMAIL_PORT:-465}
+      REMINDER_EMAIL_USE_SSL: "True"
+      REMINDER_EMAIL_HOST_USER: ${REMINDER_EMAIL_USER:-}
+      REMINDER_EMAIL_HOST_PASSWORD: ${REMINDER_EMAIL_PASSWORD:-}
+      REMINDER_FROM_EMAIL: ${REMINDER_FROM_EMAIL:-}
+      # R2 media storage (Cloudflare)
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      # Stripe (per-client)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      FRONTEND_URL: https://${DOMAIN}
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Resend (fallback email)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT}:8000"
+
+  frontend:
+    build:
+      context: /opt/nbne/shared
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        # Build-time env vars (baked into JS bundle)
+        NEXT_PUBLIC_TENANT_SLUG: ${CLIENT_SLUG}
+        NEXT_PUBLIC_API_PREFIX: "/api"
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Runtime env vars (server-side proxy route)
+      DJANGO_BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_TENANT_SLUG: ${CLIENT_SLUG}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT}:3000"
+
+volumes:
+  pgdata:
+    driver: local

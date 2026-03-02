@@ -1,0 +1,46 @@
+# Multi-stage build for Next.js standalone output
+# Build args are injected at build time for NEXT_PUBLIC_* env vars
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci --ignore-scripts
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend/ ./
+
+# Build-time env vars (baked into the JS bundle)
+ARG NEXT_PUBLIC_TENANT_SLUG=""
+ARG NEXT_PUBLIC_API_PREFIX="/api"
+ARG NEXT_PUBLIC_API_BASE_URL=""
+
+ENV NEXT_PUBLIC_TENANT_SLUG=$NEXT_PUBLIC_TENANT_SLUG
+ENV NEXT_PUBLIC_API_PREFIX=$NEXT_PUBLIC_API_PREFIX
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Don't run as root
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy standalone output
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Runtime env vars (server-side only, read per-request)
+ENV DJANGO_BACKEND_URL=""
+ENV NEXT_PUBLIC_TENANT_SLUG=""
+
+USER nextjs
+EXPOSE 3000
+
+CMD ["node", "server.js"]

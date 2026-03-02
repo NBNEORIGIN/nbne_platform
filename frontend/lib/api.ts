@@ -3,9 +3,9 @@
 // Typed fetch helpers with JWT auth for Django backend
 // ============================================================
 
-// Always use Vercel proxy — direct Railway calls fail because Chrome CORS
-// strips X-Tenant-Slug header (Allow-Headers:* ignored with Allow-Credentials:true)
-const API_BASE = '/api/django'
+// On Hetzner: Nginx routes /api/* → Django directly, so API_BASE = '/api'
+// On Vercel: proxy route at /api/django/* does the same, set NEXT_PUBLIC_API_PREFIX=/api/django
+const API_BASE = process.env.NEXT_PUBLIC_API_PREFIX || '/api'
 
 // --- Demo tenant override (for /salon, /gym, /restaurant demo pages) ---
 let _demoTenantSlug: string | null = null
@@ -812,7 +812,7 @@ export async function deleteComplianceItem(id: number) {
 }
 
 export async function completeComplianceItemWithEvidence(id: number, formData: FormData) {
-  const res = await fetch(`/api/django/compliance/items/${id}/complete/`, { method: 'POST', body: formData })
+  const res = await fetch(`${API_BASE}/compliance/items/${id}/complete/`, { method: 'POST', body: formData })
   const data = await res.json()
   return { data, error: res.ok ? null : data.error || 'Failed' }
 }
@@ -904,7 +904,7 @@ export async function getDocumentCategories() {
 
 export async function createDocument(formData: FormData) {
   const token = getAccessToken()
-  const res = await fetch(`/api/django/documents/create/`, {
+  const res = await fetch(`${API_BASE}/documents/create/`, {
     method: 'POST',
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: formData,
@@ -916,7 +916,7 @@ export async function createDocument(formData: FormData) {
 
 export async function updateDocument(id: number, formData: FormData) {
   const token = getAccessToken()
-  const res = await fetch(`/api/django/documents/${id}/`, {
+  const res = await fetch(`${API_BASE}/documents/${id}/`, {
     method: 'PATCH',
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: formData,

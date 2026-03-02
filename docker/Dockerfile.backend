@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies for psycopg2
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libpq-dev gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY backend/ ./
+
+# Collect static files (non-fatal — may need DB env vars for some management commands)
+RUN SECRET_KEY=build-placeholder python manage.py collectstatic --noinput 2>/dev/null || true
+
+EXPOSE 8000
+
+# start.sh handles: migrate, seed, gunicorn
+CMD ["bash", "start.sh"]
