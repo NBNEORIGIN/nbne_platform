@@ -56,7 +56,7 @@ def api_index(request):
 # --- Core URL patterns (always enabled) ---
 urlpatterns = [
     path('', api_index, name='api_index'),
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     # JWT Auth (core)
     path('api/auth/login/', login_view, name='auth-login'),
     path('api/auth/me/', me_view, name='auth-me'),
