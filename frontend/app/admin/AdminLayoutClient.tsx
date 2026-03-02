@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useTenant, hasModule, TENANT_SLUG } from '@/lib/tenant'
 import AIChatPanel, { AIChatTrigger } from '@/components/AIChatPanel'
 import FeedbackWidget from '@/components/FeedbackWidget'
-import '../app/staff.css'
+import '../portal/staff.css'
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '📊', module: '_always' },
