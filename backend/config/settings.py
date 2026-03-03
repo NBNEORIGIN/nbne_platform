@@ -188,13 +188,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Media files (uploads)
-# On Railway, use a persistent volume mounted at /data/media.
-# Locally, fall back to ./media in the project directory.
-MEDIA_VOLUME_PATH = config('MEDIA_VOLUME_PATH', default='')
-if MEDIA_VOLUME_PATH:
-    MEDIA_ROOT = MEDIA_VOLUME_PATH
-else:
-    MEDIA_ROOT = BASE_DIR / 'media'
+# Local filesystem storage with Docker volume for persistence.
+MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
 MEDIA_URL = '/media/'
 
 # Whitenoise config

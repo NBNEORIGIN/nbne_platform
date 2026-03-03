@@ -95,9 +95,13 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-    # Media files -> R2 public URL
+    # Media files -> Django backend (local filesystem)
     location /media/ {
-        proxy_pass https://pub-0a37d1fed9c043aab8f7180d8b112489.r2.dev/;
+        proxy_pass http://127.0.0.1:${BP};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     # Everything else -> Next.js frontend
