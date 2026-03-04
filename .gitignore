@@ -21,3 +21,4 @@ Thumbs.db
 
 .vercel
 .env*.local
+docker/tmp/set-stripe.sh

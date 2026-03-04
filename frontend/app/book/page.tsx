@@ -115,10 +115,16 @@ function Calendar({ selectedDate, onSelect, availableDates }: {
   )
 }
 
-function BookPageInner() {
-  const tenant = useTenant()
+function BookPageSearchParams() {
   const searchParams = useSearchParams()
   const demoSlug = searchParams.get('demo') || ''
+  const payment = searchParams.get('payment') || ''
+  const bookingId = searchParams.get('booking_id') || ''
+  return <BookPageInner demoSlug={demoSlug} payment={payment} bookingId={bookingId} />
+}
+
+function BookPageInner({ demoSlug, payment, bookingId }: { demoSlug: string; payment: string; bookingId: string }) {
+  const tenant = useTenant()
   const bizName = demoSlug === 'salon-x' ? 'Salon X' : (tenant.business_name || 'Salon-X')
 
   const [services, setServices] = useState<any[]>([])
@@ -156,15 +162,16 @@ function BookPageInner() {
     // Ensure demo tenant is set before fetching
     if (demoSlug) setDemoTenant(demoSlug)
     getServices().then(r => { setServices(r.data || []); setLoadingServices(false) })
-    // Handle Stripe payment return
-    const payment = searchParams.get('payment')
-    const bookingId = searchParams.get('booking_id')
+  }, [demoSlug])
+
+  // Handle Stripe payment return
+  useEffect(() => {
     if (payment === 'success' && bookingId) {
       setConfirmed({ id: bookingId, payment_success: true })
     } else if (payment === 'cancelled' && bookingId) {
       setError('Payment was cancelled. Your booking has not been confirmed. Please try again.')
     }
-  }, [searchParams, demoSlug])
+  }, [payment, bookingId])
 
   // Available dates for calendar (next 60 days)
   const availableDates: string[] = []
@@ -647,7 +654,7 @@ function BookingFlowRouter() {
     case 'salon':
     case 'generic':
     default:
-      return <BookPageInner />
+      return <BookPageSearchParams />
   }
 }
 
