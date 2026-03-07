@@ -5,6 +5,7 @@ BUSINESS_TYPE_CHOICES = [
     ('salon', 'Salon / Beauty'),
     ('restaurant', 'Restaurant / Hospitality'),
     ('gym', 'Gym / Fitness'),
+    ('cafe', 'Café / Takeaway'),
     ('generic', 'Generic / Other'),
 ]
 

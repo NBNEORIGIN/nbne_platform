@@ -28,6 +28,9 @@ for t in salon-x restaurant-x health-club-x; do
   (python manage.py seed_demo --tenant "$t") || echo "WARNING: seed_demo ($t) failed"
 done
 
+echo "Seeding Pizza Shack X demo (orders module)..."
+(python manage.py seed_pizza_shack) || echo "WARNING: seed_pizza_shack failed"
+
 # Ensure live tenant settings exist (tenant record only, NO demo data)
 echo "Ensuring live tenant records exist..."
 (python manage.py ensure_tenant nbne) || echo "WARNING: ensure_tenant nbne failed"

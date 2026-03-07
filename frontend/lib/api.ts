@@ -1256,3 +1256,144 @@ export async function getPublicBlogPosts() {
 export async function getPublicBlogPost(slug: string) {
   return apiFetch<any>(`/cms/public/blog/${slug}/`)
 }
+
+// --- Orders Module ---
+
+// Public (no auth) — customer-facing
+export async function getOrderMenu() {
+  return apiFetch<any[]>('/orders/menu/')
+}
+export async function getOrderQueueStatus() {
+  return apiFetch<any>('/orders/queue-status/')
+}
+export async function placeOrder(data: {
+  customer_name: string
+  customer_phone?: string
+  customer_email?: string
+  notes?: string
+  payment_method?: string
+  source?: string
+  items: { menu_item_id: number; quantity: number; notes?: string }[]
+}) {
+  return apiFetch<any>('/orders/place/', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function getOrderStatus(orderRef: string) {
+  return apiFetch<any>(`/orders/status/${orderRef}/`)
+}
+
+// Kitchen display (authenticated)
+export async function getKitchenQueue(statusFilter?: string) {
+  const qs = statusFilter ? `?status=${statusFilter}` : ''
+  return apiFetch<any[]>(`/orders/kitchen/${qs}`)
+}
+export async function updateOrderStatus(orderId: number, status: string) {
+  return apiFetch<any>(`/orders/${orderId}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
+}
+export async function updateOrderNotes(orderId: number, data: { kitchen_notes?: string; payment_confirmed?: boolean; payment_method?: string }) {
+  return apiFetch<any>(`/orders/${orderId}/notes/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// Admin — menu CRUD
+export async function getMenuCategories(all?: boolean) {
+  const qs = all ? '?all=1' : ''
+  return apiFetch<any[]>(`/orders/menu-categories/${qs}`)
+}
+export async function createMenuCategory(data: any) {
+  return apiFetch<any>('/orders/menu-categories/', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function updateMenuCategory(id: number, data: any) {
+  return apiFetch<any>(`/orders/menu-categories/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+export async function deleteMenuCategory(id: number) {
+  return apiFetch<any>(`/orders/menu-categories/${id}/`, { method: 'DELETE' })
+}
+export async function getMenuItems(params?: { category?: number; all?: boolean }) {
+  const parts: string[] = []
+  if (params?.category) parts.push(`category=${params.category}`)
+  if (params?.all) parts.push('all=1')
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return apiFetch<any[]>(`/orders/menu-items/${qs}`)
+}
+export async function createMenuItem(data: any) {
+  return apiFetch<any>('/orders/menu-items/', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function updateMenuItem(id: number, data: any) {
+  return apiFetch<any>(`/orders/menu-items/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+export async function deleteMenuItem(id: number) {
+  return apiFetch<any>(`/orders/menu-items/${id}/`, { method: 'DELETE' })
+}
+export async function toggleMenuItemSoldOut(id: number) {
+  return apiFetch<any>(`/orders/menu-items/${id}/toggle_sold_out/`, { method: 'POST' })
+}
+
+// Admin — queue settings
+export async function getOrderQueueSettings() {
+  return apiFetch<any>('/orders/queue-settings/')
+}
+export async function updateOrderQueueSettings(data: any) {
+  return apiFetch<any>('/orders/queue-settings/', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// Admin — history & analytics
+export async function getOrderHistory(params?: { status?: string; date_from?: string; date_to?: string; source?: string; search?: string; limit?: number; offset?: number }) {
+  const parts: string[] = []
+  if (params?.status) parts.push(`status=${params.status}`)
+  if (params?.date_from) parts.push(`date_from=${params.date_from}`)
+  if (params?.date_to) parts.push(`date_to=${params.date_to}`)
+  if (params?.source) parts.push(`source=${params.source}`)
+  if (params?.search) parts.push(`search=${encodeURIComponent(params.search)}`)
+  if (params?.limit) parts.push(`limit=${params.limit}`)
+  if (params?.offset) parts.push(`offset=${params.offset}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return apiFetch<any>(`/orders/history/${qs}`)
+}
+export async function getOrdersToday() {
+  return apiFetch<any>('/orders/today/')
+}
+export async function getOrderDailySummary(days?: number) {
+  const qs = days ? `?days=${days}` : ''
+  return apiFetch<any[]>(`/orders/analytics/daily/${qs}`)
+}
+export async function getOrderItemSales(params?: { days?: number; menu_item?: number }) {
+  const parts: string[] = []
+  if (params?.days) parts.push(`days=${params.days}`)
+  if (params?.menu_item) parts.push(`menu_item=${params.menu_item}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return apiFetch<any[]>(`/orders/analytics/items/${qs}`)
+}
+
+// Smart analytics & procurement
+export async function getOrderDemandPrediction(date?: string) {
+  const qs = date ? `?date=${date}` : ''
+  return apiFetch<any>(`/orders/analytics/predict/${qs}`)
+}
+export async function getOrderWeekPrediction(start?: string) {
+  const qs = start ? `?start=${start}` : ''
+  return apiFetch<any[]>(`/orders/analytics/predict/week/${qs}`)
+}
+export async function getOrderProcurement(params?: { start?: string; days?: number }) {
+  const parts: string[] = []
+  if (params?.start) parts.push(`start=${params.start}`)
+  if (params?.days) parts.push(`days=${params.days}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return apiFetch<any>(`/orders/analytics/procurement/${qs}`)
+}
+export async function getOrderHolidayCalendar(year?: number) {
+  const qs = year ? `?year=${year}` : ''
+  return apiFetch<any>(`/orders/analytics/holidays/${qs}`)
+}
+export async function getOrderSalesTrends(days?: number) {
+  const qs = days ? `?days=${days}` : ''
+  return apiFetch<any>(`/orders/analytics/trends/${qs}`)
+}
+export async function getOrderPopularItems(params?: { days?: number; limit?: number }) {
+  const parts: string[] = []
+  if (params?.days) parts.push(`days=${params.days}`)
+  if (params?.limit) parts.push(`limit=${params.limit}`)
+  const qs = parts.length ? `?${parts.join('&')}` : ''
+  return apiFetch<any>(`/orders/analytics/popular/${qs}`)
+}
+export async function rebuildOrderSummaries(from_date: string, to_date: string) {
+  return apiFetch<any>('/orders/analytics/rebuild-summaries/', { method: 'POST', body: JSON.stringify({ from_date, to_date }) })
+}

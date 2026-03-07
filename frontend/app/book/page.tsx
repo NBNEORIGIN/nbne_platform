@@ -651,6 +651,9 @@ function BookingFlowRouter() {
       return <RestaurantBookingFlow />
     case 'gym':
       return <GymBookingFlow />
+    case 'cafe':
+      if (typeof window !== 'undefined') window.location.href = '/order'
+      return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Redirecting to order page...</div>
     case 'salon':
     case 'generic':
     default:

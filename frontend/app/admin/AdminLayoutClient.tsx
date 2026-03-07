@@ -16,6 +16,8 @@ const NAV_ITEMS = [
   { href: '/admin/service-windows', label: 'Service Windows', icon: '🕐', module: 'bookings', businessType: 'restaurant' },
   { href: '/admin/class-types', label: 'Class Types', icon: '🏋️', module: 'bookings', businessType: 'gym' },
   { href: '/admin/timetable', label: 'Timetable', icon: '📆', module: 'bookings', businessType: 'gym' },
+  { href: '/admin/orders', label: 'Orders & Menu', icon: '🍕', module: 'orders', businessType: 'cafe' },
+  { href: '/admin/kitchen', label: 'Kitchen Display', icon: '🔥', module: 'orders', businessType: 'cafe' },
   { href: '/admin/staff', label: 'Staff', icon: '👥', module: 'staff' },
   { href: '/admin/clients', label: 'CRM', icon: '📋', module: 'crm' },
   { href: '/admin/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
