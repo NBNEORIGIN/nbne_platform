@@ -87,7 +87,7 @@ class Order(models.Model):
         ('walkin', 'Walk-in'),
     ]
 
-    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='orders')
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='food_orders')
     # Public-facing order reference (short, human-readable)
     order_ref = models.CharField(max_length=10, db_index=True)
     # Customer details (no login required)

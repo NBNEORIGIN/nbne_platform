@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                 ('cancelled_at', models.DateTimeField(blank=True, null=True)),
                 ('data_origin', models.CharField(choices=[('REAL', 'Real'), ('DEMO', 'Demo')], db_index=True, default='REAL', max_length=4)),
                 ('demo_seed_id', models.UUIDField(blank=True, db_index=True, null=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='orders', to='tenants.tenantsettings')),
+                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='food_orders', to='tenants.tenantsettings')),
             ],
             options={
                 'ordering': ['-placed_at'],
