@@ -38,8 +38,11 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 # Runtime env vars (server-side only, read per-request)
+# DJANGO_BACKEND_URL is set by docker-compose at runtime
 ENV DJANGO_BACKEND_URL=""
-ENV NEXT_PUBLIC_TENANT_SLUG=""
+# NEXT_PUBLIC_TENANT_SLUG: baked into client JS at build time via ARG above.
+# For server-side routes (e.g. /api/auth), docker-compose sets this at runtime.
+# Do NOT set a default here — it would override the docker-compose value.
 
 USER nextjs
 EXPOSE 3000

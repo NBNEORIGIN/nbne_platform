@@ -160,6 +160,49 @@ def place_order(request):
     order.calculate_totals()
     order.save()
 
+    # Stripe checkout for card payments
+    if order.payment_method == 'card':
+        from django.conf import settings as django_settings
+        stripe_key = getattr(django_settings, 'STRIPE_SECRET_KEY', '')
+        if stripe_key:
+            try:
+                import stripe as stripe_lib
+                stripe_lib.api_key = stripe_key
+                origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER', '')
+                if origin:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(origin)
+                    frontend_url = f'{parsed.scheme}://{parsed.netloc}'
+                else:
+                    frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:3000')
+
+                checkout_session = stripe_lib.checkout.Session.create(
+                    payment_method_types=['card'],
+                    line_items=[{
+                        'price_data': {
+                            'currency': 'gbp',
+                            'product_data': {
+                                'name': f'Order #{order.order_ref}',
+                                'description': ', '.join(
+                                    f'{oi["quantity"]}x {oi["menu_item"].name}' for oi in order_items
+                                ),
+                            },
+                            'unit_amount': order.total_pence,
+                        },
+                        'quantity': 1,
+                    }],
+                    mode='payment',
+                    customer_email=order.customer_email or None,
+                    success_url=f'{frontend_url}/order?payment=success&order_ref={order.order_ref}',
+                    cancel_url=f'{frontend_url}/order?payment=cancelled&order_ref={order.order_ref}',
+                    metadata={'order_id': str(order.id), 'order_ref': order.order_ref},
+                )
+                response_data = OrderSerializer(order).data
+                response_data['checkout_url'] = checkout_session.url
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            except Exception:
+                pass  # Stripe failed — fall through to normal response
+
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

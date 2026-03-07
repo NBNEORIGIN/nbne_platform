@@ -35,10 +35,12 @@ function WaitBadge({ minutes }: { minutes: number }) {
 function OrderSearchParams() {
   const searchParams = useSearchParams()
   const demoSlug = searchParams.get('demo') || ''
-  return <OrderPageInner demoSlug={demoSlug} />
+  const paymentStatus = searchParams.get('payment') || ''
+  const paymentOrderRef = searchParams.get('order_ref') || ''
+  return <OrderPageInner demoSlug={demoSlug} paymentStatus={paymentStatus} paymentOrderRef={paymentOrderRef} />
 }
 
-function OrderPageInner({ demoSlug }: { demoSlug: string }) {
+function OrderPageInner({ demoSlug, paymentStatus, paymentOrderRef }: { demoSlug: string; paymentStatus: string; paymentOrderRef: string }) {
   const tenant = useTenant()
   const accent = tenant.colour_primary || '#dc2626'
   const bizName = tenant.business_name || 'Order'
@@ -74,6 +76,18 @@ function OrderPageInner({ demoSlug }: { demoSlug: string }) {
     if (demoSlug) setDemoTenant(demoSlug)
     return () => { setDemoTenant(null) }
   }, [demoSlug])
+
+  // Handle Stripe payment return
+  useEffect(() => {
+    if (paymentStatus === 'success' && paymentOrderRef) {
+      getOrderStatus(paymentOrderRef).then(r => {
+        if (r.data) {
+          setConfirmedOrder(r.data)
+          setStep('confirmation')
+        }
+      })
+    }
+  }, [paymentStatus, paymentOrderRef])
 
   // Load menu + queue status
   useEffect(() => {
@@ -152,6 +166,9 @@ function OrderPageInner({ demoSlug }: { demoSlug: string }) {
     setSubmitting(false)
     if (result.error) {
       setError(result.error)
+    } else if (result.data?.checkout_url) {
+      // Stripe checkout — redirect to payment page
+      window.location.href = result.data.checkout_url
     } else {
       setConfirmedOrder(result.data)
       setStep('confirmation')
@@ -535,8 +552,9 @@ const inputStyle: React.CSSProperties = {
 }
 
 const radioStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-  cursor: 'pointer', fontSize: '0.95rem',
+  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+  cursor: 'pointer', fontSize: '0.95rem', borderRadius: 8,
+  margin: '0 0 4px', transition: 'background 0.15s',
 }
 
 const qtyBtnStyle: React.CSSProperties = {
