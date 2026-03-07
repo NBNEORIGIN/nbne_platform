@@ -95,9 +95,9 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderCreateSerializer(serializers.Serializer):
     """Serializer for creating a new order from the customer-facing page."""
     customer_name = serializers.CharField(max_length=200)
-    customer_phone = serializers.CharField(max_length=50, required=False, default='')
-    customer_email = serializers.CharField(max_length=200, required=False, default='')
-    notes = serializers.CharField(required=False, default='')
+    customer_phone = serializers.CharField(max_length=50, required=False, default='', allow_blank=True)
+    customer_email = serializers.CharField(max_length=200, required=False, default='', allow_blank=True)
+    notes = serializers.CharField(required=False, default='', allow_blank=True)
     payment_method = serializers.ChoiceField(
         choices=['card', 'cash', 'bank_transfer'],
         default='cash',
