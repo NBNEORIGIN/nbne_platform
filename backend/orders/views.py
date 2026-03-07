@@ -83,7 +83,15 @@ def place_order(request):
 
     serializer = OrderCreateSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Flatten DRF validation errors into a readable string
+        errors = serializer.errors
+        parts = []
+        for field, msgs in errors.items():
+            if isinstance(msgs, list):
+                parts.append(f"{field}: {', '.join(str(m) for m in msgs)}")
+            else:
+                parts.append(f"{field}: {msgs}")
+        return Response({'error': '; '.join(parts) or 'Validation error', 'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
 
     data = serializer.validated_data
     items_data = data['items']
