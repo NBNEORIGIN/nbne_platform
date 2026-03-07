@@ -161,14 +161,21 @@ class Command(BaseCommand):
         self.stdout.write(f'  Tenant: {"created" if created else "updated"}')
 
         # 2. Create demo users
+        user_names = {
+            'pizza-shack-x-owner': ('Marco', 'Rossi'),
+            'pizza-shack-x-staff1': ('Elena', 'Costa'),
+        }
         for username, role in [('pizza-shack-x-owner', 'owner'), ('pizza-shack-x-staff1', 'staff')]:
+            first, last = user_names[username]
             user, ucreated = User.objects.update_or_create(
                 username=username,
                 defaults={
                     'email': f'{username}@demo.nbne.uk',
                     'role': role,
                     'tenant': tenant,
-                    'name': username.replace('-', ' ').title(),
+                    'first_name': first,
+                    'last_name': last,
+                    'is_staff': True,
                 },
             )
             if ucreated:
